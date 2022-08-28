@@ -1,0 +1,27 @@
+{
+  "name": "gatool-api",
+  "version": "3.0.0",
+  "repository": "https://github.com/arthurlockman/gatool",
+  "private": true,
+  "author": "James Lockman, Arthur Rosa",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "@azure/identity": "^2.1.0",
+    "@azure/identity-vscode": "^1.0.0",
+    "@azure/keyvault-secrets": "^4.5.1",
+    "debug": "~2.6.9",
+    "express": "~4.16.1",
+    "express-oauth2-jwt-bearer": "^1.1.0",
+    "got": "^12.3.1",
+    "lodash": "^4.17.21",
+    "morgan": "~1.9.1"
+  },
+  "devDependencies": {
+    "dotenv": "^16.0.1",
+    "nodemon": "^2.0.19"
+  }
+}
