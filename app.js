@@ -6,6 +6,7 @@ import { auth } from 'express-oauth2-jwt-bearer'
 
 import { router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
+import { GetUserPreferences } from './utils/storageUtils.js'
 
 var app = express()
 
@@ -30,6 +31,8 @@ app.use((_, res, next) => {
 })
 
 app.use('/v3', v3Router)
+
+await GetUserPreferences()
 
 const port = process.env.PORT ?? 3000;
 app.listen(port, () => console.log(`gatool running on port ${port}`))

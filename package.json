@@ -13,6 +13,7 @@
     "@azure/identity": "^2.1.0",
     "@azure/identity-vscode": "^1.0.0",
     "@azure/keyvault-secrets": "^4.5.1",
+    "@azure/storage-blob": "^12.11.0",
     "debug": "~2.6.9",
     "express": "~4.16.1",
     "express-oauth2-jwt-bearer": "^1.1.0",
