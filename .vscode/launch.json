@@ -11,7 +11,10 @@
             "skipFiles": [
                 "<node_internals>/**"
             ],
-            "program": "${workspaceFolder}/app.js"
+            "program": "${workspaceFolder}/app.js",
+            "env": {
+                "ENABLE_VSCODE_DEBUG": "true"
+            }
         }
     ]
 }

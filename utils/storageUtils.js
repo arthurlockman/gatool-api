@@ -7,14 +7,15 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(
 )
 
 const userPrefsContainer = blobServiceClient.getContainerClient('gatool-user-preferences')
+const teamUpdatesContainer = blobServiceClient.getContainerClient('gatool-team-updates')
 
 /**
  * Get stored user preferences.
  * @param userName The username to retrieve.
  */
 export const GetUserPreferences = async (userName) => {
-    var userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`);
-    var content = await userBlob.download(0);
+    var userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`)
+    var content = await userBlob.download(0)
     return await streamToString(content.readableStreamBody)
 }
 
@@ -24,8 +25,28 @@ export const GetUserPreferences = async (userName) => {
  * @param preferences The preferences to store.
  */
 export const StoreUserPreferences = async (userName, preferences) => {
-    var userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`);
+    var userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`)
     await userBlob.upload(preferences, preferences.length)
+}
+
+/**
+ * Get all stored team updates for a team
+ * @param teamNumber The team number to get updates for
+ */
+ export const GetTeamUpdates = async (teamNumber) => {
+    var userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
+    var content = await userBlob.download(0)
+    return await streamToString(content.readableStreamBody)
+}
+
+/**
+ * Store a team update blob
+ * @param teamNumber the team number
+ * @param data the update data to store
+ */
+ export const StoreTeamUpdates = async (teamNumber, data) => {
+    var userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
+    await userBlob.upload(data, data.length)
 }
 
 const streamToString = (stream) => {

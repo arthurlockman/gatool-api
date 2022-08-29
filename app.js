@@ -32,7 +32,5 @@ app.use((_, res, next) => {
 
 app.use('/v3', v3Router)
 
-await GetUserPreferences()
-
 const port = process.env.PORT ?? 3000;
 app.listen(port, () => console.log(`gatool running on port ${port}`))
