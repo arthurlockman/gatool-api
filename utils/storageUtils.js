@@ -26,7 +26,8 @@ export const GetUserPreferences = async (userName) => {
  */
 export const StoreUserPreferences = async (userName, preferences) => {
     var userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`)
-    await userBlob.upload(preferences, preferences.length)
+    var data = JSON.stringify(preferences)
+    await userBlob.upload(data, data.length)
 }
 
 /**
@@ -46,7 +47,8 @@ export const StoreUserPreferences = async (userName, preferences) => {
  */
  export const StoreTeamUpdates = async (teamNumber, data) => {
     var userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
-    await userBlob.upload(data, data.length)
+    var d = JSON.stringify(data)
+    await userBlob.upload(d, d.length)
 }
 
 const streamToString = (stream) => {
