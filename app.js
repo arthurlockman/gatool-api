@@ -3,25 +3,30 @@ import 'dotenv/config'
 import express from 'express'
 import morgan from 'morgan'
 import { auth } from 'express-oauth2-jwt-bearer'
+import { unless } from 'express-unless'
 
 import { router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
-import { GetUserPreferences } from './utils/storageUtils.js'
 
 var app = express()
-
-app.get('/liveCheck', (_, res) => {
-  res.json({ message: `I'm alive!` })
-})
-
-app.use(auth({
+var auth0 = auth({
   issuerBaseURL: await ReadSecret('Auth0Issuer'),
   audience: await ReadSecret('Auth0Audience'),
 
+})
+auth0.unless = unless
+
+app.use(auth0.unless({
+  path:['/livecheck']
 }))
+
 app.use(morgan('dev'))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }))
+
+app.get('/livecheck', (_, res) => {
+  res.json({ message: `I'm alive!` })
+})
 
 app.use((_, res, next) => {
   res.append('Access-Control-Allow-Origin', ['*'])
