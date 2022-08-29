@@ -17,7 +17,7 @@ var auth0 = auth({
 auth0.unless = unless
 
 app.use(auth0.unless({
-  path:['/livecheck']
+  path:['/livecheck', '/v3/admin/updateHighScores']
 }))
 
 app.use(morgan('dev'))

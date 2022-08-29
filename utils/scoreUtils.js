@@ -32,7 +32,7 @@ const FindHighestScore = (matches) => {
  * @param level The score level
  * @param match The score match data
  */
- const BuildHighScoreJson = (year, type, level, match) => {
+const BuildHighScoreJson = (year, type, level, match) => {
     return {
         yearType: year + type + level,
         year: year,
@@ -42,4 +42,4 @@ const FindHighestScore = (matches) => {
     }
 }
 
-export {FindHighestScore, BuildHighScoreJson}
+export { FindHighestScore, BuildHighScoreJson }
