@@ -15,6 +15,7 @@ const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
 // Routes
 
 router.get('/:year/teams', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=600')
     if (req.query === null) {
         res.code(400)
         res.send({ message: 'You must supply query parameters.' })
@@ -52,16 +53,19 @@ router.get('/:year/teams', async (req, res) => {
 })
 
 router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`)
     res.json(response.body)
 })
 
 router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/matches/${req.params.eventCode}/${req.params.tournamentLevel}`)
     res.json(response.body)
 })
 
 router.get('/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     const schedule = await BuildHybridSchedule(req.params.year, req.params.eventCode, req.params.tournamentLevel)
     res.json({
         Schedule: schedule
@@ -69,16 +73,19 @@ router.get('/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res
 })
 
 router.get('/:year/awards/event/:eventCode', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=300')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/event/${req.params.eventCode}`)
     res.json(response.body)
 })
 
 router.get('/:year/events', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=86400')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/events`)
     res.json(response.body)
 })
 
 router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     let response = undefined
     if (req.params.start === req.params.end) {
         response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/${req.params.tournamentLevel}?matchNumber=${req.params.start}`)
@@ -89,6 +96,7 @@ router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, 
 })
 
 router.get('/team/:teamNumber/updates', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     try {
         var updates = await GetTeamUpdates(req.params.teamNumber)
         res.json(JSON.parse(updates))
@@ -104,6 +112,7 @@ router.put('/team/:teamNumber/updates', async (req, res) => {
 })
 
 router.get('/team/:teamNumber/awards', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=300')
     const currentSeason = parseInt(frcCurrentSeason, 10)
     let currentYearAwards, pastYearAwards,
         secondYearAwards
@@ -130,16 +139,19 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
 })
 
 router.get('/team/:teamNumber/appearances', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=3600')
     var response = await requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/events`)
     res.json(response.body)
 })
 
 router.get('/:year/awards/team/:teamNumber', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=300')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/team/${req.params.teamNumber}`)
     res.json(response.body)
 })
 
 router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=2629800')
     try {
         const avatar = await requestUtils.GetDataFromFIRST(
             `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`)
@@ -160,16 +172,19 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
 })
 
 router.get('/:year/rankings/:eventCode', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
     res.json(response.body)
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`)
     res.json(response.body)
 })
 
 router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=600')
     const response = await requestUtils.GetDataFromTBA(`event/${req.params.eventCode}/teams`)
     const teams = response.body
     teams.sort(function (a, b) {
@@ -207,6 +222,7 @@ router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
 })
 
 router.get('/:year/offseason/events', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=86400')
     const response = await requestUtils.GetDataFromTBA(`events/${req.params.year}`)
     const events = response.body
     const result = []
@@ -246,6 +262,7 @@ router.get('/:year/offseason/events', async (req, res) => {
 })
 
 router.get('/:year/district/rankings/:districtCode', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=86400')
     const query = []
     query.push(`districtCode=${req.params.districtCode}`)
     if (req.query) {
@@ -273,6 +290,7 @@ router.get('/:year/district/rankings/:districtCode', async (req, res) => {
 })
 
 router.get('/:year/highscores/:eventCode', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=600')
     const eventList = await requestUtils.GetDataFromFIRST(`${req.params.year}/events/`)
     const evtList = eventList.body.Events.filter(evt => evt.code === req.params.eventCode)
     if (evtList.length !== 1) {
@@ -346,6 +364,7 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
 })
 
 router.get('/:year/highscores', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=600')
     var scores = await GetHighScores(req.params.year)
     res.json(scores)
 })
@@ -358,6 +377,7 @@ router.get('/admin/updateHighScores', async (_, res) => {
 // User Data Storage
 
 router.get('/user/preferences', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
     try {
         var email = req.auth.payload.email
         var prefs = await GetUserPreferences(email)
