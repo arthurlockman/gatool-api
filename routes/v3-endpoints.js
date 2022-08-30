@@ -34,7 +34,6 @@ router.get('/:year/teams', async (req, res) => {
     }
     const teamData = await requestUtils.GetDataFromFIRST(`${req.params.year}/teams?${query.join('&')}&page=1`)
     if (teamData.body.pageTotal === 1) {
-        res.header('cache-control', teamData.headers['cache-control'])
         res.json(teamData.body)
         return
     } else {
@@ -48,20 +47,17 @@ router.get('/:year/teams', async (req, res) => {
             teamData.body.teams = teamData.body.teams.concat(team.body.teams)
         })
         teamData.body.pageTotal = 1
-        res.header('cache-control', teamData.headers['cache-control'])
         res.json(teamData.body)
     }
 })
 
 router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`)
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
 router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/matches/${req.params.eventCode}/${req.params.tournamentLevel}`)
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
@@ -74,13 +70,11 @@ router.get('/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res
 
 router.get('/:year/awards/event/:eventCode', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/event/${req.params.eventCode}`)
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
 router.get('/:year/events', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/events`)
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
@@ -91,7 +85,6 @@ router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, 
     } else {
         response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/${req.params.tournamentLevel}?start=${req.params.start}&end=${req.params.end}`)
     }
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
@@ -138,13 +131,11 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
 
 router.get('/team/:teamNumber/appearances', async (req, res) => {
     var response = requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/events`)
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
 router.get('/:year/awards/team/:teamNumber', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/team/${req.params.teamNumber}`)
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
@@ -170,13 +161,11 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
 
 router.get('/:year/rankings/:eventCode', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`, 'v2.0') // TODO: migrate to V3
-    res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
 })
 
@@ -266,14 +255,7 @@ router.get('/:year/district/rankings/:districtCode', async (req, res) => {
         }
     }
     const rankingData = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/district?${query.join('&')}&page=1`)
-    if (rankingData.body.statusCode) {
-        res.header('cache-control', rankingData.headers['cache-control'])
-        res.status(rankingData.body.statusCode).json(rankingData.body.message)
-        res.header('cache-control', rankingData.headers['cache-control'])
-        res.json(rankingData.body)
-    }
     if (rankingData.body.pageTotal === 1) {
-        res.header('cache-control', rankingData.headers['cache-control'])
         res.json(rankingData.body)
     } else {
         const promises = []
@@ -286,7 +268,6 @@ router.get('/:year/district/rankings/:districtCode', async (req, res) => {
             rankingData.body.districtRanks = rankingData.body.districtRanks.concat(districtRank.body.districtRanks)
         })
         rankingData.body.pageTotal = 1
-        res.header('cache-control', rankingData.headers['cache-control'])
         res.json(rankingData.body)
     }
 })
