@@ -108,17 +108,17 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
     let currentYearAwards, pastYearAwards,
         secondYearAwards
     try {
-        currentYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason}/awards/${req.params.teamNumber}`, 'v2.0')
+        currentYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason}/awards/team/${req.params.teamNumber}`)
     } catch (_) {
         currentYearAwards = null
     }
     try {
-        pastYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 1}/awards/${req.params.teamNumber}`, 'v2.0')
+        pastYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 1}/awards/team/${req.params.teamNumber}`)
     } catch (_) {
         pastYearAwards = null
     }
     try {
-        secondYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 2}/awards/${req.params.teamNumber}`, 'v2.0')
+        secondYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 2}/awards/team/${req.params.teamNumber}`)
     } catch (_) {
         secondYearAwards = null
     }
@@ -165,7 +165,7 @@ router.get('/:year/rankings/:eventCode', async (req, res) => {
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`, 'v2.0') // TODO: migrate to V3
+    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`)
     res.json(response.body)
 })
 
