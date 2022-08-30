@@ -17,6 +17,7 @@
     "@azure/storage-blob": "^12.11.0",
     "debug": "~2.6.9",
     "express": "~4.16.1",
+    "express-async-errors": "^3.1.1",
     "express-oauth2-jwt-bearer": "^1.1.0",
     "express-unless": "^2.1.1",
     "got": "^12.3.1",

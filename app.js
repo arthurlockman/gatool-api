@@ -5,6 +5,8 @@ import morgan from 'morgan'
 import { auth } from 'express-oauth2-jwt-bearer'
 import { unless } from 'express-unless'
 
+import 'express-async-errors'
+
 import { router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
 
@@ -38,9 +40,10 @@ app.use((_, res, next) => {
 app.use('/v3', v3Router)
 
 // Catch unhandled exceptions
-app.use(function(err, req, res) {
-  res.status(err.status || 500);
-  res.send(err.message)
+app.use(function(err, req, res, next) {
+  res.status(err?.response?.statusCode || 500)
+  res.json({ error: err.message })
+  next(err)
 });
 
 const port = process.env.PORT ?? 3000;
