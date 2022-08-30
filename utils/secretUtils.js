@@ -10,9 +10,7 @@ if (process.env.ENABLE_VSCODE_DEBUG === 'true') {
 var frcApiToken = undefined
 var tbaApiToken = undefined
 
-const credential = new DefaultAzureCredential( {
-
-})
+const credential = new DefaultAzureCredential()
 const keyVaultName = "GAToolApiKeys"
 const url = `https://${keyVaultName}.vault.azure.net`
 const azureKeyVaultClient = new SecretClient(url, credential)

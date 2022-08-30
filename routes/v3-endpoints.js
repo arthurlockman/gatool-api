@@ -108,17 +108,17 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
     let currentYearAwards, pastYearAwards,
         secondYearAwards
     try {
-        currentYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason}/awards/${req.params.teamNumber}`)
+        currentYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason}/awards/${req.params.teamNumber}`, 'v2.0')
     } catch (_) {
         currentYearAwards = null
     }
     try {
-        pastYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 1}/awards/${req.params.teamNumber}`)
+        pastYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 1}/awards/${req.params.teamNumber}`, 'v2.0')
     } catch (_) {
         pastYearAwards = null
     }
     try {
-        secondYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 2}/awards/${req.params.teamNumber}`)
+        secondYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 2}/awards/${req.params.teamNumber}`, 'v2.0')
     } catch (_) {
         secondYearAwards = null
     }
@@ -126,11 +126,11 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
     awardList[`${currentSeason}`] = currentYearAwards.body
     awardList[`${currentSeason - 1}`] = pastYearAwards.body
     awardList[`${currentSeason - 2}`] = secondYearAwards.body
-    res.json(response.body)
+    res.json(awardList)
 })
 
 router.get('/team/:teamNumber/appearances', async (req, res) => {
-    var response = requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/events`)
+    var response = await requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/events`)
     res.json(response.body)
 })
 
