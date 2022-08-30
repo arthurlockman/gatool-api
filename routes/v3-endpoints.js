@@ -75,6 +75,26 @@ router.get('/:year/awards/team/:teamNumber', async (req, res) => {
     res.json(response.body)
 })
 
+router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
+    try {
+        const avatar = await requestUtils.GetDataFromFIRST(
+            `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`)
+        const teamAvatar = avatar.body.teams[0]
+        if (teamAvatar.encodedAvatar == null) {
+            res.status(404)
+            res.json({ message: 'Avatar not found' })
+        }
+        res.setHeader('Content-Type', 'image/png')
+        res.setHeader('Charset', 'utf-8')
+        res.send(Buffer.from(teamAvatar.encodedAvatar, 'base64'))
+    } catch (e) {
+        const statusCode = e?.response?.statusCode ? parseInt(e.response.statusCode, 10) : 404
+        const message = e?.response?.body ? e.response.body : 'Avatar not found.'
+        res.status(statusCode)
+        res.json({ message: message })
+    }
+})
+
 router.get('/:year/rankings/:eventCode', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
     res.header('cache-control', response.headers['cache-control'])
@@ -189,8 +209,8 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
     res.json(highScoresData)
 })
 
-router.get('/:year/highscores', async (_, res) => {
-    var scores = await GetHighScores()
+router.get('/:year/highscores', async (req, res) => {
+    var scores = await GetHighScores(req.params.year)
     res.json(scores)
 })
 

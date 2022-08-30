@@ -19,7 +19,11 @@ var auth0 = auth({
 auth0.unless = unless
 
 app.use(auth0.unless({
-  path:['/livecheck', '/v3/admin/updateHighScores']
+  path:[
+    '/livecheck',
+    '/v3/admin/updateHighScores',
+    /.*avatar\.png/
+  ]
 }))
 
 app.use(morgan('dev'))
