@@ -45,7 +45,7 @@ app.use('/v3', v3Router)
 
 // Catch unhandled exceptions
 app.use(function(err, req, res, next) {
-  res.status(err?.response?.statusCode || 500)
+  res.status(err?.statusCode || err?.response?.statusCode || 500)
   res.json({ error: err.message })
   next(err)
 });

@@ -1,4 +1,4 @@
-import express from 'express'
+import express, { request } from 'express'
 import * as requestUtils from '../utils/requestUtils.js'
 import * as scoreUtils from '../utils/scoreUtils.js'
 export var router = express.Router()
@@ -10,7 +10,48 @@ import {
 } from '../utils/storageUtils.js'
 import { ReadSecret } from '../utils/secretUtils.js'
 
+const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
+
 // Routes
+
+router.get('/:year/teams', async (req, res) => {
+    if (req.query === null) {
+        res.code(400)
+        res.send({ message: 'You must supply query parameters.' })
+    }
+    const eventCode = req.query.eventCode
+    const districtCode = req.query.districtCode
+    const teamNumber = req.query.teamNumber
+    const query = []
+    if (eventCode) {
+        query.push(`eventCode=${eventCode}`)
+    }
+    if (districtCode) {
+        query.push(`districtCode=${districtCode}`)
+    }
+    if (teamNumber) {
+        query.push(`teamNumber=${teamNumber}`)
+    }
+    const teamData = await requestUtils.GetDataFromFIRST(`${req.params.year}/teams?${query.join('&')}&page=1`)
+    if (teamData.body.pageTotal === 1) {
+        res.header('cache-control', teamData.headers['cache-control'])
+        res.json(teamData.body)
+        return
+    } else {
+        const promises = []
+        for (let i = 2; i <= teamData.body.pageTotal; i++) {
+            promises.push(requestUtils.GetDataFromFIRST(`${req.params.year}/teams?${query.join('&')}&page=${i}`))
+        }
+        const allTeamData = await Promise.all(promises)
+        allTeamData.map(team => {
+            teamData.body.teamCountPage += team.body.teamCountPage
+            teamData.body.teams = teamData.body.teams.concat(team.body.teams)
+        })
+        teamData.body.pageTotal = 1
+        res.header('cache-control', teamData.headers['cache-control'])
+        res.json(teamData.body)
+    }
+})
 
 router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`)
@@ -69,6 +110,38 @@ router.put('/team/:teamNumber/updates', async (req, res) => {
     res.status(204).send()
 })
 
+router.get('/team/:teamNumber/awards', async (req, res) => {
+    const currentSeason = parseInt(frcCurrentSeason, 10)
+    let currentYearAwards, pastYearAwards,
+        secondYearAwards
+    try {
+        currentYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason}/awards/${req.params.teamNumber}`)
+    } catch (_) {
+        currentYearAwards = null
+    }
+    try {
+        pastYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 1}/awards/${req.params.teamNumber}`)
+    } catch (_) {
+        pastYearAwards = null
+    }
+    try {
+        secondYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 2}/awards/${req.params.teamNumber}`)
+    } catch (_) {
+        secondYearAwards = null
+    }
+    const awardList = {}
+    awardList[`${currentSeason}`] = currentYearAwards.body
+    awardList[`${currentSeason - 1}`] = pastYearAwards.body
+    awardList[`${currentSeason - 2}`] = secondYearAwards.body
+    res.json(response.body)
+})
+
+router.get('/team/:teamNumber/appearances', async (req, res) => {
+    var response = requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/events`)
+    res.header('cache-control', response.headers['cache-control'])
+    res.json(response.body)
+})
+
 router.get('/:year/awards/team/:teamNumber', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/team/${req.params.teamNumber}`)
     res.header('cache-control', response.headers['cache-control'])
@@ -99,6 +172,88 @@ router.get('/:year/rankings/:eventCode', async (req, res) => {
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
     res.header('cache-control', response.headers['cache-control'])
     res.json(response.body)
+})
+
+router.get('/:year/alliances/:eventCode', async (req, res) => {
+    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`, 'v2.0') // TODO: migrate to V3
+    res.header('cache-control', response.headers['cache-control'])
+    res.json(response.body)
+})
+
+router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
+    const response = await requestUtils.GetDataFromTBA(`event/${req.params.eventCode}/teams`)
+    const teams = response.body
+    teams.sort(function (a, b) {
+        return parseInt(a.team_number, 10) - parseInt(b.team_number, 10)
+    })
+    const result = []
+    for (let i = 1; i < teams.length; i++) {
+        try {
+            const tmp = {
+                'teamNumber': teams[i].team_number,
+                'nameFull': teams[i].name,
+                'nameShort': teams[i].nickname,
+                'schoolName': null,
+                'city': teams[i].city,
+                'stateProv': teams[i].state_prov,
+                'country': teams[i].country,
+                'website': teams[i].website,
+                'rookieYear': teams[i].rookie_year,
+                'robotName': null,
+                'districtCode': null,
+                'homeCMP': null
+            }
+            result.push(tmp)
+        } catch (ex) {
+            console.error(`Error parsing event data: ${JSON.stringify(teams[i])}`)
+        }
+    }
+    res.json({
+        'teams': result,
+        'teamCountTotal': result.length,
+        'teamCountPage': result.length,
+        'pageCurrent': 1,
+        'pageTotal': 1
+    })
+})
+
+router.get('/:year/offseason/events', async (req, res) => {
+    const response = await requestUtils.GetDataFromTBA(`events/${req.params.year}`)
+    const events = response.body
+    const result = []
+    for (let i = 1; i < events.length; i++) {
+        try {
+            if (events[i].event_type_string === 'Offseason') {
+                let address = 'no address, no city, no state, no country'
+                if (!!events[i].address) {
+                    address = events[i].address
+                }
+                const tmp = {
+                    'code': events[i].key,
+                    'divisionCode': events[i].event_code,
+                    'name': events[i].short_name,
+                    'type': events[i].event_type_string,
+                    'districtCode': events[i].event_district_string,
+                    'venue': events[i].location_name,
+                    'address': address.split(', ')[0],
+                    'city': address.split(', ')[1],
+                    'stateprov': address.split(', ')[2],
+                    'country': address.split(', ')[3],
+                    'website': events[i].website,
+                    'timezone': events[i].timezone,
+                    'dateStart': events[i].start_date,
+                    'dateEnd': events[i].end_date
+                }
+                result.push(tmp)
+            }
+        } catch (ex) {
+            console.error(`Error parsing event data: ${JSON.stringify(events[i])}`)
+        }
+    }
+    res.json({
+        'Events': result,
+        'eventCount': result.length
+    })
 })
 
 router.get('/:year/district/rankings/:districtCode', async (req, res) => {
@@ -215,7 +370,6 @@ router.get('/:year/highscores', async (req, res) => {
 })
 
 router.get('/admin/updateHighScores', async (_, res) => {
-    const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
     const eventList = await requestUtils.GetDataFromFIRST(`${frcCurrentSeason}/events`)
     const promises = []
     const order = []
