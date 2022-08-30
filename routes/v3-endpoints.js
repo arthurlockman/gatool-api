@@ -351,6 +351,49 @@ router.get('/:year/highscores', async (req, res) => {
 })
 
 router.get('/admin/updateHighScores', async (_, res) => {
+    await UpdateHighScores()
+    res.status(204).send()
+})
+
+// User Data Storage
+
+router.get('/user/preferences', async (req, res) => {
+    try {
+        var email = req.auth.payload.email
+        var prefs = await GetUserPreferences(email)
+        res.json(JSON.parse(prefs))
+    } catch (e) {
+        console.error(e)
+        res.status(404).send()
+    }
+})
+
+router.put('/user/preferences', async (req, res) => {
+    var email = req.auth.payload.email
+    await StoreUserPreferences(email, req.body)
+    res.status(204).send()
+})
+
+
+// Helper functions
+
+const BuildHybridSchedule = async (year, eventCode, tournamentLevel) => {
+    const scheduleResponse = await requestUtils.GetDataFromFIRST(`${year}/schedule/${eventCode}/${tournamentLevel}`)
+    let matchesResponse
+    try {
+        matchesResponse = await requestUtils.GetDataFromFIRST(`${year}/matches/${eventCode}/${tournamentLevel}`)
+    } catch (e) {
+        return scheduleResponse.body.Schedule
+    }
+    const schedule = scheduleResponse.body.Schedule
+    const matches = matchesResponse.body.Matches
+
+    _.merge(schedule, matches)
+
+    return schedule
+}
+
+export const UpdateHighScores = async () => {
     const eventList = await requestUtils.GetDataFromFIRST(`${frcCurrentSeason}/events`)
     const promises = []
     const order = []
@@ -435,44 +478,4 @@ router.get('/admin/updateHighScores', async (_, res) => {
     highScorePromises.push(StoreHighScores(frcCurrentSeason, 'offsetting', 'qual',
         scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual)))
     await Promise.all(highScorePromises)
-
-    res.status(204).send()
-})
-
-// User Data Storage
-
-router.get('/user/preferences', async (req, res) => {
-    try {
-        var email = req.auth.payload.email
-        var prefs = await GetUserPreferences(email)
-        res.json(JSON.parse(prefs))
-    } catch (e) {
-        console.error(e)
-        res.status(404).send()
-    }
-})
-
-router.put('/user/preferences', async (req, res) => {
-    var email = req.auth.payload.email
-    await StoreUserPreferences(email, req.body)
-    res.status(204).send()
-})
-
-
-// Helper functions
-
-const BuildHybridSchedule = async (year, eventCode, tournamentLevel) => {
-    const scheduleResponse = await requestUtils.GetDataFromFIRST(`${year}/schedule/${eventCode}/${tournamentLevel}`)
-    let matchesResponse
-    try {
-        matchesResponse = await requestUtils.GetDataFromFIRST(`${year}/matches/${eventCode}/${tournamentLevel}`)
-    } catch (e) {
-        return scheduleResponse.body.Schedule
-    }
-    const schedule = scheduleResponse.body.Schedule
-    const matches = matchesResponse.body.Matches
-
-    _.merge(schedule, matches)
-
-    return schedule
 }
