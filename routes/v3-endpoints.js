@@ -132,9 +132,9 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
         secondYearAwards = null
     }
     const awardList = {}
-    awardList[`${currentSeason}`] = currentYearAwards.body
-    awardList[`${currentSeason - 1}`] = pastYearAwards.body
-    awardList[`${currentSeason - 2}`] = secondYearAwards.body
+    awardList[`${currentSeason}`] = currentYearAwards?.body
+    awardList[`${currentSeason - 1}`] = pastYearAwards?.body
+    awardList[`${currentSeason - 2}`] = secondYearAwards?.body
     res.json(awardList)
 })
 
@@ -369,9 +369,14 @@ router.get('/:year/highscores', async (req, res) => {
     res.json(scores)
 })
 
-router.get('/admin/updateHighScores', async (_, res) => {
-    await UpdateHighScores()
-    res.status(204).send()
+router.get('/admin/updateHighScores', async (req, res) => {
+    const token = await ReadSecret('HighScoreUpdateAPIKey')
+    if (req.header('API_KEY') === token) {
+        await UpdateHighScores()
+        res.status(204).send()
+    } else {
+        res.status(401).send()
+    }
 })
 
 // User Data Storage

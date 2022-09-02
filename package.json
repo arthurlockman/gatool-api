@@ -23,7 +23,6 @@
     "got": "^12.3.1",
     "lodash": "^4.17.21",
     "morgan": "~1.9.1",
-    "node-cron": "^3.0.2"
   },
   "devDependencies": {
     "dotenv": "^16.0.1",

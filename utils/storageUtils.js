@@ -9,9 +9,6 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(
 const userPrefsContainer = blobServiceClient.getContainerClient('gatool-user-preferences')
 const teamUpdatesContainer = blobServiceClient.getContainerClient('gatool-team-updates')
 const highScoresContainer = blobServiceClient.getContainerClient('gatool-high-scores')
-const semaphoresContainer = blobServiceClient.getContainerClient('gatool-semaphores')
-
-let hashighScoreLock = false
 
 /**
  * Get stored user preferences.
@@ -80,36 +77,6 @@ export const GetHighScores = async (year) => {
         r = r.concat(JSON.parse(await streamToString(c.readableStreamBody)))
     }
     return r
-}
-
-/**
- * Returns true if this instance was able to acquire lock
- */
-export const AcquireHighScoresLock = async () => {
-    let blob = semaphoresContainer.getBlockBlobClient('high-scores-semaphore.json')
-    if (await blob.exists()) {
-        console.log('Could not acquire lock on high score semaphore, blob exists')
-        return false
-    } else {
-        const c = "lock"
-        await blob.upload(c, c.length)
-        hashighScoreLock = true
-        console.log('Acquired lock on high score semaphore')
-        return true
-    }
-}
-
-export const ReleaseHighScoresLock = async () => {
-    if (hashighScoreLock) {
-        let blob = semaphoresContainer.getBlockBlobClient('high-scores-semaphore.json')
-        await blob.delete({
-            deleteSnapshots: "include"
-        })
-        hashighScoreLock = false
-        console.log('Released lock on high score semaphore')
-    } else {
-        console.log('Does not have the lock on the high score sem, taking no action to release it')
-    }
 }
 
 const streamToString = (stream) => {
