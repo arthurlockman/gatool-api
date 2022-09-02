@@ -8,7 +8,6 @@ import 'express-async-errors'
 
 import { router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
-import { AcquireHighScoresLock, ReleaseHighScoresLock } from './utils/storageUtils.js'
 
 var app = express()
 var auth0 = auth({
@@ -22,7 +21,7 @@ app.use(auth0.unless({
   path:[
     '/livecheck',
     /.*avatar\.png/,
-    '/admin/updateHighScores'
+    '/v3/admin/updateHighScores'
   ]
 }))
 
