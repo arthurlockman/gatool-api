@@ -132,9 +132,9 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
         secondYearAwards = null
     }
     const awardList = {}
-    awardList[`${currentSeason}`] = currentYearAwards?.body
-    awardList[`${currentSeason - 1}`] = pastYearAwards?.body
-    awardList[`${currentSeason - 2}`] = secondYearAwards?.body
+    awardList[`${currentSeason}`] = currentYearAwards ? currentYearAwards.body : null
+    awardList[`${currentSeason - 1}`] = pastYearAwards ? pastYearAwards.body : null
+    awardList[`${currentSeason - 2}`] = secondYearAwards ? secondYearAwards.body : null
     res.json(awardList)
 })
 
