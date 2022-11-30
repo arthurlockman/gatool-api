@@ -12,6 +12,38 @@ import { ReadSecret } from '../utils/secretUtils.js'
 
 const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
 
+// Common data getters
+
+const GetTeams = async (year, eventCode = null, districtCode = null, teamNumber = null) => {
+    const query = []
+    if (eventCode) {
+        query.push(`eventCode=${eventCode}`)
+    }
+    if (districtCode) {
+        query.push(`districtCode=${districtCode}`)
+    }
+    if (teamNumber) {
+        query.push(`teamNumber=${teamNumber}`)
+    }
+    const teamData = await requestUtils.GetDataFromFIRST(`${year}/teams?${query.join('&')}&page=1`)
+    if (teamData.body.pageTotal === 1) {
+        return teamData.body;
+        return
+    } else {
+        const promises = []
+        for (let i = 2; i <= teamData.body.pageTotal; i++) {
+            promises.push(requestUtils.GetDataFromFIRST(`${year}/teams?${query.join('&')}&page=${i}`))
+        }
+        const allTeamData = await Promise.all(promises)
+        allTeamData.map(team => {
+            teamData.body.teamCountPage += team.body.teamCountPage
+            teamData.body.teams = teamData.body.teams.concat(team.body.teams)
+        })
+        teamData.body.pageTotal = 1
+        return teamData.body;
+    }
+}
+
 // Routes
 
 router.get('/:year/teams', async (req, res) => {
@@ -23,33 +55,7 @@ router.get('/:year/teams', async (req, res) => {
     const eventCode = req.query.eventCode
     const districtCode = req.query.districtCode
     const teamNumber = req.query.teamNumber
-    const query = []
-    if (eventCode) {
-        query.push(`eventCode=${eventCode}`)
-    }
-    if (districtCode) {
-        query.push(`districtCode=${districtCode}`)
-    }
-    if (teamNumber) {
-        query.push(`teamNumber=${teamNumber}`)
-    }
-    const teamData = await requestUtils.GetDataFromFIRST(`${req.params.year}/teams?${query.join('&')}&page=1`)
-    if (teamData.body.pageTotal === 1) {
-        res.json(teamData.body)
-        return
-    } else {
-        const promises = []
-        for (let i = 2; i <= teamData.body.pageTotal; i++) {
-            promises.push(requestUtils.GetDataFromFIRST(`${req.params.year}/teams?${query.join('&')}&page=${i}`))
-        }
-        const allTeamData = await Promise.all(promises)
-        allTeamData.map(team => {
-            teamData.body.teamCountPage += team.body.teamCountPage
-            teamData.body.teams = teamData.body.teams.concat(team.body.teams)
-        })
-        teamData.body.pageTotal = 1
-        res.json(teamData.body)
-    }
+    return res.json(await GetTeams(req.params.year, eventCode, districtCode, teamNumber));
 })
 
 router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
@@ -93,6 +99,19 @@ router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, 
         response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/${req.params.tournamentLevel}?start=${req.params.start}&end=${req.params.end}`)
     }
     res.json(response.body)
+})
+
+router.get('/:year/communityUpdates/:eventCode/', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    const teamList = await GetTeams(req.params.year, req.params.eventCode);
+    const teamData = await Promise.all(teamList.teams.map(async (t) => {
+        try {
+            return {teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber))};
+        } catch (e) {
+            return {teamNumber: t.teamNumber, updates: null};
+        }
+    }))
+    res.json(teamData);
 })
 
 router.get('/team/:teamNumber/updates', async (req, res) => {
