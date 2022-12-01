@@ -101,7 +101,7 @@ router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, 
     res.json(response.body)
 })
 
-router.get('/:year/communityUpdates/:eventCode/', async (req, res) => {
+router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     const teamList = await GetTeams(req.params.year, req.params.eventCode);
     const teamData = await Promise.all(teamList.teams.map(async (t) => {
