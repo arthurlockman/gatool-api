@@ -20,10 +20,19 @@ auth0.unless = unless
 app.use(auth0.unless({
   path:[
     '/livecheck',
+    '/version',
     /.*avatar\.png/,
     '/v3/admin/updateHighScores'
   ]
 }))
+
+import * as fs from 'fs'
+var appVersion
+try {
+  appVersion = fs.readFileSync('version.txt', 'utf8')
+} catch {
+  appVersion = 'UNKNOWN'
+}
 
 app.use(morgan('dev'))
 app.use(express.json({ limit: '50mb' }))
@@ -31,6 +40,10 @@ app.use(express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 5000
 
 app.get('/livecheck', (_, res) => {
   res.json({ message: `I'm alive!` })
+})
+
+app.get('/version', (_, res) => {
+  res.json({ sha: appVersion })
 })
 
 app.use((_, res, next) => {
