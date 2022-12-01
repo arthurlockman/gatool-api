@@ -29,7 +29,7 @@ app.use(auth0.unless({
 import * as fs from 'fs'
 var appVersion
 try {
-  appVersion = fs.readFileSync('version.txt', 'utf8')
+  appVersion = fs.readFileSync('version.txt', 'utf8').replace('\n', '')
 } catch {
   appVersion = 'UNKNOWN'
 }
