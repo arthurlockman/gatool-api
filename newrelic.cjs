@@ -10,10 +10,6 @@ exports.config = {
   * Array of application names.
   */
   app_name: ['gatool-api'],
-  /**
-  * Your New Relic license key.
-  */
-  license_key: 'a3bf348f95e67ae5011b007fc5589b11FFFFNRAL',
   logging: {
     /**
     * Level at which to log. 'trace' is most useful to New Relic when diagnosing
