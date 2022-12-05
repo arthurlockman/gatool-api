@@ -1,5 +1,7 @@
 import 'dotenv/config'
 
+import newrelic from 'newrelic'
+
 import express from 'express'
 import morgan from 'morgan'
 import { auth } from 'express-oauth2-jwt-bearer'
@@ -63,6 +65,11 @@ app.use(function(err, req, res, next) {
   res.json({ error: err.message })
   next(err)
 });
+
+newrelic.instrumentLoadedModule(
+  'express',
+  app
+);
 
 const port = process.env.PORT ?? 3000;
 app.listen(port, () => console.log(`gatool running on port ${port}`))
