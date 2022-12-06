@@ -19,6 +19,14 @@ exports.config = {
     level: 'info'
   },
   /**
+   * Enable log forwarding
+   */
+  application_logging: {
+    forwarding: {
+      enabled: true
+    }
+  },
+  /**
   * When true, all request headers except for those listed in attributes.exclude
   * will be captured for all traces, unless otherwise specified in a destination's
   * attributes include/exclude lists.

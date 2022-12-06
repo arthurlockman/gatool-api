@@ -478,7 +478,7 @@ export const UpdateHighScores = async () => {
                 }
             }
         } else {
-            console.log('Event', evt.eventCode, evt.type, 'has no schedule data, likely occurs in the future')
+            req.log.info('Event', evt.eventCode, evt.type, 'has no schedule data, likely occurs in the future')
         }
     }
     const overallHighScorePlayoff = []

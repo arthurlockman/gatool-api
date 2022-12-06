@@ -3,6 +3,8 @@ import 'dotenv/config'
 import newrelic from 'newrelic'
 
 import express from 'express'
+import pinoHTTP from 'pino-http'
+import logger from './logger.js'
 import morgan from 'morgan'
 import { auth } from 'express-oauth2-jwt-bearer'
 import { unless } from 'express-unless'
@@ -12,6 +14,8 @@ import { router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
 
 var app = express()
+app.use(pinoHTTP({logger}))
+
 var auth0 = auth({
   issuerBaseURL: await ReadSecret('Auth0Issuer'),
   audience: await ReadSecret('Auth0Audience'),
@@ -57,6 +61,11 @@ app.use((_, res, next) => {
   next()
 })
 
+app.use((err, _req, _res, next) => {
+  logger.error(err)
+  next()
+})
+
 app.use('/v3', v3Router)
 
 // Catch unhandled exceptions
@@ -72,4 +81,4 @@ newrelic.instrumentLoadedModule(
 );
 
 const port = process.env.PORT ?? 3000;
-app.listen(port, () => console.log(`gatool running on port ${port}`))
+app.listen(port, () => logger.info(`gatool running on port ${port}`))
