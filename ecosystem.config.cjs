@@ -3,7 +3,8 @@ module.exports = {
         name: 'GATool',
         script: 'app.js',
         env: {
-            'PORT': 80
+            'PORT': 8080,
+            'NODE_ENV': 'production'
         }
     }],
 
@@ -15,7 +16,7 @@ module.exports = {
             "ref": "origin/main",
             "repo": "https://github.com/arthurlockman/gatool-api",
             "path": "/home/gatool/pm2/gatool",
-            "post-deploy": "npm ci && pm2 startOrRestart ecosystem.config.cjs --env production && pm2 save"
+            "post-deploy": "cp ~/gatool.env .env && npm ci && pm2 startOrRestart ecosystem.config.cjs --env production && pm2 save"
         }
     }
 }
