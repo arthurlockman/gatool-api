@@ -25,4 +25,4 @@ jobs:
         run: npm i pm2
 
       - name: Deploy
-        run: npm run deploy
+        run: npm run deploy:production
