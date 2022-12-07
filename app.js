@@ -15,10 +15,13 @@ import { ReadSecret } from './utils/secretUtils.js'
 
 var app = express()
 
-var pino = pinoHTTP({logger})
+var pino = pinoHTTP({
+  logger,
+  redact: ['req.headers.authorization']
+})
 pino.unless = unless
 app.use(pino.unless({
-  path:[
+  path: [
     '/livecheck',
     '/version'
   ]
@@ -31,7 +34,7 @@ var auth0 = auth({
 })
 auth0.unless = unless
 
-app.options("/*", function(_req, res, next){
+app.options("/*", function (_req, res, next) {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
@@ -39,7 +42,7 @@ app.options("/*", function(_req, res, next){
 });
 
 app.use(auth0.unless({
-  path:[
+  path: [
     '/livecheck',
     '/version',
     /.*avatar\.png/,
@@ -84,7 +87,7 @@ app.use((err, _req, _res, next) => {
 app.use('/v3', v3Router)
 
 // Catch unhandled exceptions
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   res.status(err?.statusCode || err?.response?.statusCode || 500)
   res.json({ error: err.message })
   next(err)
