@@ -32,6 +32,15 @@ exports.config = {
   * attributes include/exclude lists.
   */
   allow_all_headers: true,
+  /**
+   * Ignore a few annoying transactions (livecheck, version, etc)
+   */
+  rules : {
+    ignore : [
+      'livecheck',
+      'version'
+    ]
+  },
   attributes: {
     /**
     * Prefix of attributes to exclude from all destinations. Allows * as wildcard

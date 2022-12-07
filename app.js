@@ -14,7 +14,15 @@ import { router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
 
 var app = express()
-app.use(pinoHTTP({logger}))
+
+var pino = pinoHTTP({logger})
+pino.unless = unless
+app.use(pino.unless({
+  path:[
+    '/livecheck',
+    '/version'
+  ]
+}))
 
 var auth0 = auth({
   issuerBaseURL: await ReadSecret('Auth0Issuer'),
