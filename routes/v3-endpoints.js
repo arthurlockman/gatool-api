@@ -3,6 +3,8 @@ import * as requestUtils from '../utils/requestUtils.js'
 import * as scoreUtils from '../utils/scoreUtils.js'
 export var router = express.Router()
 
+import logger from '../logger.js'
+
 import _ from 'lodash'
 import {
     GetTeamUpdates, GetUserPreferences, StoreTeamUpdates,
@@ -443,6 +445,7 @@ export const UpdateHighScores = async () => {
     const order = []
     const currentDate = new Date()
     currentDate.setDate(currentDate.getDate() + 1)
+    logger.info(`Found ${eventList.body.Events.length} events for ${frcCurrentSeason}`)
     for (const _event of eventList.body.Events) {
         const eventDate = new Date(_event.dateStart)
         if (eventDate < currentDate) {
@@ -464,6 +467,7 @@ export const UpdateHighScores = async () => {
     }
     const events = await Promise.all(promises)
     const matches = []
+    logger.info(`Retrieved data for ${events.length} events`)
     for (const _event of events) {
         const evt = order[events.indexOf(_event)]
         if (_event.length > 0) {
@@ -478,7 +482,7 @@ export const UpdateHighScores = async () => {
                 }
             }
         } else {
-            req.log.info('Event', evt.eventCode, evt.type, 'has no schedule data, likely occurs in the future')
+            logger.info('Event', evt.eventCode, evt.type, 'has no schedule data, likely occurs in the future')
         }
     }
     const overallHighScorePlayoff = []
@@ -487,6 +491,7 @@ export const UpdateHighScores = async () => {
     const penaltyFreeHighScoreQual = []
     const offsettingPenaltyHighScorePlayoff = []
     const offsettingPenaltyHighScoreQual = []
+    logger.info(`Found ${matches.length} total matches with data`)
     for (const match of matches) {
         if (match.event.type === 'playoff') {
             overallHighScorePlayoff.push(match)
