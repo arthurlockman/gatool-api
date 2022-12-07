@@ -17,9 +17,9 @@ jobs:
 
       - name: Add known hosts
         run: |
-          echo $(52.186.170.50) > ~/.ssh/known_hosts
-          echo $(20.163.169.27) > ~/.ssh/known_hosts
-          echo $(20.42.109.8) > ~/.ssh/known_hosts
+          echo $(ssh-keyscan 52.186.170.50) > ~/.ssh/known_hosts
+          echo $(ssh-keyscan 20.163.169.27) > ~/.ssh/known_hosts
+          echo $(ssh-keyscan 20.42.109.8) > ~/.ssh/known_hosts
 
       - name: Install PM2
         run: npm i pm2
