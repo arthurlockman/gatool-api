@@ -23,6 +23,13 @@ var auth0 = auth({
 })
 auth0.unless = unless
 
+app.options("/*", function(_req, res, next){
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+  res.send(200);
+});
+
 app.use(auth0.unless({
   path:[
     '/livecheck',
@@ -53,13 +60,6 @@ app.get('/version', (_, res) => {
   res.setHeader('Cache-Control', 'no-cache')
   res.json({ sha: appVersion })
 })
-
-app.options("/*", function(_req, res, next){
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
-  res.send(200);
-});
 
 app.use((_, res, next) => {
   res.append('Access-Control-Allow-Origin', ['*'])

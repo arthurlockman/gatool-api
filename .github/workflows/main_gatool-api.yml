@@ -27,20 +27,3 @@ jobs:
           npm run build --if-present
           npm run test --if-present
           npm run write-version --if-present
-
-      - name: "Deploy to Azure Web App"
-        id: deploy-to-webapp
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: "GATool-API"
-          slot-name: "Production"
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_A18391F8EC2143318ABAFFAD44C134DF }}
-          package: .
-
-      - name: Create New Relic deployment marker
-        uses: newrelic/deployment-marker-action@v1
-        with:
-          apiKey: ${{ secrets.NEW_RELIC_API_KEY }}
-          accountId: ${{ secrets.NEW_RELIC_ACCOUNT_ID }}
-          applicationId: ${{ secrets.NEW_RELIC_APPLICATION_ID }}
-          revision: "${{ github.ref }}-${{ github.sha }}"
