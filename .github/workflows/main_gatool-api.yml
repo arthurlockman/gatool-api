@@ -25,4 +25,4 @@ jobs:
         run: npm i pm2
 
       - name: Deploy
-        run: pm2 deploy ecosystem.config.cjs production
+        run: npm run deploy
