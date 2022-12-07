@@ -14,7 +14,7 @@ import { router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
 
 var app = express()
-app.use(pinoHTTP({logger}))
+app.use(pinoHTTP({ logger }))
 
 var auth0 = auth({
   issuerBaseURL: await ReadSecret('Auth0Issuer'),
@@ -24,7 +24,7 @@ var auth0 = auth({
 auth0.unless = unless
 
 app.use(auth0.unless({
-  path:[
+  path: [
     '/livecheck',
     '/version',
     /.*avatar\.png/,
@@ -58,6 +58,12 @@ app.use((_, res, next) => {
   res.append('Access-Control-Allow-Origin', ['*'])
   res.append('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE')
   res.append('Access-Control-Allow-Headers', 'Content-Type')
+
+  if ('OPTIONS' === req.method) {
+    //respond with 200
+    res.send(200);
+  }
+
   next()
 })
 
@@ -69,7 +75,7 @@ app.use((err, _req, _res, next) => {
 app.use('/v3', v3Router)
 
 // Catch unhandled exceptions
-app.use(function(err, req, res, next) {
+app.use(function (err, req, res, next) {
   res.status(err?.statusCode || err?.response?.statusCode || 500)
   res.json({ error: err.message })
   next(err)
