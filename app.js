@@ -63,7 +63,7 @@ app.use((_, res, next) => {
 
 app.use((err, _req, _res, next) => {
   logger.error(err)
-  next()
+  next(err)
 })
 
 app.use('/v3', v3Router)
