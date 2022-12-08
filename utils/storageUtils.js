@@ -8,6 +8,7 @@ const blobServiceClient = BlobServiceClient.fromConnectionString(
 
 const userPrefsContainer = blobServiceClient.getContainerClient('gatool-user-preferences')
 const teamUpdatesContainer = blobServiceClient.getContainerClient('gatool-team-updates')
+const teamUpdateHistoryContainer = blobServiceClient.getContainerClient('gatool-team-updates-history')
 const highScoresContainer = blobServiceClient.getContainerClient('gatool-high-scores')
 
 /**
@@ -42,11 +43,41 @@ export const GetTeamUpdates = async (teamNumber) => {
 }
 
 /**
+ * Get all historical update versions for a team
+ * @param teamNumber The team number to get update history for
+ */
+export const GetTeamUpdateHistory = async (teamNumber) => {
+    var iterator = teamUpdateHistoryContainer.listBlobsFlat({
+        prefix: `${teamNumber}/`
+    }).byPage({ maxPageSize: 1000 })
+    let response = (await iterator.next()).value
+    let r = []
+    for (const blob of response.segment.blobItems) {
+        var b = teamUpdateHistoryContainer.getBlockBlobClient(blob.name)
+        var c = await b.download(0)
+        var u = JSON.parse(await streamToString(c.readableStreamBody))
+        u.modifiedDate = blob.name.replace(`${teamNumber}/`, '').replace(`.json`, '')
+        r = r.concat(u)
+    }
+    return r
+}
+
+/**
  * Store a team update blob
  * @param teamNumber the team number
  * @param data the update data to store
  */
 export const StoreTeamUpdates = async (teamNumber, data) => {
+    try {
+        const blob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
+        const lastModifiedDate = (await blob.getProperties()).lastModified
+        const b = await blob.download(0)
+        const content = await streamToString(b.readableStreamBody)
+        const historyBlob = teamUpdateHistoryContainer.getBlockBlobClient(`${teamNumber}/${lastModifiedDate.toJSON()}.json`)
+        await historyBlob.upload(content, content.length)
+    } catch {
+        // No stored updates, continue without saving history
+    }
     var userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
     var d = JSON.stringify(data)
     await userBlob.upload(d, d.length)

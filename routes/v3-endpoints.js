@@ -8,7 +8,7 @@ import logger from '../logger.js'
 import _ from 'lodash'
 import {
     GetTeamUpdates, GetUserPreferences, StoreTeamUpdates,
-    StoreUserPreferences, StoreHighScores, GetHighScores
+    StoreUserPreferences, StoreHighScores, GetHighScores, GetTeamUpdateHistory
 } from '../utils/storageUtils.js'
 import { ReadSecret } from '../utils/secretUtils.js'
 
@@ -130,6 +130,11 @@ router.get('/team/:teamNumber/updates', async (req, res) => {
 router.put('/team/:teamNumber/updates', async (req, res) => {
     await StoreTeamUpdates(req.params.teamNumber, req.body)
     res.status(204).send()
+})
+
+router.get('/team/:teamNumber/updates/history', async (req, res) => {
+    const r = await GetTeamUpdateHistory(req.params.teamNumber)
+    res.json(r)
 })
 
 router.get('/team/:teamNumber/awards', async (req, res) => {
