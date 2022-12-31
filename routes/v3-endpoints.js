@@ -164,7 +164,7 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
     res.json(awardList)
 })
 
-router.get(':currentSeason/team/:teamNumber/awards', async (req, res) => {
+router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=300')
     //const currentSeason = parseInt(frcCurrentSeason, 10)
     let currentYearAwards, pastYearAwards,
