@@ -108,9 +108,9 @@ router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
     const teamList = await GetTeams(req.params.year, req.params.eventCode);
     const teamData = await Promise.all(teamList.teams.map(async (t) => {
         try {
-            return {teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber))};
+            return { teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber)) };
         } catch (e) {
-            return {teamNumber: t.teamNumber, updates: null};
+            return { teamNumber: t.teamNumber, updates: null };
         }
     }))
     res.json(teamData);
@@ -161,6 +161,33 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
     awardList[`${currentSeason}`] = currentYearAwards ? currentYearAwards.body : null
     awardList[`${currentSeason - 1}`] = pastYearAwards ? pastYearAwards.body : null
     awardList[`${currentSeason - 2}`] = secondYearAwards ? secondYearAwards.body : null
+    res.json(awardList)
+})
+
+router.get(':currentSeason/team/:teamNumber/awards', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=300')
+    //const currentSeason = parseInt(frcCurrentSeason, 10)
+    let currentYearAwards, pastYearAwards,
+        secondYearAwards
+    try {
+        currentYearAwards = await requestUtils.GetDataFromFIRST(`${req.params.currentSeason}/awards/team/${req.params.teamNumber}`)
+    } catch (_) {
+        currentYearAwards = null
+    }
+    try {
+        pastYearAwards = await requestUtils.GetDataFromFIRST(`${req.params.currentSeason - 1}/awards/team/${req.params.teamNumber}`)
+    } catch (_) {
+        pastYearAwards = null
+    }
+    try {
+        secondYearAwards = await requestUtils.GetDataFromFIRST(`${req.params.currentSeason - 2}/awards/team/${req.params.teamNumber}`)
+    } catch (_) {
+        secondYearAwards = null
+    }
+    const awardList = {}
+    awardList[`${req.params.currentSeason}`] = currentYearAwards ? currentYearAwards.body : null
+    awardList[`${req.params.currentSeason - 1}`] = pastYearAwards ? pastYearAwards.body : null
+    awardList[`${req.params.currentSeason - 2}`] = secondYearAwards ? secondYearAwards.body : null
     res.json(awardList)
 })
 
