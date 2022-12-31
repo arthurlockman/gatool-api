@@ -16,7 +16,7 @@ module.exports = {
             "ref": "origin/main",
             "repo": "https://github.com/arthurlockman/gatool-api",
             "path": "/home/gatool/pm2/gatool",
-            "post-deploy": "cp ~/gatool.env .env && npm ci && npm run write-version && pm2 startOrRestart ecosystem.config.cjs --env production && pm2 save"
+            "post-deploy": "cp ~/gatool.env .env && rm -rf ./node_modules && npm i && npm run write-version && pm2 startOrRestart ecosystem.config.cjs --env production && pm2 save"
         }
     }
 }
