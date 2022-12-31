@@ -62,3 +62,5 @@ typings/
 
 # tsc build output
 build
+
+package-lock.json
