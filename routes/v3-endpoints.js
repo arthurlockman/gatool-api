@@ -477,8 +477,8 @@ export const UpdateHighScores = async () => {
     const order = []
     const currentDate = new Date()
     currentDate.setDate(currentDate.getDate() + 1)
-    logger.info(`Found ${eventList.body.Events.length} events for ${frcCurrentSeason}`)
-    for (const _event of eventList.body.Events) {
+    logger.info(`Found ${eventList.body.events.length} events for ${frcCurrentSeason}`)
+    for (const _event of eventList.body.events) {
         const eventDate = new Date(_event.dateStart)
         if (eventDate < currentDate) {
             promises.push(BuildHybridSchedule(frcCurrentSeason, _event.code, 'qual').catch(_ => {
