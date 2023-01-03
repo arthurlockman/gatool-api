@@ -461,10 +461,10 @@ const BuildHybridSchedule = async (year, eventCode, tournamentLevel) => {
     try {
         matchesResponse = await requestUtils.GetDataFromFIRST(`${year}/matches/${eventCode}/${tournamentLevel}`)
     } catch (e) {
-        return scheduleResponse.body.Schedule
+        return scheduleResponse.body.Schedule || scheduleResponse.body.schedule
     }
-    const schedule = scheduleResponse.body.Schedule
-    const matches = matchesResponse.body.Matches
+    const schedule = scheduleResponse.body.schedule || scheduleResponse.body.Schedule
+    const matches = matchesResponse.body.matches || matchesResponse.body.Matches
 
     _.merge(schedule, matches)
 
