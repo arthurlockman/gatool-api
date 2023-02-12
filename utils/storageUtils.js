@@ -66,8 +66,9 @@ export const GetTeamUpdateHistory = async (teamNumber) => {
  * Store a team update blob
  * @param teamNumber the team number
  * @param data the update data to store
+ * @param email the email of the user making the update
  */
-export const StoreTeamUpdates = async (teamNumber, data) => {
+export const StoreTeamUpdates = async (teamNumber, data, email) => {
     try {
         const blob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
         const lastModifiedDate = (await blob.getProperties()).lastModified
@@ -79,6 +80,7 @@ export const StoreTeamUpdates = async (teamNumber, data) => {
         // No stored updates, continue without saving history
     }
     var userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
+    data.source = email
     var d = JSON.stringify(data)
     await userBlob.upload(d, d.length)
 }

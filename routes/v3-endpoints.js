@@ -128,7 +128,7 @@ router.get('/team/:teamNumber/updates', async (req, res) => {
 })
 
 router.put('/team/:teamNumber/updates', async (req, res) => {
-    await StoreTeamUpdates(req.params.teamNumber, req.body)
+    await StoreTeamUpdates(req.params.teamNumber, req.body, req.auth.payload.email)
     res.status(204).send()
 })
 
