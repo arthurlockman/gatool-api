@@ -103,6 +103,18 @@ router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, 
     res.json(response.body)
 })
 
+router.get('/:year/scores/:eventCode/playoff', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
+    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Playoff`)
+    res.json(response.body)
+})
+
+router.get('/:year/scores/:eventCode/qual', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
+    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Qual`)
+    res.json(response.body)
+})
+
 router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     const teamList = await GetTeams(req.params.year, req.params.eventCode);
