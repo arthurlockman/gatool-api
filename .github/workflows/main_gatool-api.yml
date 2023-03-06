@@ -1,4 +1,4 @@
-name: CI - Master
+name: Deploy GATool API
 on:
   push:
     branches: [main]
