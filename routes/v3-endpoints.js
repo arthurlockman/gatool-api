@@ -51,7 +51,7 @@ const GetTeams = async (year, eventCode = null, districtCode = null, teamNumber 
 router.get('/:year/teams', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=600')
     if (req.query === null) {
-        res.code(400)
+        res.statusCode = 400
         res.send({ message: 'You must supply query parameters.' })
     }
     const eventCode = req.query.eventCode
@@ -166,28 +166,29 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
 
 router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=300')
+    let currentSeason = parseInt(req.params.currentSeason, 10)
     //const currentSeason = parseInt(frcCurrentSeason, 10)
     let currentYearAwards, pastYearAwards,
         secondYearAwards
     try {
-        currentYearAwards = await requestUtils.GetDataFromFIRST(`${req.params.currentSeason}/awards/team/${req.params.teamNumber}`)
+        currentYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason}/awards/team/${req.params.teamNumber}`)
     } catch (_) {
         currentYearAwards = null
     }
     try {
-        pastYearAwards = await requestUtils.GetDataFromFIRST(`${req.params.currentSeason - 1}/awards/team/${req.params.teamNumber}`)
+        pastYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 1}/awards/team/${req.params.teamNumber}`)
     } catch (_) {
         pastYearAwards = null
     }
     try {
-        secondYearAwards = await requestUtils.GetDataFromFIRST(`${req.params.currentSeason - 2}/awards/team/${req.params.teamNumber}`)
+        secondYearAwards = await requestUtils.GetDataFromFIRST(`${currentSeason - 2}/awards/team/${req.params.teamNumber}`)
     } catch (_) {
         secondYearAwards = null
     }
     const awardList = {}
-    awardList[`${req.params.currentSeason}`] = currentYearAwards ? currentYearAwards.body : null
-    awardList[`${req.params.currentSeason - 1}`] = pastYearAwards ? pastYearAwards.body : null
-    awardList[`${req.params.currentSeason - 2}`] = secondYearAwards ? secondYearAwards.body : null
+    awardList[`${currentSeason}`] = currentYearAwards ? currentYearAwards.body : null
+    awardList[`${currentSeason - 1}`] = pastYearAwards ? pastYearAwards.body : null
+    awardList[`${currentSeason - 2}`] = secondYearAwards ? secondYearAwards.body : null
     res.json(awardList)
 })
 

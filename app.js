@@ -19,7 +19,9 @@ var pino = pinoHTTP({
   logger,
   redact: ['req.headers.authorization']
 })
+// @ts-ignore
 pino.unless = unless
+// @ts-ignore
 app.use(pino.unless({
   path: [
     '/livecheck',
@@ -32,6 +34,7 @@ var auth0 = auth({
   audience: await ReadSecret('Auth0Audience'),
 
 })
+// @ts-ignore
 auth0.unless = unless
 
 app.options("/*", function (_req, res, next) {
@@ -41,6 +44,7 @@ app.options("/*", function (_req, res, next) {
   res.send(200);
 });
 
+// @ts-ignore
 app.use(auth0.unless({
   path: [
     '/livecheck',
@@ -89,7 +93,14 @@ app.use('/v3', v3Router)
 // Catch unhandled exceptions
 app.use(function (err, req, res, next) {
   res.status(err?.statusCode || err?.response?.statusCode || 500)
-  res.json({ error: err.message })
+  if (err?.request?.requestUrl) {
+    const message = `Received error "${err.message}" from upstream ${err.request.options.method} ${err.request.requestUrl}`
+    logger.error(err, message)
+    res.json({ error: message })
+  } else {
+    logger.error(err)
+    res.json({ error: err.message })
+  }
   next(err)
 });
 
@@ -98,7 +109,7 @@ newrelic.instrumentLoadedModule(
   app
 );
 
-const port = process.env.PORT ?? 3000;
+const port = process.env.PORT ?? 3001;
 app.listen(port, () => {
   logger.info(`gatool running on port ${port}`)
   console.log(`gatool running on port ${port}`)
