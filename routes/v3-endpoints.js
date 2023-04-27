@@ -63,7 +63,7 @@ router.get('/:year/teams', async (req, res) => {
 router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`)
-    res.json(response.body)
+    res.json(response)
 })
 
 router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
