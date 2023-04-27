@@ -481,7 +481,6 @@ const BuildHybridSchedule = async (year, eventCode, tournamentLevel) => {
     const headers = { schedule: scheduleResponse.headers, matches: matchesResponse.headers }
 
     _.merge(schedule, matches)
-    schedule.headers = headers;
     return { schedule: schedule, headers: headers }
 }
 
