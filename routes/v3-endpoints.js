@@ -240,7 +240,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
 router.get('/:year/rankings/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
-    res.json(response.body)
+    res.json({rankings:response.body,headers:response.headers})
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
