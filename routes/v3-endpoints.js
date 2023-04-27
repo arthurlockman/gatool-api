@@ -480,10 +480,10 @@ const BuildHybridSchedule = async (year, eventCode, tournamentLevel) => {
     const matches = matchesResponse.body.matches || matchesResponse.body.Matches
 
     _.merge(schedule, matches)
-    
-    schedule.lastModified = {
-        "schedule": scheduleResponse?.headers["Last-Modified"],
-        "matches": matchesResponse?.headers["Last-Modified"]
+
+    schedule.headers = {
+        "schedule": scheduleResponse.get("Last-Modified"),
+        "matches": matchesResponse.get("Last-Modified")
     }
 
     return schedule
