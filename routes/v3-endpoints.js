@@ -63,7 +63,7 @@ router.get('/:year/teams', async (req, res) => {
 router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`)
-    res.json(response)
+    res.json(response.body)
 })
 
 router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
@@ -480,6 +480,11 @@ const BuildHybridSchedule = async (year, eventCode, tournamentLevel) => {
     const matches = matchesResponse.body.matches || matchesResponse.body.Matches
 
     _.merge(schedule, matches)
+    
+    schedule.lastModified = {
+        "schedule": scheduleResponse?.headers["Last-Modified"],
+        "matches": matchesResponse?.headers["Last-Modified"]
+    }
 
     return schedule
 }
