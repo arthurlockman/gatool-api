@@ -33,7 +33,6 @@ var { got } = await import('got')
             'Accept': 'application/json'
         }
     })
-    data.body.headers = data.headers;
     return {
         body: JSON.parse(data.body),
         headers: data.headers
