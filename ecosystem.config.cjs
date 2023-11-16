@@ -12,7 +12,7 @@ module.exports = {
     deploy: {
         production: {
             "user": "gatool",
-            "host": ["gatool-prod-a", "gatool-prod-b", "gatool-prod-c"],
+            "host": ["gatool-prod-a", "gatool-prod-b"],
             "ref": "origin/main",
             "repo": "https://github.com/arthurlockman/gatool-api",
             "path": "/home/gatool/pm2/gatool",
