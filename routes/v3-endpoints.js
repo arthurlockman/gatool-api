@@ -210,6 +210,13 @@ router.get('/team/:teamNumber/appearances', async (req, res) => {
     res.json(response.body)
 })
 
+router.get('/team/:teamNumber/media/:currentSeason', async (req, res) => {
+    res.setHeader('Cache-Control', 's-maxage=3600')
+    let currentSeason = parseInt(req.params.currentSeason, 10)
+    var response = await requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/media/${currentSeason}`)
+    res.json(response.body)
+})
+
 router.get('/:year/awards/team/:teamNumber', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=300')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/team/${req.params.teamNumber}`)
