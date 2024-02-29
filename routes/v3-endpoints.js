@@ -522,8 +522,8 @@ export const UpdateHighScores = async () => {
     logger.info(`Retrieved data for ${events.length} events`)
     for (const _event of events) {
         const evt = order[events.indexOf(_event)]
-        if (_event.length > 0) {
-            for (const match of _event) {
+        if (_event.schedule.length > 0) {
+            for (const match of _event.schedule) {
                 // TODO: find a better way to filter these demo teams out, this way is not sustainable
                 if (match.postResultTime && match.postResultTime !== '' && match.teams.filter(t => t.teamNumber >= 9986).length === 0) {
                     // Result was posted and it's not a demo team, so the match has occurred

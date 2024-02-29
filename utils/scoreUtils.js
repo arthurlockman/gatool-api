@@ -3,6 +3,10 @@
  * @param matches Matches to find the highest score of
  */
 const FindHighestScore = (matches) => {
+    if (matches.length == 0) {
+        return {}
+    }
+
     let highScore = 0
     let alliance = ''
     let _match
