@@ -8,10 +8,30 @@ import logger from './logger.js'
 import morgan from 'morgan'
 import { auth } from 'express-oauth2-jwt-bearer'
 import { unless } from 'express-unless'
+import { setIntervalAsync } from 'set-interval-async';
 import 'express-async-errors'
 
-import { router as v3Router } from './routes/v3-endpoints.js'
+import { UpdateHighScores, router as v3Router } from './routes/v3-endpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
+
+import * as os from 'os'
+const hostname = os.hostname()
+import * as inspector from 'inspector'
+
+function isInDebugMode() {
+    return inspector.url() !== undefined
+}
+
+// If we're running on the A host, run the timer.
+if (hostname.toLocaleLowerCase() === 'gatool-prod-a' || isInDebugMode()) {
+  console.log(`Running on ${hostname}, starting high score update timer.`)
+  setInterval(async function() { await UpdateHighScores() }, 900000)
+  setIntervalAsync(async () => {
+    console.log('Updating high scores...')
+    await UpdateHighScores()
+    console.log('Done updating high scores.')
+  }, 900000);
+}
 
 var app = express()
 

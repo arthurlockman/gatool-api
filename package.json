@@ -26,7 +26,8 @@
     "lodash": "^4.17.21",
     "morgan": "~1.10.0",
     "newrelic": "^11.10.4",
-    "pino-http": "^9.0.0"
+    "pino-http": "^9.0.0",
+    "set-interval-async": "^3.0.3"
   },
   "devDependencies": {
     "dotenv": "^16.4.4",
