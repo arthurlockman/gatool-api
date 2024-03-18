@@ -8,7 +8,7 @@ import logger from '../logger.js'
 import _ from 'lodash'
 import {
     GetTeamUpdates, GetUserPreferences, StoreTeamUpdates,
-    StoreUserPreferences, StoreHighScores, GetHighScores, GetTeamUpdateHistory
+    StoreUserPreferences, StoreHighScores, GetHighScores, GetTeamUpdateHistory, StoreAnnouncements, GetAnnouncements
 } from '../utils/storageUtils.js'
 import { ReadSecret } from '../utils/secretUtils.js'
 
@@ -472,6 +472,26 @@ router.put('/user/preferences', async (req, res) => {
     res.status(204).send()
 })
 
+// Announcement storage
+router.get('/system/announcements', async (_, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
+    try {
+        var prefs = await GetAnnouncements()
+        res.json(JSON.parse(prefs))
+    } catch (e) {
+        console.error(e)
+        res.status(404).send()
+    }
+})
+
+router.put('/system/announcements', async (req, res) => {
+    // @ts-ignore
+    if (req.auth.payload['https://gatool.org/roles'].includes('admin')){
+        await StoreAnnouncements(req.body)
+        res.status(204).send()
+    }
+    res.status(403).send()
+})
 
 // Helper functions
 

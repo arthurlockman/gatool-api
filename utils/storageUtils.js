@@ -33,6 +33,25 @@ export const StoreUserPreferences = async (userName, preferences) => {
 }
 
 /**
+ * Get stored system announcements
+ */
+export const GetAnnouncements = async () => {
+    var userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`)
+    var content = await userBlob.download(0)
+    return await streamToString(content.readableStreamBody)
+}
+
+/**
+ * Store system announcements
+ * @param announcements The announcements to store.
+ */
+export const StoreAnnouncements = async (announcements) => {
+    var userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`)
+    var data = JSON.stringify(announcements)
+    await userBlob.upload(data, data.length)
+}
+
+/**
  * Get all stored team updates for a team
  * @param teamNumber The team number to get updates for
  */
