@@ -219,15 +219,33 @@ router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
 
 router.get('/team/:teamNumber/appearances', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=3600')
-    var response = await requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/events`)
-    res.json(response.body)
+    const key = `team/frc${req.params.teamNumber}/events`
+    const cacheResults = await redisClient.get(`tbaapi:${key}`)
+    if (cacheResults) {
+        res.json(JSON.parse(cacheResults))
+    } else {
+        var response = await requestUtils.GetDataFromTBA(key)
+        await redisClient.set(`tbaapi:${key}`, JSON.stringify(response.body), {
+            EX: 259200
+        })
+        res.json(response.body)
+    }
 })
 
 router.get('/:year/team/:teamNumber/media', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=3600')
     let currentSeason = parseInt(req.params.year, 10)
-    var response = await requestUtils.GetDataFromTBA(`team/frc${req.params.teamNumber}/media/${currentSeason}`)
-    res.json(response.body)
+    const key = `team/frc${req.params.teamNumber}/media/${currentSeason}`
+    const cacheResults = await redisClient.get(`tbaapi:${key}`)
+    if (cacheResults) {
+        res.json(JSON.parse(cacheResults))
+    } else {
+        var response = await requestUtils.GetDataFromTBA(key)
+        res.json(response.body)
+        await redisClient.set(`tbaapi:${key}`, JSON.stringify(response.body), {
+            EX: 259200
+        })
+    }
 })
 
 router.get('/:year/awards/team/:teamNumber', async (req, res) => {
@@ -240,7 +258,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=2629800')
     try {
         const key = `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`
-        const cacheResults = await redisClient.get(`frcapi:${key}`);
+        const cacheResults = await redisClient.get(`frcapi:${key}`)
         let encodedAvatar
         if (cacheResults) {
             encodedAvatar = cacheResults
@@ -255,7 +273,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
             encodedAvatar = teamAvatar.encodedAvatar
             await redisClient.set(`frcapi:${key}`, encodedAvatar, {
                 EX: 604800
-            });
+            })
         }
         res.setHeader('Content-Type', 'image/png')
         res.setHeader('Charset', 'utf-8')
