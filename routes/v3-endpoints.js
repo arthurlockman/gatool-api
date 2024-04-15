@@ -14,6 +14,20 @@ import { ReadSecret } from '../utils/secretUtils.js'
 
 const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
 
+import * as redis from "redis"
+
+let redisClient;
+
+(async () => {
+    redisClient = redis.createClient({
+        url: "redis://gatool-redis-01:6379"
+    });
+
+    redisClient.on("error", (error) => console.error(`Error : ${error}`));
+
+    await redisClient.connect();
+})();
+
 // Common data getters
 
 const GetTeams = async (year, eventCode = null, districtCode = null, teamNumber = null) => {
@@ -30,7 +44,6 @@ const GetTeams = async (year, eventCode = null, districtCode = null, teamNumber 
     const teamData = await requestUtils.GetDataFromFIRST(`${year}/teams?${query.join('&')}&page=1`)
     if (teamData.body.pageTotal === 1) {
         return teamData.body;
-        return
     } else {
         const promises = []
         for (let i = 2; i <= teamData.body.pageTotal; i++) {
@@ -226,16 +239,27 @@ router.get('/:year/awards/team/:teamNumber', async (req, res) => {
 router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=2629800')
     try {
-        const avatar = await requestUtils.GetDataFromFIRST(
-            `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`)
-        const teamAvatar = avatar.body.teams[0]
-        if (teamAvatar.encodedAvatar == null) {
-            res.status(404)
-            res.json({ message: 'Avatar not found' })
+        const key = `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`
+        const cacheResults = await redisClient.get(`frcapi:${key}`);
+        let encodedAvatar
+        if (cacheResults) {
+            encodedAvatar = cacheResults
+        }
+        else {
+            const avatar = await requestUtils.GetDataFromFIRST(key)
+            const teamAvatar = avatar.body.teams[0]
+            if (teamAvatar.encodedAvatar == null) {
+                res.status(404)
+                res.json({ message: 'Avatar not found' })
+            }
+            encodedAvatar = teamAvatar.encodedAvatar
+            await redisClient.set(`frcapi:${key}`, encodedAvatar, {
+                EX: 604800
+            });
         }
         res.setHeader('Content-Type', 'image/png')
         res.setHeader('Charset', 'utf-8')
-        res.send(Buffer.from(teamAvatar.encodedAvatar, 'base64'))
+        res.send(Buffer.from(encodedAvatar, 'base64'))
     } catch (e) {
         const statusCode = e?.response?.statusCode ? parseInt(e.response.statusCode, 10) : 404
         const message = e?.response?.body ? e.response.body : 'Avatar not found.'
@@ -247,7 +271,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
 router.get('/:year/rankings/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
-    res.json({rankings:response.body,headers:response.headers})
+    res.json({ rankings: response.body, headers: response.headers })
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
@@ -486,7 +510,7 @@ router.get('/system/announcements', async (_, res) => {
 
 router.put('/system/announcements', async (req, res) => {
     // @ts-ignore
-    if (req.auth.payload['https://gatool.org/roles'].includes('admin')){
+    if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
         await StoreAnnouncements(req.body)
         res.status(204).send()
     }
