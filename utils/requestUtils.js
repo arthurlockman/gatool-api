@@ -1,6 +1,8 @@
 import { GetFRCApiToken, GetTBAApiToken } from './secretUtils.js'
-
+import * as fs from 'fs';
 var { got } = await import('got')
+
+var mozillaCA = fs.readFileSync('node_modules/node_extra_ca_certs_mozilla_bundle/ca_bundle/ca_intermediate_root_bundle.pem')
 
 /**
  * Get data from TBA and return a promise
@@ -31,6 +33,9 @@ var { got } = await import('got')
         headers: {
             'Authorization': await GetFRCApiToken(),
             'Accept': 'application/json'
+        },
+        https: {
+            certificateAuthority: mozillaCA
         }
     })
     return {

@@ -26,6 +26,7 @@
     "lodash": "^4.17.21",
     "morgan": "~1.10.0",
     "newrelic": "^11.10.4",
+    "node_extra_ca_certs_mozilla_bundle": "^1.0.6",
     "pino-http": "^9.0.0",
     "redis": "^4.6.13",
     "set-interval-async": "^3.0.3"
