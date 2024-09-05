@@ -5,7 +5,6 @@ import newrelic from 'newrelic'
 import express from 'express'
 import pinoHTTP from 'pino-http'
 import logger from './logger.js'
-import morgan from 'morgan'
 import { auth } from 'express-oauth2-jwt-bearer'
 import { unless } from 'express-unless'
 import { setIntervalAsync } from 'set-interval-async';
@@ -82,7 +81,6 @@ try {
   appVersion = 'UNKNOWN'
 }
 
-app.use(morgan('dev'))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true, parameterLimit: 50000 }))
 
