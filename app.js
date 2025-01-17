@@ -24,7 +24,6 @@ function isInDebugMode() {
 // If we're running on the A host, run the timer.
 if (hostname.toLocaleLowerCase() === 'gatool-prod-a' || isInDebugMode()) {
   console.log(`Running on ${hostname}, starting high score update timer.`)
-  setInterval(async function() { await UpdateHighScores() }, 900000)
   setIntervalAsync(async () => {
     console.log('Updating high scores...')
     await UpdateHighScores()
