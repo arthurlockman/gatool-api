@@ -22,7 +22,7 @@ function isInDebugMode() {
 }
 
 // If we're running on the A host, run the timer.
-if (hostname.toLocaleLowerCase() === 'gatool-prod-a' || isInDebugMode()) {
+if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
   console.log(`Running on ${hostname}, starting high score update timer.`)
   setIntervalAsync(async () => {
     console.log('Updating high scores...')
