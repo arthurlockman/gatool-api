@@ -79,6 +79,12 @@ router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
     res.json(response.body)
 })
 
+router.get('/:year/districts/', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
+    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/districts/`)
+    res.json(response.body)
+})
+
 router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/matches/${req.params.eventCode}/${req.params.tournamentLevel}`)
