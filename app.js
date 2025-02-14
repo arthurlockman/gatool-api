@@ -42,12 +42,12 @@ if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
     }, 21600000)
 }
 
-var app = express()
+const app = express();
 
-var pino = pinoHTTP({
+const pino = pinoHTTP({
     logger,
     redact: ['req.headers.authorization']
-})
+});
 // @ts-ignore
 pino.unless = unless
 // @ts-ignore
@@ -58,11 +58,11 @@ app.use(pino.unless({
     ]
 }))
 
-var auth0 = auth({
+const auth0 = auth({
     issuerBaseURL: await ReadSecret('Auth0Issuer'),
     audience: await ReadSecret('Auth0Audience'),
 
-})
+});
 // @ts-ignore
 auth0.unless = unless
 
@@ -83,7 +83,7 @@ app.use(auth0.unless({
     ]
 }))
 
-var appVersion
+let appVersion;
 try {
     appVersion = fs.readFileSync('version.txt', 'utf8').replace('\n', '')
 } catch {

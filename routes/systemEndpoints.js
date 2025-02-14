@@ -9,7 +9,7 @@ export var router = express.Router()
 router.get('/announcements', async (_, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     try {
-        var prefs = await GetAnnouncements()
+        const prefs = await GetAnnouncements();
         res.json(JSON.parse(prefs))
     } catch (e) {
         console.error(e)

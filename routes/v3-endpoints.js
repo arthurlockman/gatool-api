@@ -76,19 +76,19 @@ router.get('/:year/teams', async (req, res) => {
 
 router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`);
     res.json(response.body)
 })
 
 router.get('/:year/districts/', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/districts/`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/districts/`);
     res.json(response.body)
 })
 
 router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/matches/${req.params.eventCode}/${req.params.tournamentLevel}`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/matches/${req.params.eventCode}/${req.params.tournamentLevel}`);
     res.json(response.body)
 })
 
@@ -102,13 +102,13 @@ router.get('/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res
 
 router.get('/:year/awards/event/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=300')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/event/${req.params.eventCode}`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/event/${req.params.eventCode}`);
     res.json(response.body)
 })
 
 router.get('/:year/events', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=86400')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/events`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/events`);
     res.json(response.body)
 })
 
@@ -125,13 +125,13 @@ router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, 
 
 router.get('/:year/scores/:eventCode/playoff', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Playoff`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Playoff`);
     res.json(response.body)
 })
 
 router.get('/:year/scores/:eventCode/qual', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Qual`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Qual`);
     res.json(response.body)
 })
 
@@ -151,7 +151,7 @@ router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
 router.get('/team/:teamNumber/updates', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     try {
-        var updates = await GetTeamUpdates(req.params.teamNumber)
+        const updates = await GetTeamUpdates(req.params.teamNumber);
         res.json(JSON.parse(updates))
     } catch (e) {
         console.error(e)
@@ -231,7 +231,7 @@ router.get('/team/:teamNumber/appearances', async (req, res) => {
     if (cacheResults) {
         res.json(JSON.parse(cacheResults))
     } else {
-        var response = await requestUtils.GetDataFromTBA(key)
+        const response = await requestUtils.GetDataFromTBA(key);
         await redisClient.set(`tbaapi:${key}`, JSON.stringify(response.body), {
             EX: 259200
         })
@@ -247,7 +247,7 @@ router.get('/:year/team/:teamNumber/media', async (req, res) => {
     if (cacheResults) {
         res.json(JSON.parse(cacheResults))
     } else {
-        var response = await requestUtils.GetDataFromTBA(key)
+        const response = await requestUtils.GetDataFromTBA(key);
         res.json(response.body)
         await redisClient.set(`tbaapi:${key}`, JSON.stringify(response.body), {
             EX: 259200
@@ -257,7 +257,7 @@ router.get('/:year/team/:teamNumber/media', async (req, res) => {
 
 router.get('/:year/awards/team/:teamNumber', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=300')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/team/${req.params.teamNumber}`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/team/${req.params.teamNumber}`);
     res.json(response.body)
 })
 
@@ -294,13 +294,13 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
 
 router.get('/:year/rankings/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`);
     res.json({rankings: response.body, headers: response.headers})
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`)
+    const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`);
     res.json(response.body)
 })
 
@@ -490,7 +490,7 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
 
 router.get('/:year/highscores', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=600')
-    var scores = await GetHighScores(req.params.year)
+    const scores = await GetHighScores(req.params.year);
     res.json(scores)
 })
 
@@ -499,8 +499,8 @@ router.get('/:year/highscores', async (req, res) => {
 router.get('/user/preferences', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     try {
-        var email = req.auth.payload.email
-        var prefs = await GetUserPreferences(email)
+        const email = req.auth.payload.email;
+        const prefs = await GetUserPreferences(email);
         res.json(JSON.parse(prefs))
     } catch (e) {
         console.error(e)
@@ -509,7 +509,7 @@ router.get('/user/preferences', async (req, res) => {
 })
 
 router.put('/user/preferences', async (req, res) => {
-    var email = req.auth.payload.email
+    const email = req.auth.payload.email;
     await StoreUserPreferences(email, req.body)
     res.status(204).send()
 })

@@ -16,8 +16,8 @@ const highScoresContainer = blobServiceClient.getContainerClient('gatool-high-sc
  * @param userName The username to retrieve.
  */
 export const GetUserPreferences = async (userName) => {
-    var userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`)
-    var content = await userBlob.download(0)
+    const userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`);
+    const content = await userBlob.download(0);
     return await streamToString(content.readableStreamBody)
 }
 
@@ -27,8 +27,8 @@ export const GetUserPreferences = async (userName) => {
  * @param preferences The preferences to store.
  */
 export const StoreUserPreferences = async (userName, preferences) => {
-    var userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`)
-    var data = JSON.stringify(preferences)
+    const userBlob = userPrefsContainer.getBlockBlobClient(`${userName}.prefs.json`);
+    const data = JSON.stringify(preferences);
     await userBlob.upload(data, data.length)
 }
 
@@ -36,8 +36,8 @@ export const StoreUserPreferences = async (userName, preferences) => {
  * Get stored system announcements
  */
 export const GetAnnouncements = async () => {
-    var userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`)
-    var content = await userBlob.download(0)
+    const userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`);
+    const content = await userBlob.download(0);
     return await streamToString(content.readableStreamBody)
 }
 
@@ -46,8 +46,8 @@ export const GetAnnouncements = async () => {
  * @param announcements The announcements to store.
  */
 export const StoreAnnouncements = async (announcements) => {
-    var userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`)
-    var data = JSON.stringify(announcements)
+    const userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`);
+    const data = JSON.stringify(announcements);
     await userBlob.upload(data, data.length)
 }
 
@@ -56,8 +56,8 @@ export const StoreAnnouncements = async (announcements) => {
  * @param teamNumber The team number to get updates for
  */
 export const GetTeamUpdates = async (teamNumber) => {
-    var userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
-    var content = await userBlob.download(0)
+    const userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`);
+    const content = await userBlob.download(0);
     return await streamToString(content.readableStreamBody)
 }
 
@@ -66,15 +66,15 @@ export const GetTeamUpdates = async (teamNumber) => {
  * @param teamNumber The team number to get update history for
  */
 export const GetTeamUpdateHistory = async (teamNumber) => {
-    var iterator = teamUpdateHistoryContainer.listBlobsFlat({
+    const iterator = teamUpdateHistoryContainer.listBlobsFlat({
         prefix: `${teamNumber}/`
-    }).byPage({maxPageSize: 1000})
+    }).byPage({maxPageSize: 1000});
     let response = (await iterator.next()).value
     let r = []
     for (const blob of response.segment.blobItems) {
-        var b = teamUpdateHistoryContainer.getBlockBlobClient(blob.name)
-        var c = await b.download(0)
-        var u = JSON.parse(await streamToString(c.readableStreamBody))
+        const b = teamUpdateHistoryContainer.getBlockBlobClient(blob.name);
+        const c = await b.download(0);
+        const u = JSON.parse(await streamToString(c.readableStreamBody));
         u.modifiedDate = blob.name.replace(`${teamNumber}/`, '').replace(`.json`, '')
         r = r.concat(u)
     }
@@ -98,34 +98,34 @@ export const StoreTeamUpdates = async (teamNumber, data, email) => {
     } catch {
         // No stored updates, continue without saving history
     }
-    var userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`)
+    const userBlob = teamUpdatesContainer.getBlockBlobClient(`${teamNumber}.json`);
     data.source = email
-    var d = JSON.stringify(data)
+    const d = JSON.stringify(data);
     await userBlob.upload(d, d.length)
 }
 
 export const StoreHighScores = async (year, type, level, match) => {
-    var scoreBlob = highScoresContainer.getBlockBlobClient(`${year}-${type}-${level}.json`)
-    var item = {
+    const scoreBlob = highScoresContainer.getBlockBlobClient(`${year}-${type}-${level}.json`);
+    const item = {
         yearType: year + type + level,
         year: year,
         type: type,
         level: level,
         matchData: match
-    }
-    var d = JSON.stringify(item)
+    };
+    const d = JSON.stringify(item);
     await scoreBlob.upload(d, d.length)
 }
 
 export const GetHighScores = async (year) => {
-    var iterator = highScoresContainer.listBlobsFlat({
+    const iterator = highScoresContainer.listBlobsFlat({
         prefix: year
-    }).byPage({maxPageSize: 1000})
+    }).byPage({maxPageSize: 1000});
     let response = (await iterator.next()).value;
     let r = []
     for (const blob of response.segment.blobItems) {
-        var b = highScoresContainer.getBlockBlobClient(blob.name)
-        var c = await b.download(0)
+        const b = highScoresContainer.getBlockBlobClient(blob.name);
+        const c = await b.download(0);
         r = r.concat(JSON.parse(await streamToString(c.readableStreamBody)))
     }
     return r
