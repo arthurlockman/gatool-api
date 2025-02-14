@@ -88,3 +88,14 @@ export const CreateUser = async (email) => {
         }
     })
 }
+
+export const DeleteUser = async (userId) => {
+    const token = await GetBearerToken()
+    await got.delete(`https://gatool.auth0.com/api/v2/users/${userId}`, {
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    })
+}

@@ -16,6 +16,10 @@ import {ReadSecret} from './utils/secretUtils.js'
 
 import * as os from 'os'
 
+import * as fs from 'fs'
+import {UpdateHighScores} from "./utils/update-high-scores.js";
+import {SyncUsers} from "./utils/syncUsers.js";
+
 const hostname = os.hostname()
 import * as inspector from 'inspector'
 
@@ -25,12 +29,17 @@ function isInDebugMode() {
 
 // If we're running on the A host, run the timer.
 if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
-    logger.info(`Running on ${hostname}, starting high score update timer.`)
+    logger.info(`Running on ${hostname}, starting background timers.`)
     setIntervalAsync(async () => {
         logger.info('Updating high scores...')
         await UpdateHighScores()
         logger.info('Done updating high scores.')
     }, 900000);
+    setIntervalAsync(async () => {
+        logger.info('Starting user sync...')
+        await SyncUsers()
+        logger.info('User sync complete.')
+    }, 21600000)
 }
 
 var app = express()
@@ -73,9 +82,6 @@ app.use(auth0.unless({
         '/v3/admin/updateHighScores'
     ]
 }))
-
-import * as fs from 'fs'
-import {UpdateHighScores} from "./utils/update-high-scores.js";
 
 var appVersion
 try {
