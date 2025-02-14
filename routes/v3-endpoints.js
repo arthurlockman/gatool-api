@@ -10,11 +10,12 @@ import {
     GetTeamUpdates, GetUserPreferences, StoreTeamUpdates,
     StoreUserPreferences, StoreHighScores, GetHighScores, GetTeamUpdateHistory, StoreAnnouncements, GetAnnouncements
 } from '../utils/storageUtils.js'
-import { ReadSecret } from '../utils/secretUtils.js'
+import {GetAuth0AdminTokens, ReadSecret} from '../utils/secretUtils.js'
 
 const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
 
 import * as redis from "redis"
+import {AssignUserRoles, CreateUser, GetUser, GetUserRoles} from "../utils/auth0Utils.js";
 
 let redisClient;
 
@@ -539,6 +540,39 @@ router.put('/system/announcements', async (req, res) => {
         res.status(204).send()
     }
     res.status(403).send()
+})
+
+router.get('/system/admin/users/:email', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache')
+    if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
+        let user = await GetUser(req.params.email)
+        user.roles = await GetUserRoles(user.user_id)
+        res.json(user)
+    }
+    res.status(403).send()
+})
+
+router.post('/system/admin/users', async (req, res) => {
+    if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
+        await CreateUser(req.body.email)
+        res.status(204).send()
+    }
+    res.status(403).send()
+})
+
+router.post('/system/admin/users/:email/roles', async (req, res) => {
+    if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
+        const roles = req.body.roles
+        const user = await GetUser(req.params.email)
+        await AssignUserRoles(user.user_id, roles)
+        res.status(204).send()
+    }
+})
+
+router.post('/system/admin/syncusers', async (req, res) => {
+    if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
+
+    }
 })
 
 // Helper functions

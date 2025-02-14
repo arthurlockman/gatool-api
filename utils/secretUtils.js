@@ -7,8 +7,8 @@ if (process.env.ENABLE_VSCODE_DEBUG === 'true') {
     useIdentityPlugin(vsCodePlugin.vsCodePlugin);
 }
 
-var frcApiToken = undefined
-var tbaApiToken = undefined
+let frcApiToken = undefined;
+let tbaApiToken = undefined;
 
 const credential = new DefaultAzureCredential()
 const keyVaultName = "GAToolApiKeys"
@@ -29,6 +29,15 @@ export const GetTBAApiToken = async () => {
     }
     tbaApiToken = await ReadSecret("TBAApiKey")
     return tbaApiToken
+}
+
+export const GetAuth0AdminTokens = async () => {
+    let client_id = await ReadSecret("Auth0AdminClientId")
+    let client_secret = await ReadSecret("Auth0AdminClientSecret")
+    return {
+        client_id: client_id,
+        client_secret: client_secret,
+    }
 }
 
 export const ReadSecret = async (secretName) => {
