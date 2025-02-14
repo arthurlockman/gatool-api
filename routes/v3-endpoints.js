@@ -1,20 +1,21 @@
-import express, { request } from 'express'
+import express from 'express'
 import * as requestUtils from '../utils/requestUtils.js'
 import * as scoreUtils from '../utils/scoreUtils.js'
+import {
+    GetHighScores,
+    GetTeamUpdateHistory,
+    GetTeamUpdates,
+    GetUserPreferences,
+    StoreTeamUpdates,
+    StoreUserPreferences
+} from '../utils/storageUtils.js'
+import {ReadSecret} from '../utils/secretUtils.js'
+import * as redis from "redis"
+import {BuildHybridSchedule} from "../utils/scheduleUtils.js";
+
 export var router = express.Router()
 
-import logger from '../logger.js'
-
-import _ from 'lodash'
-import {
-    GetTeamUpdates, GetUserPreferences, StoreTeamUpdates,
-    StoreUserPreferences, StoreHighScores, GetHighScores, GetTeamUpdateHistory, StoreAnnouncements, GetAnnouncements
-} from '../utils/storageUtils.js'
-import { ReadSecret } from '../utils/secretUtils.js'
-
 const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
-
-import * as redis from "redis"
 
 let redisClient;
 
@@ -65,7 +66,7 @@ router.get('/:year/teams', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=600')
     if (req.query === null) {
         res.statusCode = 400
-        res.send({ message: 'You must supply query parameters.' })
+        res.send({message: 'You must supply query parameters.'})
     }
     const eventCode = req.query.eventCode
     const districtCode = req.query.districtCode
@@ -139,9 +140,9 @@ router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
     const teamList = await GetTeams(req.params.year, req.params.eventCode);
     const teamData = await Promise.all(teamList.teams.map(async (t) => {
         try {
-            return { teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber)) };
+            return {teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber))};
         } catch (e) {
-            return { teamNumber: t.teamNumber, updates: null };
+            return {teamNumber: t.teamNumber, updates: null};
         }
     }))
     res.json(teamData);
@@ -268,13 +269,12 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         let encodedAvatar
         if (cacheResults) {
             encodedAvatar = cacheResults
-        }
-        else {
+        } else {
             const avatar = await requestUtils.GetDataFromFIRST(key)
             const teamAvatar = avatar.body.teams[0]
             if (teamAvatar.encodedAvatar == null) {
                 res.status(404)
-                res.json({ message: 'Avatar not found' })
+                res.json({message: 'Avatar not found'})
             }
             encodedAvatar = teamAvatar.encodedAvatar
             await redisClient.set(`frcapi:${key}`, encodedAvatar, {
@@ -288,14 +288,14 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         const statusCode = e?.response?.statusCode ? parseInt(e.response.statusCode, 10) : 404
         const message = e?.response?.body ? e.response.body : 'Avatar not found.'
         res.status(statusCode)
-        res.json({ message: message })
+        res.json({message: message})
     }
 })
 
 router.get('/:year/rankings/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
-    res.json({ rankings: response.body, headers: response.headers })
+    res.json({rankings: response.body, headers: response.headers})
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
@@ -422,9 +422,13 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
     const playoffMatchList = await BuildHybridSchedule(req.params.year, req.params.eventCode, 'playoff')
 
     let matches = qualMatchList
-        .map(x => { return { event: { eventCode: eventDetails.code, type: 'qual' }, match: x } })
+        .map(x => {
+            return {event: {eventCode: eventDetails.code, type: 'qual'}, match: x}
+        })
         .concat(playoffMatchList
-            .map(x => { return { event: { eventCode: eventDetails.code, type: 'playoff' }, match: x } }))
+            .map(x => {
+                return {event: {eventCode: eventDetails.code, type: 'playoff'}, match: x}
+            }))
     matches = matches.filter(match => match.match.postResultTime && match.match.postResultTime !== '' &&
         // TODO: find a better way to filter these demo teams out, this way is not sustainable
         match.match.teams.filter(t => t.teamNumber >= 9986).length === 0)
@@ -490,16 +494,6 @@ router.get('/:year/highscores', async (req, res) => {
     res.json(scores)
 })
 
-router.get('/admin/updateHighScores', async (req, res) => {
-    const token = await ReadSecret('HighScoreUpdateAPIKey')
-    if (req.header('API_KEY') === token) {
-        await UpdateHighScores()
-        res.status(204).send()
-    } else {
-        res.status(401).send()
-    }
-})
-
 // User Data Storage
 
 router.get('/user/preferences', async (req, res) => {
@@ -519,132 +513,3 @@ router.put('/user/preferences', async (req, res) => {
     await StoreUserPreferences(email, req.body)
     res.status(204).send()
 })
-
-// Announcement storage
-router.get('/system/announcements', async (_, res) => {
-    res.setHeader('Cache-Control', 'no-cache')
-    try {
-        var prefs = await GetAnnouncements()
-        res.json(JSON.parse(prefs))
-    } catch (e) {
-        console.error(e)
-        res.status(404).send()
-    }
-})
-
-router.put('/system/announcements', async (req, res) => {
-    // @ts-ignore
-    if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
-        await StoreAnnouncements(req.body)
-        res.status(204).send()
-    }
-    res.status(403).send()
-})
-
-// Helper functions
-
-const BuildHybridSchedule = async (year, eventCode, tournamentLevel) => {
-    const scheduleResponse = await requestUtils.GetDataFromFIRST(`${year}/schedule/${eventCode}/${tournamentLevel}`)
-    let matchesResponse
-    try {
-        matchesResponse = await requestUtils.GetDataFromFIRST(`${year}/matches/${eventCode}/${tournamentLevel}`)
-    } catch (e) {
-        return scheduleResponse.body.Schedule || scheduleResponse.body.schedule
-    }
-    const schedule = scheduleResponse.body.schedule || scheduleResponse.body.Schedule
-    const matches = matchesResponse.body.matches || matchesResponse.body.Matches
-    const headers = { schedule: scheduleResponse.headers, matches: matchesResponse.headers }
-
-    _.merge(schedule, matches)
-    return { schedule: schedule, headers: headers }
-}
-
-export const UpdateHighScores = async () => {
-    const eventList = await requestUtils.GetDataFromFIRST(`${frcCurrentSeason}/events`)
-    const promises = []
-    const order = []
-    const currentDate = new Date()
-    currentDate.setDate(currentDate.getDate() + 1)
-    logger.info(`Found ${eventList.body.Events.length} events for ${frcCurrentSeason}`)
-    for (const _event of eventList.body.Events) {
-        const eventDate = new Date(_event.dateStart)
-        if (eventDate < currentDate) {
-            promises.push(BuildHybridSchedule(frcCurrentSeason, _event.code, 'qual').catch(_ => {
-                return []
-            }))
-            promises.push(BuildHybridSchedule(frcCurrentSeason, _event.code, 'playoff').catch(_ => {
-                return []
-            }))
-            order.push({
-                eventCode: _event.code,
-                type: 'qual'
-            })
-            order.push({
-                eventCode: _event.code,
-                type: 'playoff'
-            })
-        }
-    }
-    const events = await Promise.all(promises)
-    const matches = []
-    logger.info(`Retrieved data for ${events.length} events`)
-    for (const _event of events) {
-        const evt = order[events.indexOf(_event)]
-        if (_event.schedule.length > 0) {
-            for (const match of _event.schedule) {
-                // TODO: find a better way to filter these demo teams out, this way is not sustainable
-                if (match.postResultTime && match.postResultTime !== '' && match.teams.filter(t => t.teamNumber >= 9986).length === 0) {
-                    // Result was posted and it's not a demo team, so the match has occurred
-                    matches.push({
-                        event: evt,
-                        match: match
-                    })
-                }
-            }
-        } else {
-            logger.info(`Event ${evt.eventCode}, ${evt.type} has no schedule data, likely occurs in the future`)
-        }
-    }
-    const overallHighScorePlayoff = []
-    const overallHighScoreQual = []
-    const penaltyFreeHighScorePlayoff = []
-    const penaltyFreeHighScoreQual = []
-    const offsettingPenaltyHighScorePlayoff = []
-    const offsettingPenaltyHighScoreQual = []
-    logger.info(`Found ${matches.length} total matches with data`)
-    for (const match of matches) {
-        if (match.event.type === 'playoff') {
-            overallHighScorePlayoff.push(match)
-        }
-        if (match.event.type === 'qual') {
-            overallHighScoreQual.push(match)
-        }
-        if (match.event.type === 'playoff'
-            && match.match.scoreBlueFoul === 0 && match.match.scoreRedFoul === 0) {
-            penaltyFreeHighScorePlayoff.push(match)
-        } else if (match.event.type === 'qual'
-            && match.match.scoreBlueFoul === 0 && match.match.scoreRedFoul === 0) {
-            penaltyFreeHighScoreQual.push(match)
-        } else if (match.event.type === 'playoff'
-            && match.match.scoreBlueFoul === match.match.scoreRedFoul && match.match.scoreBlueFoul > 0) {
-            offsettingPenaltyHighScorePlayoff.push(match)
-        } else if (match.event.type === 'qual'
-            && match.match.scoreBlueFoul === match.match.scoreRedFoul && match.match.scoreBlueFoul > 0) {
-            offsettingPenaltyHighScoreQual.push(match)
-        }
-    }
-    const highScorePromises = []
-    highScorePromises.push(StoreHighScores(frcCurrentSeason, 'overall', 'playoff',
-        scoreUtils.FindHighestScore(overallHighScorePlayoff)))
-    highScorePromises.push(StoreHighScores(frcCurrentSeason, 'overall', 'qual',
-        scoreUtils.FindHighestScore(overallHighScoreQual)))
-    highScorePromises.push(StoreHighScores(frcCurrentSeason, 'penaltyFree', 'playoff',
-        scoreUtils.FindHighestScore(penaltyFreeHighScorePlayoff)))
-    highScorePromises.push(StoreHighScores(frcCurrentSeason, 'penaltyFree', 'qual',
-        scoreUtils.FindHighestScore(penaltyFreeHighScoreQual)))
-    highScorePromises.push(StoreHighScores(frcCurrentSeason, 'offsetting', 'playoff',
-        scoreUtils.FindHighestScore(offsettingPenaltyHighScorePlayoff)))
-    highScorePromises.push(StoreHighScores(frcCurrentSeason, 'offsetting', 'qual',
-        scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual)))
-    await Promise.all(highScorePromises)
-}

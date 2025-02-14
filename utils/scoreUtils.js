@@ -46,4 +46,4 @@ const BuildHighScoreJson = (year, type, level, match) => {
     }
 }
 
-export { FindHighestScore, BuildHighScoreJson }
+export {FindHighestScore, BuildHighScoreJson}

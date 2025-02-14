@@ -17,6 +17,7 @@
     "@azure/identity-vscode": "1.0.0",
     "@azure/keyvault-secrets": "4.9.0",
     "@azure/storage-blob": "^12.26.0",
+    "@mailchimp/mailchimp_marketing": "^3.0.80",
     "debug": "~4.4.0",
     "express": "~4.21.2",
     "express-async-errors": "^3.1.1",
@@ -26,6 +27,7 @@
     "lodash": "^4.17.21",
     "newrelic": "^12.11.1",
     "node_extra_ca_certs_mozilla_bundle": "^1.0.6",
+    "node-cache": "^5.1.2",
     "pino-http": "^10.4.0",
     "redis": "^4.7.0",
     "set-interval-async": "^3.0.3"

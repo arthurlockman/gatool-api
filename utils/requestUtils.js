@@ -1,6 +1,7 @@
-import { GetFRCApiToken, GetTBAApiToken } from './secretUtils.js'
+import {GetFRCApiToken, GetTBAApiToken} from './secretUtils.js'
 import * as fs from 'fs';
-var { got } = await import('got')
+
+var {got} = await import('got')
 
 var mozillaCA = fs.readFileSync('node_modules/node_extra_ca_certs_mozilla_bundle/ca_bundle/ca_intermediate_root_bundle.pem')
 
@@ -8,7 +9,7 @@ var mozillaCA = fs.readFileSync('node_modules/node_extra_ca_certs_mozilla_bundle
  * Get data from TBA and return a promise
  * @param path The path to GET data from
  */
- const GetDataFromTBA = async (path) => {
+const GetDataFromTBA = async (path) => {
     const data = await got.get(`https://www.thebluealliance.com/api/v3/${path}`, {
         headers: {
             'X-TBA-Auth-Key': await GetTBAApiToken(),
@@ -28,7 +29,7 @@ var mozillaCA = fs.readFileSync('node_modules/node_extra_ca_certs_mozilla_bundle
  * Get data from FIRST and return a promise
  * @param path The path to GET data from
  */
- const GetDataFromFIRST = async (path, apiVersion = 'v3.0') => {
+const GetDataFromFIRST = async (path, apiVersion = 'v3.0') => {
     const data = await got.get(`https://frc-api.firstinspires.org/${apiVersion}/${path}`, {
         headers: {
             'Authorization': await GetFRCApiToken(),
@@ -44,4 +45,4 @@ var mozillaCA = fs.readFileSync('node_modules/node_extra_ca_certs_mozilla_bundle
     }
 }
 
-export { GetDataFromFIRST, GetDataFromTBA }
+export {GetDataFromFIRST, GetDataFromTBA}
