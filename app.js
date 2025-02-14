@@ -10,7 +10,8 @@ import { unless } from 'express-unless'
 import { setIntervalAsync } from 'set-interval-async';
 import 'express-async-errors'
 
-import { UpdateHighScores, router as v3Router } from './routes/v3-endpoints.js'
+import { router as v3Router } from './routes/v3-endpoints.js'
+import { router as systemRouter } from './routes/systemEndpoints.js'
 import { ReadSecret } from './utils/secretUtils.js'
 
 import * as os from 'os'
@@ -23,11 +24,11 @@ function isInDebugMode() {
 
 // If we're running on the A host, run the timer.
 if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
-  console.log(`Running on ${hostname}, starting high score update timer.`)
+  logger.info(`Running on ${hostname}, starting high score update timer.`)
   setIntervalAsync(async () => {
-    console.log('Updating high scores...')
+    logger.info('Updating high scores...')
     await UpdateHighScores()
-    console.log('Done updating high scores.')
+    logger.info('Done updating high scores.')
   }, 900000);
 }
 
@@ -73,6 +74,7 @@ app.use(auth0.unless({
 }))
 
 import * as fs from 'fs'
+import {UpdateHighScores} from "./utils/update-high-scores.js";
 var appVersion
 try {
   appVersion = fs.readFileSync('version.txt', 'utf8').replace('\n', '')
@@ -106,6 +108,7 @@ app.use((err, _req, _res, next) => {
 })
 
 app.use('/v3', v3Router)
+app.use('/v3/system', systemRouter)
 
 // Catch unhandled exceptions
 app.use(function (err, req, res, next) {
@@ -129,5 +132,4 @@ newrelic.instrumentLoadedModule(
 const port = process.env.PORT ?? 3001;
 app.listen(port, () => {
   logger.info(`gatool running on port ${port}`)
-  console.log(`gatool running on port ${port}`)
 })

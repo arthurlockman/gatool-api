@@ -1,7 +1,6 @@
 import got from "got"
 import {GetAuth0AdminTokens} from "./secretUtils.js"
 import NodeCache from "node-cache"
-import * as crypto from "node:crypto";
 
 const bearerTokenCache = new NodeCache()
 const cacheKey = 'bearerToken'
@@ -51,6 +50,19 @@ export const GetUserRoles = async (userId) => {
 export const AssignUserRoles = async (userId, roles) => {
     const token = await GetBearerToken()
     await got.post(`https://gatool.auth0.com/api/v2/users/${userId}/roles`, {
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Accept': 'application/json'
+        },
+        json: {
+            "roles": roles
+        }
+    })
+}
+
+export const RemoveUserRoles = async (userId, roles) => {
+    const token = await GetBearerToken()
+    await got.delete(`https://gatool.auth0.com/api/v2/users/${userId}/roles`, {
         headers: {
             'Authorization': 'Bearer ' + token,
             'Accept': 'application/json'
