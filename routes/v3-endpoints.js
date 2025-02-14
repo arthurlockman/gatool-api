@@ -114,7 +114,7 @@ router.get('/:year/events', async (req, res) => {
 
 router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
-    let response = undefined
+    let response
     if (req.params.start === req.params.end) {
         response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/${req.params.tournamentLevel}?matchNumber=${req.params.start}`)
     } else {
