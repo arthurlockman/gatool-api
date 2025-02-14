@@ -27,7 +27,7 @@ const GetBearerToken = async () => {
 
 export const GetUser = async (email) => {
     const token = await GetBearerToken()
-    const response = await got.get(`https://gatool.auth0.com/api/v2/users?q=email:"${email}"`, {
+    const response = await got.get(`https://gatool.auth0.com/api/v2/users-by-email?email=${email}`, {
         headers: {
             'Authorization': 'Bearer ' + token,
             'Accept': 'application/json'
