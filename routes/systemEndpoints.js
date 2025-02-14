@@ -52,6 +52,7 @@ router.post('/admin/users/:email/roles', async (req, res) => {
         await AssignUserRoles(user.user_id, roles)
         res.status(204).send()
     }
+    res.status(403).send()
 })
 
 router.post('/admin/syncusers', async (req, res) => {
@@ -87,5 +88,7 @@ router.post('/admin/syncusers', async (req, res) => {
                 logger.info(`Removed editing permissions from user ${email}.`)
             }
         }
+        res.status(204).send()
     }
+    res.status(403).send()
 })
