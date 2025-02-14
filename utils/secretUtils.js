@@ -1,5 +1,5 @@
-import { SecretClient } from '@azure/keyvault-secrets'
-import { useIdentityPlugin, DefaultAzureCredential } from '@azure/identity'
+import {SecretClient} from '@azure/keyvault-secrets'
+import {DefaultAzureCredential, useIdentityPlugin} from '@azure/identity'
 
 // this is a hack to make this plugin not crash the app in Azure
 const vsCodePlugin = process.env.ENABLE_VSCODE_DEBUG && await import("@azure/identity-vscode")

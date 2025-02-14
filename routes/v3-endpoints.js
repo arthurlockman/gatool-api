@@ -66,7 +66,7 @@ router.get('/:year/teams', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=600')
     if (req.query === null) {
         res.statusCode = 400
-        res.send({ message: 'You must supply query parameters.' })
+        res.send({message: 'You must supply query parameters.'})
     }
     const eventCode = req.query.eventCode
     const districtCode = req.query.districtCode
@@ -140,9 +140,9 @@ router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
     const teamList = await GetTeams(req.params.year, req.params.eventCode);
     const teamData = await Promise.all(teamList.teams.map(async (t) => {
         try {
-            return { teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber)) };
+            return {teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber))};
         } catch (e) {
-            return { teamNumber: t.teamNumber, updates: null };
+            return {teamNumber: t.teamNumber, updates: null};
         }
     }))
     res.json(teamData);
@@ -269,13 +269,12 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         let encodedAvatar
         if (cacheResults) {
             encodedAvatar = cacheResults
-        }
-        else {
+        } else {
             const avatar = await requestUtils.GetDataFromFIRST(key)
             const teamAvatar = avatar.body.teams[0]
             if (teamAvatar.encodedAvatar == null) {
                 res.status(404)
-                res.json({ message: 'Avatar not found' })
+                res.json({message: 'Avatar not found'})
             }
             encodedAvatar = teamAvatar.encodedAvatar
             await redisClient.set(`frcapi:${key}`, encodedAvatar, {
@@ -289,14 +288,14 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         const statusCode = e?.response?.statusCode ? parseInt(e.response.statusCode, 10) : 404
         const message = e?.response?.body ? e.response.body : 'Avatar not found.'
         res.status(statusCode)
-        res.json({ message: message })
+        res.json({message: message})
     }
 })
 
 router.get('/:year/rankings/:eventCode', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache')
     var response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`)
-    res.json({ rankings: response.body, headers: response.headers })
+    res.json({rankings: response.body, headers: response.headers})
 })
 
 router.get('/:year/alliances/:eventCode', async (req, res) => {
@@ -423,9 +422,13 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
     const playoffMatchList = await BuildHybridSchedule(req.params.year, req.params.eventCode, 'playoff')
 
     let matches = qualMatchList
-        .map(x => { return { event: { eventCode: eventDetails.code, type: 'qual' }, match: x } })
+        .map(x => {
+            return {event: {eventCode: eventDetails.code, type: 'qual'}, match: x}
+        })
         .concat(playoffMatchList
-            .map(x => { return { event: { eventCode: eventDetails.code, type: 'playoff' }, match: x } }))
+            .map(x => {
+                return {event: {eventCode: eventDetails.code, type: 'playoff'}, match: x}
+            }))
     matches = matches.filter(match => match.match.postResultTime && match.match.postResultTime !== '' &&
         // TODO: find a better way to filter these demo teams out, this way is not sustainable
         match.match.teams.filter(t => t.teamNumber >= 9986).length === 0)

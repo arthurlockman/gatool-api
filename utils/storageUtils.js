@@ -1,5 +1,5 @@
-import { ReadSecret } from "./secretUtils.js"
-import { BlobServiceClient } from '@azure/storage-blob'
+import {ReadSecret} from "./secretUtils.js"
+import {BlobServiceClient} from '@azure/storage-blob'
 
 const blobStorageConnectionString = await ReadSecret('UserStorageConnectionString')
 const blobServiceClient = BlobServiceClient.fromConnectionString(
@@ -68,7 +68,7 @@ export const GetTeamUpdates = async (teamNumber) => {
 export const GetTeamUpdateHistory = async (teamNumber) => {
     var iterator = teamUpdateHistoryContainer.listBlobsFlat({
         prefix: `${teamNumber}/`
-    }).byPage({ maxPageSize: 1000 })
+    }).byPage({maxPageSize: 1000})
     let response = (await iterator.next()).value
     let r = []
     for (const blob of response.segment.blobItems) {
@@ -120,7 +120,7 @@ export const StoreHighScores = async (year, type, level, match) => {
 export const GetHighScores = async (year) => {
     var iterator = highScoresContainer.listBlobsFlat({
         prefix: year
-    }).byPage({ maxPageSize: 1000 })
+    }).byPage({maxPageSize: 1000})
     let response = (await iterator.next()).value;
     let r = []
     for (const blob of response.segment.blobItems) {
