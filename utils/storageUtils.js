@@ -51,6 +51,23 @@ export const StoreAnnouncements = async (announcements) => {
     await userBlob.upload(data, data.length)
 }
 
+export const StoreUserSyncResults = async (timestamp, fullUsers, readOnlyUsers, deletedUsers) => {
+    const blob = userPrefsContainer.getBlockBlobClient(`system.userSync.json`);
+    const data = JSON.stringify({
+        timestamp: timestamp,
+        fullUsers: fullUsers,
+        readOnlyUsers: readOnlyUsers,
+        deletedUsers: deletedUsers,
+    });
+    await blob.upload(data, data.length)
+}
+
+export const GetUserSyncResults = async () => {
+    const blob = userPrefsContainer.getBlockBlobClient(`system.userSync.json`);
+    const content = await blob.download(0);
+    return await streamToString(content.readableStreamBody)
+}
+
 /**
  * Get all stored team updates for a team
  * @param teamNumber The team number to get updates for

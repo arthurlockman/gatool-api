@@ -1,5 +1,5 @@
 import express from 'express'
-import {GetAnnouncements, StoreAnnouncements} from "../utils/storageUtils.js";
+import {GetAnnouncements, GetUserSyncResults, StoreAnnouncements} from "../utils/storageUtils.js";
 import {AssignUserRoles, CreateUser, GetUser} from "../utils/auth0Utils.js";
 import {SyncUsers} from "../utils/syncUsers.js";
 
@@ -57,6 +57,19 @@ router.post('/admin/syncusers', async (req, res) => {
     if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
         await SyncUsers()
         res.status(204).send()
+    }
+    res.status(403).send()
+})
+
+router.get('/admin/syncusers', async (req, res) => {
+    if (req.auth.payload['https://gatool.org/roles'].includes('admin')) {
+        try {
+            const results = await GetUserSyncResults();
+            res.json(JSON.parse(results))
+        } catch (e) {
+            console.error(e)
+            res.status(404).send()
+        }
     }
     res.status(403).send()
 })

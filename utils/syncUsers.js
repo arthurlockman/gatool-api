@@ -1,6 +1,7 @@
 import {GetSubscribedUsers} from "./mailChimpUtils.js";
 import logger from "../logger.js";
 import {AssignUserRoles, CreateUser, DeleteUser, GetUser, RemoveUserRoles} from "./auth0Utils.js";
+import {StoreUserSyncResults} from "./storageUtils.js";
 
 const optInText = "I want access to gatool and agree that I will not abuse this access to team data."
 
@@ -25,7 +26,7 @@ export const SyncUsers = async () => {
         logger.info(`Assigning 'user' role to ${email}...`)
         await AssignUserRoles(user.user_id, ['rol_KRLODHx3eNItUgvI'])
         // auth0 has an annoying rate limit on the management API so we have to slow the process down
-        await delay(500)
+        await delay(800)
     }
     const optedOutUsers = listMembers.filter(member =>
         member.status === "subscribed" && member.merge_fields.GATOOL !== optInText
@@ -41,12 +42,13 @@ export const SyncUsers = async () => {
         await RemoveUserRoles(user.user_id, ['rol_KRLODHx3eNItUgvI'])
         await AssignUserRoles(user.user_id, ['rol_EQcREtmOWaGanRYG'])
         logger.info(`Removed editing permissions from user ${email}.`)
-        await delay(500)
+        await delay(800)
     }
     const unsubscribedUsers = listMembers.filter(member =>
         member.status === "unsubscribed"
     ).map(member => member.email_address.toLocaleLowerCase())
     logger.info(`There are ${unsubscribedUsers.length} users unsubscribed. Deleting accounts.`)
+    let deletedUsers = 0
     for (const email of unsubscribedUsers) {
         let user = await GetUser(email)
         if (user == null) {
@@ -54,7 +56,10 @@ export const SyncUsers = async () => {
         } else {
             await DeleteUser(user.user_id)
             logger.info(`Deleted user ${email}.`)
+            deletedUsers++
         }
-        await delay(500)
+        await delay(800)
     }
+    const syncDate = (new Date()).toISOString()
+    await StoreUserSyncResults(syncDate, optedInUsers.length, optedOutUsers.length, deletedUsers)
 }
