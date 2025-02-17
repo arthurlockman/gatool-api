@@ -150,7 +150,7 @@ router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
     teamList.teams.map(async (t) => {
       try {
         return { teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber)) };
-      } catch (e) {
+      } catch (_e) {
         return { teamNumber: t.teamNumber, updates: null };
       }
     })
@@ -321,7 +321,7 @@ router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
       };
       result.push(tmp);
     } catch (ex) {
-      logger.error(`Error parsing event data: ${JSON.stringify(teams[i])}`);
+      logger.error(ex, `Error parsing event data: ${JSON.stringify(teams[i])}`);
     }
   }
   res.json({
@@ -364,7 +364,7 @@ router.get('/:year/offseason/events', async (req, res) => {
         result.push(tmp);
       }
     } catch (ex) {
-      logger.error(`Error parsing event data: ${JSON.stringify(events[i])}`);
+      logger.error(ex, `Error parsing event data: ${JSON.stringify(events[i])}`);
     }
   }
   res.json({

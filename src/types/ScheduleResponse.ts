@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 type Field = 'Primary'; // Add other fields as needed
 
 interface ScheduleTeam {

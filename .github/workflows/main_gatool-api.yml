@@ -1,7 +1,5 @@
 name: Deploy GATool API
-on:
-  push:
-    branches: [main]
+on: push
 
 
 jobs:
@@ -11,13 +9,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Build
+        run: npm run build
+
       - name: Set up SSH key
         uses: webfactory/ssh-agent@v0.7.0
+        if: github.ref == 'refs/heads/main'
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name: Install PM2
+        if: github.ref == 'refs/heads/main'
         run: npm i pm2
 
       - name: Deploy
         run: npm run deploy:production
+        if: github.ref == 'refs/heads/main'

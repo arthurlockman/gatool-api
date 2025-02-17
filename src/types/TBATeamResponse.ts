@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 interface TBATeam {
   key: string;
   team_number: number;
