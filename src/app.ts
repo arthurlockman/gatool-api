@@ -2,23 +2,23 @@ import 'dotenv/config'
 
 import newrelic from 'newrelic'
 
-import express from 'express'
+import express, {NextFunction, Request, Response} from 'express'
 import pinoHTTP from 'pino-http'
-import logger from './logger.js'
+import logger from './logger'
 import {auth} from 'express-oauth2-jwt-bearer'
 import {unless} from 'express-unless'
 import {setIntervalAsync} from 'set-interval-async';
 import 'express-async-errors'
 
-import {router as v3Router} from './routes/v3-endpoints.js'
-import {router as systemRouter} from './routes/systemEndpoints.js'
-import {ReadSecret} from './utils/secretUtils.js'
+import {router as v3Router} from './routes/v3-endpoints'
+import {router as systemRouter} from './routes/systemEndpoints'
+import {ReadSecret} from './utils/secretUtils'
 
 import * as os from 'os'
 
 import * as fs from 'fs'
-import {UpdateHighScores} from "./utils/update-high-scores.js";
-import {SyncUsers} from "./utils/syncUsers.js";
+import {UpdateHighScores} from "./utils/update-high-scores";
+import {SyncUsers} from "./utils/syncUsers";
 
 const hostname = os.hostname()
 import * as inspector from 'inspector'
@@ -48,9 +48,9 @@ const pino = pinoHTTP({
     logger,
     redact: ['req.headers.authorization']
 });
-// @ts-ignore
+// @ts-expect-error yeah i know it's not there i'm adding it
 pino.unless = unless
-// @ts-ignore
+// @ts-expect-error yeah i know it's not there i'm adding it
 app.use(pino.unless({
     path: [
         '/livecheck',
@@ -63,18 +63,18 @@ const auth0 = auth({
     audience: await ReadSecret('Auth0Audience'),
 
 });
-// @ts-ignore
+// @ts-expect-error yeah i know it's not there i'm adding it
 auth0.unless = unless
 
 // noinspection JSUnusedLocalSymbols
-app.options("/*", function (_req, res, next) {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
-    res.send(200);
+app.options('/*', (_req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
+  res.send(200);
 });
 
-// @ts-ignore
+// @ts-expect-error yeah i know it's not there I'm adding it
 app.use(auth0.unless({
     path: [
         '/livecheck',
@@ -111,7 +111,7 @@ app.use((_, res, next) => {
     next()
 })
 
-app.use((err, _req, _res, next) => {
+app.use((err: any, _1: Request, _2: Response, next: NextFunction) => {
     logger.error(err)
     next(err)
 })
@@ -120,7 +120,7 @@ app.use('/v3', v3Router)
 app.use('/v3/system', systemRouter)
 
 // Catch unhandled exceptions
-app.use(function (err, req, res, next) {
+app.use((err: any, _: Request, res: Response, next: NextFunction) => {
     res.status(err?.statusCode || err?.response?.statusCode || 500)
     if (err?.request?.requestUrl) {
         const message = `Received error "${err.message}" from upstream ${err.request.options.method} ${err.request.requestUrl}`

@@ -1,6 +1,6 @@
 import express from 'express'
-import * as requestUtils from '../utils/requestUtils.js'
-import * as scoreUtils from '../utils/scoreUtils.js'
+import * as requestUtils from '../utils/requestUtils'
+import * as scoreUtils from '../utils/scoreUtils'
 import {
     GetHighScores,
     GetTeamUpdateHistory,
@@ -8,26 +8,21 @@ import {
     GetUserPreferences,
     StoreTeamUpdates,
     StoreUserPreferences
-} from '../utils/storageUtils.js'
-import {ReadSecret} from '../utils/secretUtils.js'
+} from '../utils/storageUtils'
+import {ReadSecret} from '../utils/secretUtils'
 import * as redis from "redis"
-import {BuildHybridSchedule} from "../utils/scheduleUtils.js";
+import {BuildHybridSchedule} from "../utils/scheduleUtils";
+import logger from '../logger';
 
-export var router = express.Router()
+export const router = express.Router()
 
 const frcCurrentSeason = await ReadSecret('FRCCurrentSeason')
 
-let redisClient;
-
-(async () => {
-    redisClient = redis.createClient({
-        url: "redis://gatool-redis-01:6379"
-    });
-
-    redisClient.on("error", (error) => console.error(`Error : ${error}`));
-
-    await redisClient.connect();
-})();
+const redisClient = redis.createClient({
+    url: "redis://gatool-redis-01:6379"
+});
+redisClient.on("error", (error) => logger.error(`Error : ${error}`));
+await redisClient.connect();
 
 // Common data getters
 
@@ -154,7 +149,7 @@ router.get('/team/:teamNumber/updates', async (req, res) => {
         const updates = await GetTeamUpdates(req.params.teamNumber);
         res.json(JSON.parse(updates))
     } catch (e) {
-        console.error(e)
+        logger.error(e);
         res.status(404).send(`No updates found for team ${req.params.teamNumber}`)
     }
 })
@@ -198,8 +193,8 @@ router.get('/team/:teamNumber/awards', async (req, res) => {
 
 router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=300')
-    let currentSeason = parseInt(req.params.currentSeason, 10)
-    //const currentSeason = parseInt(frcCurrentSeason, 10)
+    const currentSeason = parseInt(req.params.currentSeason, 10)
+    // const currentSeason = parseInt(frcCurrentSeason, 10)
     let currentYearAwards, pastYearAwards,
         secondYearAwards
     try {
@@ -241,7 +236,7 @@ router.get('/team/:teamNumber/appearances', async (req, res) => {
 
 router.get('/:year/team/:teamNumber/media', async (req, res) => {
     res.setHeader('Cache-Control', 's-maxage=3600')
-    let currentSeason = parseInt(req.params.year, 10)
+    const currentSeason = parseInt(req.params.year, 10)
     const key = `team/frc${req.params.teamNumber}/media/${currentSeason}`
     const cacheResults = await redisClient.get(`tbaapi:${key}`)
     if (cacheResults) {
@@ -288,7 +283,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         const statusCode = e?.response?.statusCode ? parseInt(e.response.statusCode, 10) : 404
         const message = e?.response?.body ? e.response.body : 'Avatar not found.'
         res.status(statusCode)
-        res.json({message: message})
+        res.json({message})
     }
 })
 
@@ -330,7 +325,7 @@ router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
             }
             result.push(tmp)
         } catch (ex) {
-            console.error(`Error parsing event data: ${JSON.stringify(teams[i])}`)
+            logger.error(`Error parsing event data: ${JSON.stringify(teams[i])}`)
         }
     }
     res.json({
@@ -351,7 +346,7 @@ router.get('/:year/offseason/events', async (req, res) => {
         try {
             if (events[i].event_type_string === 'Offseason') {
                 let address = 'no address, no city, no state, no country'
-                if (!!events[i].address) {
+                if (events[i].address) {
                     address = events[i].address
                 }
                 const tmp = {
@@ -373,7 +368,7 @@ router.get('/:year/offseason/events', async (req, res) => {
                 result.push(tmp)
             }
         } catch (ex) {
-            console.error(`Error parsing event data: ${JSON.stringify(events[i])}`)
+            logger.error(`Error parsing event data: ${JSON.stringify(events[i])}`)
         }
     }
     res.json({
@@ -503,7 +498,7 @@ router.get('/user/preferences', async (req, res) => {
         const prefs = await GetUserPreferences(email);
         res.json(JSON.parse(prefs))
     } catch (e) {
-        console.error(e)
+        logger.error(e)
         res.status(404).send()
     }
 })
