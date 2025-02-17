@@ -1,0 +1,19 @@
+meta {
+  name: Get Offseason Events
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/v3/:year/offseason/events
+  body: none
+  auth: bearer
+}
+
+params:path {
+  year: 2024
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
