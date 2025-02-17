@@ -1,0 +1,15 @@
+meta {
+  name: Sync Users
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/v3/system/admin/syncUsers
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}

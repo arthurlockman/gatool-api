@@ -1,4 +1,4 @@
-import { GetSubscribedUsers } from './mailChimpUtils';
+import { CloneAndSendWelcomeCampaign, GetSubscribedUsers } from './mailChimpUtils';
 import logger from '../logger';
 import { AssignUserRoles, CreateUser, DeleteUser, GetUser, RemoveUserRoles } from './auth0Utils';
 import { StoreUserSyncResults } from './storageUtils';
@@ -10,7 +10,11 @@ const delay = async (ms: number) => {
   await new Promise((resolve) => setTimeout(resolve, ms));
 };
 
+const fullUserRole = 'rol_KRLODHx3eNItUgvI';
+const readOnlyRole = 'rol_EQcREtmOWaGanRYG';
+
 export const SyncUsers = async () => {
+  let addedUsers = false;
   const listMembers = await GetSubscribedUsers();
   const optedInUsers = listMembers
     .filter((member) => member.status === 'subscribed' && member.merge_fields.GATOOL === optInText)
@@ -19,23 +23,27 @@ export const SyncUsers = async () => {
   for (const email of optedInUsers) {
     // auth0 has an annoying rate limit on the management API so we have to slow the process down
     await delay(800);
-    const user = await GetOrCreateUser(email);
+    const [user, created] = await GetOrCreateUser(email);
     if (user == null) continue;
+    addedUsers = addedUsers || created;
     logger.info(`Assigning 'user' role to ${email}...`);
-    await AssignUserRoles(user.user_id, ['rol_KRLODHx3eNItUgvI']);
+    await AssignUserRoles(user.user_id, [fullUserRole]);
   }
+
   const optedOutUsers = listMembers
     .filter((member) => member.status === 'subscribed' && member.merge_fields.GATOOL !== optInText)
     .map((member) => member.email_address.toLocaleLowerCase());
   logger.info(`There are ${optedOutUsers.length} users opted out. Assigning viewer role and removing user role.`);
   for (const email of optedOutUsers) {
     await delay(800);
-    const user = await GetOrCreateUser(email);
+    const [user, created] = await GetOrCreateUser(email);
     if (user == null) continue;
-    await RemoveUserRoles(user.user_id, ['rol_KRLODHx3eNItUgvI']);
-    await AssignUserRoles(user.user_id, ['rol_EQcREtmOWaGanRYG']);
+    addedUsers = addedUsers || created;
+    await RemoveUserRoles(user.user_id, [fullUserRole]);
+    await AssignUserRoles(user.user_id, [readOnlyRole]);
     logger.info(`Removed editing permissions from user ${email}.`);
   }
+
   const unsubscribedUsers = listMembers
     .filter((member) => member.status === 'unsubscribed')
     .map((member) => member.email_address.toLocaleLowerCase());
@@ -52,12 +60,17 @@ export const SyncUsers = async () => {
     }
     await delay(800);
   }
+
   const syncDate = new Date().toISOString();
   await StoreUserSyncResults(syncDate, optedInUsers.length, optedOutUsers.length, deletedUsers);
+  if (addedUsers) {
+    await CloneAndSendWelcomeCampaign();
+  }
 };
 
-const GetOrCreateUser = async (email: string): Promise<GetUsers200ResponseOneOfInner | null> => {
+const GetOrCreateUser = async (email: string): Promise<[GetUsers200ResponseOneOfInner | null, boolean]> => {
   let user = await GetUser(email);
+  let created = false;
   if (user == null) {
     logger.info(`User ${email} does not exist, creating...`);
     await CreateUser(email);
@@ -65,6 +78,7 @@ const GetOrCreateUser = async (email: string): Promise<GetUsers200ResponseOneOfI
     if (user == null) {
       logger.info(`Couldn't create user ${email}. Moving on, will retry next time.`);
     }
+    created = true;
   }
-  return user;
+  return [user, created];
 };

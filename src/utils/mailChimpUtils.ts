@@ -1,4 +1,4 @@
-import mailchimp, { lists } from '@mailchimp/mailchimp_marketing';
+import mailchimp, { campaigns, lists } from '@mailchimp/mailchimp_marketing';
 import { ReadSecret } from './secretUtils';
 
 mailchimp.setConfig({
@@ -20,4 +20,18 @@ export const GetSubscribedUsers = async () => {
     offset += newMembers.members.length;
   }
   return members;
+};
+
+export const CloneAndSendWelcomeCampaign = async () => {
+  const campaigns = (await mailchimp.campaigns.list({
+    status: 'sent',
+    sortField: 'send_time',
+    sortDir: 'desc'
+  })) as campaigns.CampaignsSuccessResponse;
+  const mostRecentSend = campaigns.campaigns.filter((c) =>
+    c.settings.subject_line.includes('Welcome to the FIRST gatool!')
+  )[0];
+  // @ts-expect-error the mailchimp types are missing the replicate command
+  const newCampaign = (await mailchimp.campaigns.replicate(mostRecentSend.id)) as campaigns.Campaigns;
+  await mailchimp.campaigns.send(newCampaign.id);
 };
