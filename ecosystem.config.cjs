@@ -2,9 +2,8 @@ module.exports = {
   apps: [
     {
       name: 'GATool',
-      script: "./src/app.ts",
-      interpreter: "node",
-      interpreterArgs: "--import tsx",
+      script: "npm",
+      args: "run start",
       env: {
         PORT: 8080,
         NODE_ENV: 'production'
