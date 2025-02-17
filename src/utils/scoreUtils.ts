@@ -40,11 +40,7 @@ const BuildHighScoreJson = (
   year: number,
   type: string,
   level: string,
-  match: {
-    event: EventMatch['event'] | undefined;
-    alliance: string;
-    match: HybridMatch;
-  }
+  match: {} | { event: any; highScoreAlliance: string; match: any }
 ) => {
   return {
     yearType: year + type + level,
