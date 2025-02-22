@@ -64,8 +64,12 @@ export const SyncUsers = async () => {
   const syncDate = new Date().toISOString();
   await StoreUserSyncResults(syncDate, optedInUsers.length, optedOutUsers.length, deletedUsers);
   if (addedUsers) {
+    logger.info('Added users, sending new welcome campaign...');
     await CloneAndSendWelcomeCampaign();
+  } else {
+    logger.info('Did not add any new users, no welcome campaign sent.')
   }
+  logger.info('Sync complete.');
 };
 
 const GetOrCreateUser = async (email: string): Promise<[GetUsers200ResponseOneOfInner | null, boolean]> => {

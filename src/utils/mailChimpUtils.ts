@@ -1,5 +1,6 @@
 import mailchimp, { campaigns, lists } from '@mailchimp/mailchimp_marketing';
 import { ReadSecret } from './secretUtils';
+import logger from '../logger';
 
 mailchimp.setConfig({
   apiKey: await ReadSecret('MailchimpAPIKey'),
@@ -31,7 +32,9 @@ export const CloneAndSendWelcomeCampaign = async () => {
   const mostRecentSend = campaigns.campaigns.filter((c) =>
     c.settings.subject_line.includes('Welcome to the FIRST gatool!')
   )[0];
+  logger.info(`Copying campaign ${mostRecentSend.id}`);
   // @ts-expect-error the mailchimp types are missing the replicate command
   const newCampaign = (await mailchimp.campaigns.replicate(mostRecentSend.id)) as campaigns.Campaigns;
+  logger.info(`Sending campaign ${newCampaign.id}`);
   await mailchimp.campaigns.send(newCampaign.id);
 };
