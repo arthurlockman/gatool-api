@@ -31,9 +31,9 @@
     "newrelic": "^12.11.1",
     "node_extra_ca_certs_mozilla_bundle": "^1.0.6",
     "node-cache": "^5.1.2",
+    "node-cron": "^3.0.3",
     "pino-http": "^10.4.0",
-    "redis": "^4.7.0",
-    "set-interval-async": "^3.0.3"
+    "redis": "^4.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
@@ -43,6 +43,7 @@
     "@types/mailchimp__mailchimp_marketing": "^3.0.21",
     "@types/newrelic": "^9.14.7",
     "@types/node": "^22.13.4",
+    "@types/node-cron": "^3.0.11",
     "@typescript-eslint/eslint-plugin": "^8.24.1",
     "@typescript-eslint/parser": "^8.24.1",
     "dotenv": "^16.4.7",

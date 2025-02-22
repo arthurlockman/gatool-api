@@ -7,7 +7,6 @@ import pinoHTTP from 'pino-http';
 import logger from './logger';
 import { auth } from 'express-oauth2-jwt-bearer';
 import { unless } from 'express-unless';
-import { setIntervalAsync } from 'set-interval-async';
 import 'express-async-errors';
 
 import { router as v3Router } from './routes/v3-endpoints';
@@ -21,6 +20,8 @@ import { UpdateHighScores } from './utils/update-high-scores';
 import { SyncUsers } from './utils/syncUsers';
 import * as inspector from 'inspector';
 
+import cron from 'node-cron';
+
 const hostname = os.hostname();
 
 function isInDebugMode() {
@@ -30,16 +31,16 @@ function isInDebugMode() {
 // If we're running on the A host, run the timer.
 if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
   logger.info(`Running on ${hostname}, starting background timers.`);
-  setIntervalAsync(async () => {
+  cron.schedule('*/15 * * * *', async () => {
     logger.info('Updating high scores...');
     await UpdateHighScores();
     logger.info('Done updating high scores.');
-  }, 900000);
-  setIntervalAsync(async () => {
+  });
+  cron.schedule('0 */6 * * *', async () => {
     logger.info('Starting user sync...');
     await SyncUsers();
     logger.info('User sync complete.');
-  }, 21600000);
+  });
 }
 
 const app = express();
