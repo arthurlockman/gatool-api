@@ -1,5 +1,7 @@
 import { GetFRCApiToken, GetTBAApiToken } from './secretUtils';
 import * as fs from 'fs';
+import logger from '../logger';
+import { RequestError } from 'got';
 
 const { got } = await import('got');
 
@@ -12,19 +14,28 @@ const mozillaCA = fs.readFileSync(
  * @param path The path to GET data from
  */
 const GetDataFromTBA = async <T>(path: string) => {
-  const data = await got.get(`https://www.thebluealliance.com/api/v3/${path}`, {
-    headers: {
-      'X-TBA-Auth-Key': await GetTBAApiToken(),
-      Accept: 'application/json'
-    },
-    timeout: {
-      request: 20000
+  try {
+    const data = await got.get(`https://www.thebluealliance.com/api/v3/${path}`, {
+      headers: {
+        'X-TBA-Auth-Key': await GetTBAApiToken(),
+        Accept: 'application/json'
+      },
+      timeout: {
+        request: 20000
+      }
+    });
+    return {
+      body: JSON.parse(data.body) as T,
+      headers: data.headers
+    };
+  } catch (error) {
+    if (error instanceof RequestError) {
+      logger.error(`Error code ${error.code} from TBA: ${error.message}`, error);
+    } else {
+      logger.error(error);
     }
-  });
-  return {
-    body: JSON.parse(data.body) as T,
-    headers: data.headers
-  };
+    throw error;
+  }
 };
 
 /**
@@ -33,19 +44,28 @@ const GetDataFromTBA = async <T>(path: string) => {
  * @param apiVersion version of the FRC API
  */
 const GetDataFromFIRST = async <T>(path: string, apiVersion = 'v3.0') => {
-  const data = await got.get(`https://frc-api.firstinspires.org/${apiVersion}/${path}`, {
-    headers: {
-      Authorization: await GetFRCApiToken(),
-      Accept: 'application/json'
-    },
-    https: {
-      certificateAuthority: mozillaCA
+  try {
+    const data = await got.get(`https://frc-api.firstinspires.org/${apiVersion}/${path}`, {
+      headers: {
+        Authorization: await GetFRCApiToken(),
+        Accept: 'application/json'
+      },
+      https: {
+        certificateAuthority: mozillaCA
+      }
+    });
+    return {
+      body: JSON.parse(data.body) as T,
+      headers: data.headers
+    };
+  } catch (error) {
+    if (error instanceof RequestError) {
+      logger.error(`Error code ${error.code} from FIRST: ${error.message}`, error);
+    } else {
+      logger.error(error);
     }
-  });
-  return {
-    body: JSON.parse(data.body) as T,
-    headers: data.headers
-  };
+    throw error;
+  }
 };
 
 export { GetDataFromFIRST, GetDataFromTBA };
