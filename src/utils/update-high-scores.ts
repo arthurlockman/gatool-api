@@ -45,10 +45,11 @@ export const UpdateHighScores = async () => {
     if (!!_event && _event.schedule.length > 0) {
       for (const match of _event.schedule) {
         // TODO: find a better way to filter these demo teams out, this way is not sustainable
+        // FIRST says teams >=9970 and <=9999 are offseason demo teams
         if (
           match.postResultTime &&
           match.postResultTime !== '' &&
-          match.teams.filter((t) => t.teamNumber >= 9986).length === 0
+          match.teams.filter((t) => t.teamNumber >= 9970 && t.teamNumber <=9999).length === 0
         ) {
           // Result was posted, and it's not a demo team, so the match has occurred
           matches.push({
