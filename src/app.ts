@@ -20,7 +20,7 @@ import { UpdateHighScores } from './utils/update-high-scores';
 import { SyncUsers } from './utils/syncUsers';
 import * as inspector from 'inspector';
 
-import cron from 'node-cron';
+import { CronJob } from 'cron';
 
 const hostname = os.hostname();
 
@@ -31,16 +31,30 @@ function isInDebugMode() {
 // If we're running on the A host, run the timer.
 if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
   logger.info(`Running on ${hostname}, starting background timers.`);
-  cron.schedule('*/15 * * * *', async () => {
-    logger.info('Updating high scores...');
-    await UpdateHighScores();
-    logger.info('Done updating high scores.');
-  });
-  cron.schedule('0 */6 * * *', async () => {
-    logger.info('Starting user sync...');
-    await SyncUsers();
-    logger.info('User sync complete.');
-  });
+  const highScoresJob = new CronJob(
+    '*/15 * * * *',
+    async () => {
+      logger.info('Updating high scores...');
+      await UpdateHighScores();
+      logger.info('Done updating high scores.');
+    },
+    null,
+    true,
+    'America/Los_Angeles',
+  );
+  // const userSyncJob = new CronJob(
+  //   '0 */6 * * *',
+  //   async () => {
+  //     logger.info('Starting user sync...');
+  //     await SyncUsers();
+  //     logger.info('User sync complete.');
+  //   },
+  //   null,
+  //   true,
+  //   'America/Los_Angeles',
+  // );
+  highScoresJob.start();
+  // userSyncJob.start();
 }
 
 const app = express();
