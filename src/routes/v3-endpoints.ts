@@ -420,11 +420,17 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
 
   let matches = qualMatchList.schedule
     .map((x) => {
-      return { event: { eventCode: eventDetails.code, type: 'qual' }, match: x };
+      return {
+        event: { eventCode: eventDetails.code, districtCode: eventDetails.districtCode, type: 'qual' },
+        match: x
+      };
     })
     .concat(
       playoffMatchList.schedule.map((x) => {
-        return { event: { eventCode: eventDetails.code, type: 'playoff' }, match: x };
+        return {
+          event: { eventCode: eventDetails.code, districtCode: eventDetails.districtCode, type: 'playoff' },
+          match: x
+        };
       })
     );
   matches = matches.filter(
