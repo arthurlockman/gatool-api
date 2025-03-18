@@ -22,9 +22,18 @@ interface EventListResponse {
   eventCount: number;
 }
 
+interface District {
+  code: string;
+  name: string
+}
+interface DistrictListResponse {
+  districts: District[]
+}
+
 interface EventMatch {
   event: {
     eventCode: string;
+    districtCode: string;
     type: string;
   };
   match: HybridMatch;

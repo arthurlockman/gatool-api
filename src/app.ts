@@ -17,7 +17,6 @@ import * as os from 'os';
 
 import * as fs from 'fs';
 import { UpdateHighScores } from './utils/update-high-scores';
-import { SyncUsers } from './utils/syncUsers';
 import * as inspector from 'inspector';
 
 import { CronJob } from 'cron';
@@ -42,19 +41,7 @@ if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
     true,
     'America/Los_Angeles',
   );
-  // const userSyncJob = new CronJob(
-  //   '0 */6 * * *',
-  //   async () => {
-  //     logger.info('Starting user sync...');
-  //     await SyncUsers();
-  //     logger.info('User sync complete.');
-  //   },
-  //   null,
-  //   true,
-  //   'America/Los_Angeles',
-  // );
   highScoresJob.start();
-  // userSyncJob.start();
 }
 
 const app = express();

@@ -420,11 +420,17 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
 
   let matches = qualMatchList.schedule
     .map((x) => {
-      return { event: { eventCode: eventDetails.code, type: 'qual' }, match: x };
+      return {
+        event: { eventCode: eventDetails.code, districtCode: eventDetails.districtCode, type: 'qual' },
+        match: x
+      };
     })
     .concat(
       playoffMatchList.schedule.map((x) => {
-        return { event: { eventCode: eventDetails.code, type: 'playoff' }, match: x };
+        return {
+          event: { eventCode: eventDetails.code, districtCode: eventDetails.districtCode, type: 'playoff' },
+          match: x
+        };
       })
     );
   matches = matches.filter(
@@ -432,8 +438,8 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
       match.match.postResultTime &&
       match.match.postResultTime !== '' &&
       // TODO: find a better way to filter these demo teams out, this way is not sustainable
-      match.match.teams.filter((t) => t.teamNumber >= 9986).length === 0
-  );
+      match.match.teams.filter((t) => t.teamNumber >= 9986 && t.teamNumber <= 9999).length === 0
+    );
 
   const overallHighScorePlayoff = [];
   const overallHighScoreQual = [];
