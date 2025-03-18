@@ -179,13 +179,13 @@ export const UpdateHighScores = async () => {
     );
     await StoreHighScores(
       frcCurrentSeason,
-      `District${district.code}offsetting`,
+      `District${district.code}PenaltyFree`,
       'playoff',
       scoreUtils.FindHighestScore(penaltyFreeHighScorePlayoff.filter(m => m.event?.districtCode == district.code))
     );
     await StoreHighScores(
       frcCurrentSeason,
-      `District${district.code}offsetting`,
+      `District${district.code}PenaltyFree`,
       'qual',
       scoreUtils.FindHighestScore(penaltyFreeHighScoreQual.filter(m => m.event?.districtCode == district.code))
     );
