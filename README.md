@@ -24,7 +24,7 @@ GAtool's backend is built on nodejs. To run the application, run:
 git clone git@github.com:arthurlockman/gatool-api.git
 cd gatool-api
 npm i
-npm run start
+npm run start:no-redis
 ```
 
 The app won't be able to do anything without proper Azure key authentication. This means development outside our core team will be difficult.

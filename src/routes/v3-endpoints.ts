@@ -18,11 +18,31 @@ export const router = express.Router();
 
 const frcCurrentSeason = await ReadSecret('FRCCurrentSeason');
 
-const redisClient = redis.createClient({
-  url: 'redis://gatool-redis-01:6379'
-});
-redisClient.on('error', (error) => logger.error(`Error : ${error}`));
-await redisClient.connect();
+const redisDisabled = process.env.DISABLE_REDIS === 'true';
+
+let redisClient = null;
+if (!redisDisabled) {
+  redisClient = redis.createClient({
+    url: 'redis://gatool-redis-01:6379'
+  });
+  redisClient.on('error', (error) => logger.error(`Error : ${error}`));
+  await redisClient.connect();
+} else {
+  logger.warn('Redis disabled by CLI argument.');
+}
+
+const getRedisItem = async (key: string) => {
+  return redisDisabled ? null : await redisClient?.get(key);
+}
+
+const setRedisItem = async (key: string, value: string, expiration: number) => {
+  if (!redisDisabled) {
+    await redisClient?.set(key, value, {
+      EX: expiration
+    });
+  }
+}
+
 
 // Common data getters
 
@@ -218,14 +238,12 @@ router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
 router.get('/team/:teamNumber/appearances', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=3600');
   const key = `team/frc${req.params.teamNumber}/events`;
-  const cacheResults = await redisClient.get(`tbaapi:${key}`);
+  const cacheResults = await getRedisItem(`tbaapi:${key}`);
   if (cacheResults) {
     res.json(JSON.parse(cacheResults));
   } else {
     const response = await requestUtils.GetDataFromTBA(key);
-    await redisClient.set(`tbaapi:${key}`, JSON.stringify(response.body), {
-      EX: 259200
-    });
+    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), 259200);
     res.json(response.body);
   }
 });
@@ -234,15 +252,13 @@ router.get('/:year/team/:teamNumber/media', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=3600');
   const currentSeason = parseInt(req.params.year, 10);
   const key = `team/frc${req.params.teamNumber}/media/${currentSeason}`;
-  const cacheResults = await redisClient.get(`tbaapi:${key}`);
+  const cacheResults = await getRedisItem(`tbaapi:${key}`);
   if (cacheResults) {
     res.json(JSON.parse(cacheResults));
   } else {
     const response = await requestUtils.GetDataFromTBA(key);
     res.json(response.body);
-    await redisClient.set(`tbaapi:${key}`, JSON.stringify(response.body), {
-      EX: 259200
-    });
+    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), 259200);
   }
 });
 
@@ -256,7 +272,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=2629800');
   try {
     const key = `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`;
-    const cacheResults = await redisClient.get(`frcapi:${key}`);
+    const cacheResults = await getRedisItem(`frcapi:${key}`);
     let encodedAvatar;
     if (cacheResults) {
       encodedAvatar = cacheResults;
@@ -268,9 +284,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         res.json({ message: 'Avatar not found' });
       }
       encodedAvatar = teamAvatar.encodedAvatar;
-      await redisClient.set(`frcapi:${key}`, encodedAvatar, {
-        EX: 604800
-      });
+      await setRedisItem(`frcapi:${key}`, encodedAvatar, 604800);
     }
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Charset', 'utf-8');
