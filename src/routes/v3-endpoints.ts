@@ -439,36 +439,60 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
       match.match.postResultTime !== '' &&
       // TODO: find a better way to filter these demo teams out, this way is not sustainable
       match.match.teams.filter((t) => t.teamNumber >= 9986 && t.teamNumber <= 9999).length === 0
-    );
+  );
 
   const overallHighScorePlayoff = [];
   const overallHighScoreQual = [];
   const penaltyFreeHighScorePlayoff = [];
   const penaltyFreeHighScoreQual = [];
+  const TBAPenaltyFreeHighScorePlayoff = [];
+  const TBAPenaltyFreeHighScoreQual = [];
   const offsettingPenaltyHighScorePlayoff = [];
   const offsettingPenaltyHighScoreQual = [];
   for (const match of matches) {
     if (match.event.type === 'playoff') {
+      // Load match results into overall playoff bucket
       overallHighScorePlayoff.push(match);
     }
     if (match.event.type === 'qual') {
+      // Load match results into overall quals bucket
       overallHighScoreQual.push(match);
     }
+    if (
+      match.event.type === 'playoff' &&
+      ((match.match.scoreBlueFoul === 0 && match.match.scoreBlueFinal >= match.match.scoreRedFinal) ||
+        (match.match.scoreRedFoul === 0 && match.match.scoreBlueFinal <= match.match.scoreRedFinal))
+    ) {
+      // Load match results into TBA playoff bucket because the winning Alliance had no fouls
+      TBAPenaltyFreeHighScorePlayoff.push(match);
+    }
+    if (
+      match.event.type === 'qual' &&
+      ((match.match.scoreBlueFoul === 0 && match.match.scoreBlueFinal >= match.match.scoreRedFinal) ||
+        (match.match.scoreRedFoul === 0 && match.match.scoreBlueFinal <= match.match.scoreRedFinal))
+    ) {
+      // Load match results into TBA playoff bucket because the winning Alliance had no fouls
+      TBAPenaltyFreeHighScoreQual.push(match);
+    }
     if (match.event.type === 'playoff' && match.match.scoreBlueFoul === 0 && match.match.scoreRedFoul === 0) {
+      // Load match results into penalty free playoff bucket
       penaltyFreeHighScorePlayoff.push(match);
     } else if (match.event.type === 'qual' && match.match.scoreBlueFoul === 0 && match.match.scoreRedFoul === 0) {
+      // Load match results into penalty free playoff bucket
       penaltyFreeHighScoreQual.push(match);
     } else if (
       match.event.type === 'playoff' &&
       match.match.scoreBlueFoul === match.match.scoreRedFoul &&
       match.match.scoreBlueFoul > 0
     ) {
+      // Load match results into offsetting fouls playoff bucket
       offsettingPenaltyHighScorePlayoff.push(match);
     } else if (
       match.event.type === 'qual' &&
       match.match.scoreBlueFoul === match.match.scoreRedFoul &&
       match.match.scoreBlueFoul > 0
     ) {
+      // Load match results into offsetting fouls playoff bucket
       offsettingPenaltyHighScoreQual.push(match);
     }
   }
@@ -530,6 +554,26 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
         'offsetting',
         'qual',
         scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual)
+      )
+    );
+  }
+  if (TBAPenaltyFreeHighScoreQual.length > 0) {
+    highScoresData.push(
+      scoreUtils.BuildHighScoreJson(
+        +req.params.year,
+        'TBAPenaltyFree',
+        'qual',
+        scoreUtils.FindHighestScore(TBAPenaltyFreeHighScoreQual)
+      )
+    );
+  }
+  if (TBAPenaltyFreeHighScorePlayoff.length > 0) {
+    highScoresData.push(
+      scoreUtils.BuildHighScoreJson(
+        +req.params.year,
+        'TBAPenaltyFree',
+        'playoff',
+        scoreUtils.FindHighestScore(TBAPenaltyFreeHighScorePlayoff)
       )
     );
   }

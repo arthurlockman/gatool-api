@@ -107,10 +107,10 @@ export const UpdateHighScores = async () => {
       penaltyFreeHighScoreQual.push(match);
     } else if (
       match.event.type === 'playoff' &&
-      // Load match results into offsetting fouls playoff bucket
       match.match.scoreBlueFoul === match.match.scoreRedFoul &&
       match.match.scoreBlueFoul > 0
     ) {
+      // Load match results into offsetting fouls playoff bucket
       offsettingPenaltyHighScorePlayoff.push(match);
     } else if (
       match.event.type === 'qual' &&
@@ -149,7 +149,12 @@ export const UpdateHighScores = async () => {
     'playoff',
     scoreUtils.FindHighestScore(offsettingPenaltyHighScorePlayoff)
   );
-  await StoreHighScores(frcCurrentSeason, 'offsetting', 'qual', scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual));
+  await StoreHighScores(
+    frcCurrentSeason,
+    'offsetting',
+    'qual',
+    scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual)
+  );
 
   // Calculate high scores for each district
   for (const district of districts.body.districts) {
@@ -157,49 +162,51 @@ export const UpdateHighScores = async () => {
       frcCurrentSeason,
       `District${district.code}Overall`,
       'playoff',
-      scoreUtils.FindHighestScore(overallHighScorePlayoff.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(overallHighScorePlayoff.filter((m) => m.event?.districtCode == district.code))
     );
     await StoreHighScores(
       frcCurrentSeason,
       `District${district.code}Overall`,
       'qual',
-      scoreUtils.FindHighestScore(overallHighScoreQual.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(overallHighScoreQual.filter((m) => m.event?.districtCode == district.code))
     );
     await StoreHighScores(
       frcCurrentSeason,
       `District${district.code}offsetting`,
       'playoff',
-      scoreUtils.FindHighestScore(offsettingPenaltyHighScorePlayoff.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(
+        offsettingPenaltyHighScorePlayoff.filter((m) => m.event?.districtCode == district.code)
+      )
     );
     await StoreHighScores(
       frcCurrentSeason,
       `District${district.code}offsetting`,
       'qual',
-      scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual.filter((m) => m.event?.districtCode == district.code))
     );
     await StoreHighScores(
       frcCurrentSeason,
       `District${district.code}PenaltyFree`,
       'playoff',
-      scoreUtils.FindHighestScore(penaltyFreeHighScorePlayoff.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(penaltyFreeHighScorePlayoff.filter((m) => m.event?.districtCode == district.code))
     );
     await StoreHighScores(
       frcCurrentSeason,
       `District${district.code}PenaltyFree`,
       'qual',
-      scoreUtils.FindHighestScore(penaltyFreeHighScoreQual.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(penaltyFreeHighScoreQual.filter((m) => m.event?.districtCode == district.code))
     );
     await StoreHighScores(
       frcCurrentSeason,
       `District${district.code}TBAPenaltyFree`,
       'playoff',
-      scoreUtils.FindHighestScore(TBAPenaltyFreeHighScorePlayoff.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(TBAPenaltyFreeHighScorePlayoff.filter((m) => m.event?.districtCode == district.code))
     );
     await StoreHighScores(
       frcCurrentSeason,
       `District${district.code}TBAPenaltyFree`,
       'qual',
-      scoreUtils.FindHighestScore(TBAPenaltyFreeHighScoreQual.filter(m => m.event?.districtCode == district.code))
+      scoreUtils.FindHighestScore(TBAPenaltyFreeHighScoreQual.filter((m) => m.event?.districtCode == district.code))
     );
   }
 };
