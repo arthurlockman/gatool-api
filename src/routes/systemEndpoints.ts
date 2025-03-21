@@ -1,12 +1,12 @@
 import express from 'express';
-import { GetAnnouncements, GetUserSyncResults, StoreAnnouncements } from '../utils/storageUtils';
+import { GetAnnouncements, GetEventAnnouncements, GetUserSyncResults, StoreAnnouncements, StoreEventAnnouncements } from '../utils/storageUtils';
 import { AssignUserRoles, CreateUser, GetUser } from '../utils/auth0Utils';
 import { SyncUsers } from '../utils/syncUsers';
 import logger from '../logger';
 
 export const router = express.Router();
 
-// Announcement storage
+// Announcement storage and retrieval
 router.get('/announcements', async (_, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   try {
@@ -18,9 +18,26 @@ router.get('/announcements', async (_, res) => {
   }
 });
 
+router.get('/announcements/:eventCode', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache');
+  try {
+    const prefs = await GetEventAnnouncements(req.params.eventCode);
+    res.json(JSON.parse(prefs));
+  } catch (e) {
+    logger.error(e);
+    res.status(404).send();
+  }
+});
+
 router.put('/announcements', async (req, res) => {
   ensureAdmin(req, res);
   await StoreAnnouncements(req.body);
+  res.status(204).send();
+});
+
+router.put('/announcements/:eventCode', async (req, res) => {
+  ensureUser(req, res);
+  await StoreEventAnnouncements(req.body,req.params.eventCode);
   res.status(204).send();
 });
 
@@ -66,6 +83,12 @@ router.get('/admin/syncusers', async (req, res) => {
 
 const ensureAdmin = (req: express.Request, res: express.Response) => {
   if (!(req.auth?.payload['https://gatool.org/roles'] as string[]).includes('admin')) {
+    res.status(403).send();
+  }
+};
+
+const ensureUser = (req: express.Request, res: express.Response) => {
+  if (!(req.auth?.payload['https://gatool.org/roles'] as string[]).includes('user')) {
     res.status(403).send();
   }
 };
