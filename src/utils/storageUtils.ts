@@ -40,11 +40,30 @@ export const GetAnnouncements = async () => {
 };
 
 /**
+ * Get stored Event announcements
+ */
+export const GetEventAnnouncements = async (eventCode:string) => {
+  const userBlob = userPrefsContainer.getBlockBlobClient(`${eventCode}.announce.json`);
+  const content = await userBlob.download(0);
+  return await streamToString(content.readableStreamBody);
+};
+
+/**
  * Store system announcements
  * @param announcements The announcements to store.
  */
 export const StoreAnnouncements = async (announcements: any) => {
   const userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`);
+  const data = JSON.stringify(announcements);
+  await userBlob.upload(data, data.length);
+};
+
+/**
+ * Store system announcements
+ * @param announcements The announcements to store.
+ */
+export const StoreEventAnnouncements = async (announcements: any,eventCode:string) => {
+  const userBlob = userPrefsContainer.getBlockBlobClient(`${eventCode}.announce.json`);
   const data = JSON.stringify(announcements);
   await userBlob.upload(data, data.length);
 };
