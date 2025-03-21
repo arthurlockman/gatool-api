@@ -35,8 +35,12 @@ export const StoreUserPreferences = async (userName: string, preferences: any) =
  */
 export const GetAnnouncements = async () => {
   const userBlob = userPrefsContainer.getBlockBlobClient(`system.announce.json`);
-  const content = await userBlob.download(0);
-  return await streamToString(content.readableStreamBody);
+  if(await userBlob.exists()) {
+    const content = await userBlob.download(0);
+    return await streamToString(content.readableStreamBody);
+  } else {
+    return 'null';
+  }
 };
 
 /**

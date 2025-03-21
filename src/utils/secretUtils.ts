@@ -4,10 +4,7 @@ import { DefaultAzureCredential } from '@azure/identity';
 let frcApiToken: string;
 let tbaApiToken: string;
 
-const credential = new DefaultAzureCredential();
-const keyVaultName = 'GAToolApiKeys';
-const url = `https://${keyVaultName}.vault.azure.net`;
-const azureKeyVaultClient = new SecretClient(url, credential);
+let azureKeyVaultClient: SecretClient;
 
 export const GetFRCApiToken = async () => {
   if (frcApiToken) {
@@ -34,6 +31,21 @@ export const GetAuth0AdminTokens = async () => {
   };
 };
 
+function getKeyVaultClient() {
+  if(azureKeyVaultClient) {
+    return azureKeyVaultClient;
+  }
+  const credential = new DefaultAzureCredential();
+  const keyVaultName = 'GAToolApiKeys';
+  const url = `https://${keyVaultName}.vault.azure.net`;
+  azureKeyVaultClient = new SecretClient(url, credential);
+  return azureKeyVaultClient;
+}
+
 export const ReadSecret = async (secretName: string) => {
-  return (await azureKeyVaultClient.getSecret(secretName))?.value ?? '';
+  // Allow avoiding attempting to load Azure credentials in local development
+  if(`SECRET_${secretName}` in process.env) {
+    return process.env[`SECRET_${secretName}`] || '';
+  }
+  return (await getKeyVaultClient().getSecret(secretName))?.value ?? '';
 };
