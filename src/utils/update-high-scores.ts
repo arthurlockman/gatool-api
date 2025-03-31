@@ -134,7 +134,7 @@ export const UpdateHighScores = async () => {
     frcCurrentSeason,
     'TBAPenaltyFree',
     'qual',
-    scoreUtils.FindHighestScore(TBAPenaltyFreeHighScorePlayoff)
+    scoreUtils.FindHighestScore(TBAPenaltyFreeHighScoreQual)
   );
   await StoreHighScores(
     frcCurrentSeason,
