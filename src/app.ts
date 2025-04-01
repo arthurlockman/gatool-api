@@ -12,37 +12,36 @@ import 'express-async-errors';
 import { router as v3Router } from './routes/v3-endpoints';
 import { router as systemRouter } from './routes/systemEndpoints';
 import { ReadSecret } from './utils/secretUtils';
-
-import * as os from 'os';
-
 import * as fs from 'fs';
-import { UpdateHighScores } from './utils/update-high-scores';
-import * as inspector from 'inspector';
 
-import { CronJob } from 'cron';
+// import * as os from 'os';
+// import { UpdateHighScores } from './utils/update-high-scores';
+// import * as inspector from 'inspector';
 
-const hostname = os.hostname();
-
-function isInDebugMode() {
-  return inspector.url() !== undefined;
-}
+// import { CronJob } from 'cron';
+//
+// const hostname = os.hostname();
+//
+// function isInDebugMode() {
+//   return inspector.url() !== undefined;
+// }
 
 // If we're running on the A host, run the timer.
-if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
-  logger.info(`Running on ${hostname}, starting background timers.`);
-  const highScoresJob = new CronJob(
-    '*/15 * * * *',
-    async () => {
-      logger.info('Updating high scores...');
-      await UpdateHighScores();
-      logger.info('Done updating high scores.');
-    },
-    null,
-    true,
-    'America/Los_Angeles',
-  );
-  highScoresJob.start();
-}
+// if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
+//   logger.info(`Running on ${hostname}, starting background timers.`);
+//   const highScoresJob = new CronJob(
+//     '*/15 * * * *',
+//     async () => {
+//       logger.info('Updating high scores...');
+//       await UpdateHighScores();
+//       logger.info('Done updating high scores.');
+//     },
+//     null,
+//     true,
+//     'America/Los_Angeles',
+//   );
+//   highScoresJob.start();
+// }
 
 const app = express();
 
