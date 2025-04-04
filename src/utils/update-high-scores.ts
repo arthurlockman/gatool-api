@@ -10,7 +10,7 @@ const frcCurrentSeason = +(await ReadSecret('FRCCurrentSeason'));
 export const UpdateHighScores = async () => {
   const eventList = await requestUtils.GetDataFromFIRST<EventListResponse>(`${frcCurrentSeason}/events`);
   const districts = await requestUtils.GetDataFromFIRST<DistrictListResponse>(`${frcCurrentSeason}/districts`);
-  const promises = [];
+  const events = [];
   const order = [];
   const currentDate = new Date();
   currentDate.setDate(currentDate.getDate() + 1);
@@ -18,16 +18,15 @@ export const UpdateHighScores = async () => {
   for (const _event of eventList.body.Events) {
     const eventDate = new Date(_event.dateStart);
     if (eventDate < currentDate) {
-      promises.push(
-        BuildHybridSchedule(frcCurrentSeason, _event.code, 'qual').catch((_) => {
-          return null;
-        })
-      );
-      promises.push(
-        BuildHybridSchedule(frcCurrentSeason, _event.code, 'playoff').catch((_) => {
-          return null;
-        })
-      );
+      const qual = await BuildHybridSchedule(frcCurrentSeason, _event.code, 'qual').catch((_) => {
+        return null;
+      });
+      const playoff = await BuildHybridSchedule(frcCurrentSeason, _event.code, 'playoff').catch((_) => {
+        return null;
+      });
+      events.push(qual);
+      events.push(playoff);
+
       order.push({
         eventCode: _event.code,
         districtCode: _event.districtCode,
@@ -40,7 +39,6 @@ export const UpdateHighScores = async () => {
       });
     }
   }
-  const events = await Promise.all(promises);
   const matches = [];
   logger.info(`Retrieved data for ${events.length} events`);
   for (const _event of events) {
