@@ -27,7 +27,20 @@ npm i
 npm run start:no-redis
 ```
 
-The app won't be able to do anything without proper Azure key authentication. This means development outside our core team will be difficult.
+#### Configuring local development environment
+
+First configure gatool-ui according to the instructions for local development, including Auth0 setup. Then, install [Azurite](https://learn.microsoft.com/en-us/azure/storage/common/storage-use-azurite). Start the Azurite blob store according to Microsoft's documentation. (If using VS Code, ensure you set the working directory in the extension settings to a directory outside of the repository or you will end up with a dirty repo.)
+
+Run `npm run create-dev-containers` to create the necessary containers in the blob store.
+
+Copy `.env.example` to `.env`
+Fill in the following variables:
+- Auth0Issuer with the domain used when setting up gatool-ui
+- Auth0Audience with the client id from setting up gatool-ui
+- FRCApiKey with the basic auth header (`Basic <base64(username:password)>`) for a [FRC API username/key](https://frc-events.firstinspires.org/services/api/register)
+- TBAApiKey with a [TBA Read API key](https://www.thebluealliance.com/account)
+
+Start the server using `npm run start:env` (or `npm run watch:env`)
 
 ### Deployment
 
