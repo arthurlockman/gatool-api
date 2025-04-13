@@ -4,63 +4,73 @@ import { StoreHighScores } from './storageUtils';
 import * as scoreUtils from './scoreUtils';
 import { ReadSecret } from './secretUtils';
 import { BuildHybridSchedule } from './scheduleUtils';
+import PQueue from 'p-queue';
 
 const frcCurrentSeason = +(await ReadSecret('FRCCurrentSeason'));
 
 export const UpdateHighScores = async () => {
   const eventList = await requestUtils.GetDataFromFIRST<EventListResponse>(`${frcCurrentSeason}/events`);
   const districts = await requestUtils.GetDataFromFIRST<DistrictListResponse>(`${frcCurrentSeason}/districts`);
-  const events = [];
-  const order = [];
+  const events: any = [];
   const currentDate = new Date();
   currentDate.setDate(currentDate.getDate() + 1);
   logger.info(`Found ${eventList.body.Events.length} events for ${frcCurrentSeason}`);
+  const eventDataQueue = new PQueue({
+    concurrency: 50
+  });
+  eventDataQueue.on('completed', result => {
+    events.push(result);
+  })
   for (const _event of eventList.body.Events) {
     const eventDate = new Date(_event.dateStart);
     if (eventDate < currentDate) {
-      const qual = await BuildHybridSchedule(frcCurrentSeason, _event.code, 'qual').catch((_) => {
-        return null;
+      // noinspection ES6MissingAwait
+      eventDataQueue.add(async () => {
+        return {
+          metadata: {
+            eventCode: _event.code,
+            districtCode: _event.districtCode,
+            type: 'qual'
+          },
+          schedule: await BuildHybridSchedule(frcCurrentSeason, _event.code, 'qual').catch((_) => {
+            return null;
+          })
+        };
       });
-      const playoff = await BuildHybridSchedule(frcCurrentSeason, _event.code, 'playoff').catch((_) => {
-        return null;
-      });
-      events.push(qual);
-      events.push(playoff);
-
-      order.push({
-        eventCode: _event.code,
-        districtCode: _event.districtCode,
-        type: 'qual'
-      });
-      order.push({
-        eventCode: _event.code,
-        districtCode: _event.districtCode,
-        type: 'playoff'
-      });
+      // noinspection ES6MissingAwait
+      eventDataQueue.add(async () => {
+        return {metadata: {
+            eventCode: _event.code,
+            districtCode: _event.districtCode,
+            type: 'playoff'
+          }, schedule: await BuildHybridSchedule(frcCurrentSeason, _event.code, 'playoff').catch((_) => {
+            return null;
+          })};
+      })
     }
   }
+  await eventDataQueue.onIdle();
   const matches = [];
   logger.info(`Retrieved data for ${events.length} events`);
   for (const _event of events) {
-    const evt = order[events.indexOf(_event)];
-    if (!!_event && _event.schedule.length > 0) {
-      for (const match of _event.schedule) {
+    if (!!_event && !!_event.schedule && _event.schedule.schedule.length > 0) {
+      for (const match of _event.schedule.schedule) {
         // TODO: find a better way to filter these demo teams out, this way is not sustainable
         // FIRST says teams >=9970 and <=9999 are offseason demo teams
         if (
           match.postResultTime &&
           match.postResultTime !== '' &&
-          match.teams.filter((t) => t.teamNumber >= 9986 && t.teamNumber <= 9999).length === 0
+          match.teams.filter((t: any) => t.teamNumber >= 9986 && t.teamNumber <= 9999).length === 0
         ) {
           // Result was posted, and it's not all demo teams, so the match has occurred
           matches.push({
-            event: evt,
+            event: _event.metadata,
             match
           });
         }
       }
     } else {
-      logger.info(`Event ${evt.eventCode}, ${evt.type} has no schedule data, likely occurs in the future`);
+      logger.info(`Event ${_event.metadata.eventCode}, ${_event.metadata.type} has no schedule data, likely occurs in the future`);
     }
   }
   const overallHighScorePlayoff = [];
