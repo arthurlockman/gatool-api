@@ -599,23 +599,3 @@ router.get('/:year/highscores', async (req, res) => {
   const scores = await GetHighScores(req.params.year);
   res.json(scores);
 });
-
-// User Data Storage
-
-router.get('/user/preferences', async (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  try {
-    const email = req.auth?.payload.email as string;
-    const prefs = await GetUserPreferences(email);
-    res.json(JSON.parse(prefs));
-  } catch (e) {
-    logger.error(e);
-    res.status(404).send();
-  }
-});
-
-router.put('/user/preferences', async (req, res) => {
-  const email = req.auth?.payload.email as string;
-  await StoreUserPreferences(email, req.body);
-  res.status(204).send();
-});
