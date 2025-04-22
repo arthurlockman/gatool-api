@@ -11,37 +11,10 @@ import 'express-async-errors';
 
 import { router as v3Router } from './routes/v3-endpoints';
 import { router as systemRouter } from './routes/systemEndpoints';
+import { router as userRouter } from './routes/userEndpoints';
+import { router as announcementsRouter } from './routes/announcementsEndpoints';
 import { ReadSecret } from './utils/secretUtils';
 import * as fs from 'fs';
-
-// import * as os from 'os';
-// import { UpdateHighScores } from './utils/update-high-scores';
-// import * as inspector from 'inspector';
-
-// import { CronJob } from 'cron';
-//
-// const hostname = os.hostname();
-//
-// function isInDebugMode() {
-//   return inspector.url() !== undefined;
-// }
-
-// If we're running on the A host, run the timer.
-// if (hostname.toLocaleLowerCase() === 'gatool-worker' || isInDebugMode()) {
-//   logger.info(`Running on ${hostname}, starting background timers.`);
-//   const highScoresJob = new CronJob(
-//     '*/15 * * * *',
-//     async () => {
-//       logger.info('Updating high scores...');
-//       await UpdateHighScores();
-//       logger.info('Done updating high scores.');
-//     },
-//     null,
-//     true,
-//     'America/Los_Angeles',
-//   );
-//   highScoresJob.start();
-// }
 
 const app = express();
 
@@ -62,8 +35,6 @@ const auth0 = auth({
   issuerBaseURL: await ReadSecret('Auth0Issuer'),
   audience: await ReadSecret('Auth0Audience')
 });
-// @ts-expect-error yeah i know it's not there i'm adding it
-auth0.unless = unless;
 
 // noinspection JSUnusedLocalSymbols
 app.options('/*', (_req, res) => {
@@ -72,13 +43,6 @@ app.options('/*', (_req, res) => {
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
   res.send(200);
 });
-
-app.use(
-  // @ts-expect-error yeah i know it's not there I'm adding it
-  auth0.unless({
-    path: ['/livecheck', '/version', /.*avatar\.png/, '/v3/admin/updateHighScores']
-  })
-);
 
 let appVersion;
 try {
@@ -113,6 +77,11 @@ app.use((err: any, _1: Request, _2: Response, next: NextFunction) => {
 });
 
 app.use('/v3', v3Router);
+app.use('/v3/announcements', announcementsRouter);
+
+// Authenticated routes below here
+app.use(auth0);
+app.use('/v3/user', userRouter);
 app.use('/v3/system', systemRouter);
 
 // Catch unhandled exceptions
