@@ -12,12 +12,15 @@
     "prestart": "npm run build",
     "start": "tsx src/app.ts",
     "start:no-redis": "export DISABLE_REDIS=true && tsx src/app.ts",
+    "start:env": "tsx --env-file .env src/app.ts",
     "watch": "tsx watch src/app.ts",
     "watch:no-redis": "export DISABLE_REDIS=true && tsx watch src/app.ts",
+    "watch:env": "tsx watch --env-file .env src/app.ts",
     "write-version": "echo $(git rev-parse HEAD) >> version.txt",
     "deploy:production": "pm2 deploy ecosystem.config.cjs production --force",
     "sync-users": "tsx src/cron/updateUsers.ts",
-    "update-high-scores": "tsx src/cron/updateHighScores.ts"
+    "update-high-scores": "tsx src/cron/updateHighScores.ts",
+    "create-dev-containers": "tsx src/utils/createDevContainers.ts"
   },
   "dependencies": {
     "@azure/identity": "4.6.0",
