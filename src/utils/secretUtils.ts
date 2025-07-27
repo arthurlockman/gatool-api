@@ -3,6 +3,8 @@ import { DefaultAzureCredential } from '@azure/identity';
 
 let frcApiToken: string;
 let tbaApiToken: string;
+let ftcApiToken: string;
+let toaApiToken: string;
 
 let azureKeyVaultClient: SecretClient;
 
@@ -14,12 +16,28 @@ export const GetFRCApiToken = async () => {
   return frcApiToken;
 };
 
+export const GetFTCApiToken = async () => {
+  if (ftcApiToken) {
+    return ftcApiToken;
+  }
+  ftcApiToken = await ReadSecret('FTCApiKey');
+  return ftcApiToken;
+};
+
 export const GetTBAApiToken = async () => {
   if (tbaApiToken) {
     return tbaApiToken;
   }
   tbaApiToken = await ReadSecret('TBAApiKey');
   return tbaApiToken;
+};
+
+export const GetTOAApiToken = async () => {
+  if (toaApiToken) {
+    return toaApiToken;
+  }
+  toaApiToken = await ReadSecret('TOAApiKey');
+  return toaApiToken;
 };
 
 export const GetAuth0AdminTokens = async () => {
