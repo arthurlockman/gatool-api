@@ -53,6 +53,15 @@ export const GetEventAnnouncements = async (eventCode:string) => {
 };
 
 /**
+ * Get stored FTC Event announcements
+ */
+export const GetFTCEventAnnouncements = async (eventCode:string) => {
+  const userBlob = userPrefsContainer.getBlockBlobClient(`ftc-${eventCode}.announce.json`);
+  const content = await userBlob.download(0);
+  return await streamToString(content.readableStreamBody);
+};
+
+/**
  * Store system announcements
  * @param announcements The announcements to store.
  */
@@ -63,11 +72,21 @@ export const StoreAnnouncements = async (announcements: any) => {
 };
 
 /**
- * Store system announcements
+ * Store event announcements
  * @param announcements The announcements to store.
  */
 export const StoreEventAnnouncements = async (announcements: any,eventCode:string) => {
   const userBlob = userPrefsContainer.getBlockBlobClient(`${eventCode}.announce.json`);
+  const data = JSON.stringify(announcements);
+  await userBlob.upload(data, data.length);
+};
+
+/**
+ * Store FTC event announcements
+ * @param announcements The announcements to store.
+ */
+export const StoreFTCEventAnnouncements = async (announcements: any,eventCode:string) => {
+  const userBlob = userPrefsContainer.getBlockBlobClient(`ftc-${eventCode}.announce.json`);
   const data = JSON.stringify(announcements);
   await userBlob.upload(data, data.length);
 };
@@ -105,6 +124,16 @@ export const GetTeamUpdates = async (teamNumber: number) => {
 };
 
 /**
+ * Get all stored FTC team updates for a team
+ * @param teamNumber The team number to get updates for
+ */
+export const GetFTCTeamUpdates = async (teamNumber: number) => {
+  const userBlob = teamUpdatesContainer.getBlockBlobClient(`ftc-${teamNumber}.json`);
+  const content = await userBlob.download(0);
+  return await streamToString(content.readableStreamBody);
+};
+
+/**
  * Get all historical update versions for a team
  * @param teamNumber The team number to get update history for
  */
@@ -121,6 +150,28 @@ export const GetTeamUpdateHistory = async (teamNumber: number) => {
     const c = await b.download(0);
     const u = JSON.parse(await streamToString(c.readableStreamBody));
     u.modifiedDate = blob.name.replace(`${teamNumber}/`, '').replace(`.json`, '');
+    r = r.concat(u);
+  }
+  return r;
+};
+
+/**
+ * Get all historical update versions for an FTC team
+ * @param teamNumber The team number to get update history for
+ */
+export const GetFTCTeamUpdateHistory = async (teamNumber: number) => {
+  const iterator = teamUpdateHistoryContainer
+    .listBlobsFlat({
+      prefix: `ftc-${teamNumber}/`
+    })
+    .byPage({ maxPageSize: 1000 });
+  const response = (await iterator.next()).value;
+  let r: any[] = [];
+  for (const blob of response.segment.blobItems) {
+    const b = teamUpdateHistoryContainer.getBlockBlobClient(blob.name);
+    const c = await b.download(0);
+    const u = JSON.parse(await streamToString(c.readableStreamBody));
+    u.modifiedDate = blob.name.replace(`ftc-${teamNumber}/`, '').replace(`.json`, '');
     r = r.concat(u);
   }
   return r;
@@ -151,8 +202,46 @@ export const StoreTeamUpdates = async (teamNumber: number, data: any, email: str
   await userBlob.upload(d, d.length);
 };
 
+/**
+ * Store an FTC team update blob
+ * @param teamNumber the team number
+ * @param data the update data to store
+ * @param email the email of the user making the update
+ */
+export const StoreFTCTeamUpdates = async (teamNumber: number, data: any, email: string) => {
+  try {
+    const blob = teamUpdatesContainer.getBlockBlobClient(`ftc-${teamNumber}.json`);
+    const lastModifiedDate = (await blob.getProperties()).lastModified as Date;
+    const b = await blob.download(0);
+    const content = await streamToString(b.readableStreamBody);
+    const historyBlob = teamUpdateHistoryContainer.getBlockBlobClient(
+      `ftc-${teamNumber}/${lastModifiedDate.toJSON()}.json`
+    );
+    await historyBlob.upload(content, content.length);
+  } catch {
+    // No stored updates, continue without saving history
+  }
+  const userBlob = teamUpdatesContainer.getBlockBlobClient(`ftc-${teamNumber}.json`);
+  data.source = email;
+  const d = JSON.stringify(data);
+  await userBlob.upload(d, d.length);
+};
+
 export const StoreHighScores = async (year: number, type: string, level: string, match: any) => {
   const scoreBlob = highScoresContainer.getBlockBlobClient(`${year}-${type}-${level}.json`);
+  const item = {
+    yearType: year + type + level,
+    year,
+    type,
+    level,
+    matchData: match
+  };
+  const d = JSON.stringify(item);
+  await scoreBlob.upload(d, d.length);
+};
+
+export const StoreFTCHighScores = async (year: number, type: string, level: string, match: any) => {
+  const scoreBlob = highScoresContainer.getBlockBlobClient(`ftc-${year}-${type}-${level}.json`);
   const item = {
     yearType: year + type + level,
     year,
@@ -168,6 +257,22 @@ export const GetHighScores = async (year: string) => {
   const iterator = highScoresContainer
     .listBlobsFlat({
       prefix: year
+    })
+    .byPage({ maxPageSize: 1000 });
+  const response = (await iterator.next()).value;
+  let r: any[] = [];
+  for (const blob of response.segment.blobItems) {
+    const b = highScoresContainer.getBlockBlobClient(blob.name);
+    const c = await b.download(0);
+    r = r.concat(JSON.parse(await streamToString(c.readableStreamBody)));
+  }
+  return r;
+};
+
+export const GetFTCHighScores = async (year: string) => {
+  const iterator = highScoresContainer
+    .listBlobsFlat({
+      prefix: `ftc-${year}`
     })
     .byPage({ maxPageSize: 1000 });
   const response = (await iterator.next()).value;

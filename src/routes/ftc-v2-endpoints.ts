@@ -2,16 +2,13 @@ import express from 'express';
 import * as requestUtils from '../utils/requestUtils';
 import * as scoreUtils from '../utils/scoreUtils';
 import {
-  GetHighScores,
-  GetTeamUpdateHistory,
-  GetTeamUpdates,
-  GetUserPreferences,
-  StoreTeamUpdates,
-  StoreUserPreferences
+  GetFTCHighScores,
+  GetFTCTeamUpdateHistory,
+  GetFTCTeamUpdates,
+  StoreFTCTeamUpdates
 } from '../utils/storageUtils';
 import { ReadSecret } from '../utils/secretUtils';
 import * as redis from 'redis';
-import { BuildHybridSchedule } from '../utils/scheduleUtils';
 import logger from '../logger';
 
 export const router = express.Router();
@@ -43,31 +40,45 @@ const setRedisItem = async (key: string, value: string, expiration: number) => {
   }
 };
 
+const TOAEventTypes = <any>{
+  LGMEET: 'League/Meet',
+  OTHER: 'Other',
+  QUAL: 'Qualifier',
+  RCMP: 'Region Championship',
+  SCRIMMAGE: 'Scrimmage',
+  SPRING: 'Spring Event',
+  LGCMP: 'League Championship',
+  OFFSSN: 'Off Season',
+  SPRQUAL: 'Super Qualifier',
+  SPRRGNL: 'Super Regional',
+  WRLDCMP: 'World Championship'
+};
+
 // Common data getters
 
-const GetTeams = async (
+const GetFTCTeams = async (
   year: string,
   eventCode: string | null = null,
-  districtCode: string | null = null,
+  state: string | null = null,
   teamNumber: string | null = null
 ) => {
   const query = [];
   if (eventCode) {
     query.push(`eventCode=${eventCode}`);
   }
-  if (districtCode) {
-    query.push(`districtCode=${districtCode}`);
+  if (state) {
+    query.push(`state=${state}`);
   }
   if (teamNumber) {
     query.push(`teamNumber=${teamNumber}`);
   }
-  const teamData = await requestUtils.GetDataFromFIRST<TeamResponse>(`${year}/teams?${query.join('&')}&page=1`);
+  const teamData = await requestUtils.GetDataFromFTC<FTCTeamResponse>(`${year}/teams?${query.join('&')}&page=1`);
   if (teamData.body.pageTotal === 1) {
     return teamData.body;
   } else {
     const promises = [];
     for (let i = 2; i <= teamData.body.pageTotal; i++) {
-      promises.push(requestUtils.GetDataFromFIRST<TeamResponse>(`${year}/teams?${query.join('&')}&page=${i}`));
+      promises.push(requestUtils.GetDataFromFTC<FTCTeamResponse>(`${year}/teams?${query.join('&')}&page=${i}`));
     }
     const allTeamData = await Promise.all(promises);
     allTeamData.map((team) => {
@@ -81,114 +92,100 @@ const GetTeams = async (
 
 // Routes
 
-router.get('/:year/teams', async (req, res) => {
+router.get('/ftc/:year/teams', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
   if (req.query === null) {
     res.statusCode = 400;
     res.send({ message: 'You must supply query parameters.' });
   }
   const eventCode = req.query.eventCode as string;
-  const districtCode = req.query.districtCode as string;
   const teamNumber = req.query.teamNumber as string;
-  res.json(await GetTeams(req.params.year, eventCode, districtCode, teamNumber));
+  const state = req.query.state as string;
+  res.json(await GetFTCTeams(req.params.year, eventCode, state, teamNumber));
 });
 
-router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
+router.get('/ftc/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const response = await requestUtils.GetDataFromFIRST(
-    `${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}`
+  const response = await requestUtils.GetDataFromFTC(
+    `${req.params.year}/schedule/${req.params.eventCode}/?tournamentLevel=${req.params.tournamentLevel}`
   );
   res.json(response.body);
 });
 
-router.get('/:year/districts/', async (req, res) => {
+router.get('/ftc/:year/leagues/', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/districts/`);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/leagues`);
   res.json(response.body);
 });
 
-router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
+router.get('/ftc/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const response = await requestUtils.GetDataFromFIRST(
-    `${req.params.year}/matches/${req.params.eventCode}/${req.params.tournamentLevel}`
+  const response = await requestUtils.GetDataFromFTC(
+    `${req.params.year}/matches/${req.params.eventCode}?tournamentLevel=${req.params.tournamentLevel}`
   );
   res.json(response.body);
 });
 
-router.get('/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res) => {
+router.get('/ftc/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const schedule = await BuildHybridSchedule(+req.params.year, req.params.eventCode, req.params.tournamentLevel);
-  res.json({
-    Schedule: schedule
-  });
+  const schedule = await requestUtils.GetDataFromFTC(
+    `${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}/hybrid`
+  );
+  res.json(schedule.body);
 });
 
-router.get('/:year/awards/event/:eventCode', async (req, res) => {
+router.get('/ftc/:year/awards/event/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
-  const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/event/${req.params.eventCode}`);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/awards/${req.params.eventCode}`);
   res.json(response.body);
 });
 
-router.get('/:year/events', async (req, res) => {
-  let requestString = `${req.params.year}/events`;
-  const params = [];
-  if (req.query !== null) {
-    const eventCode = req.query.eventCode as string;
-    const districtCode = req.query.districtCode as string;
-    const teamNumber = req.query.teamNumber as string;
-    if (districtCode) {
-      params.push(`districtCode=${districtCode}`);
-    }
-    if (eventCode) {
-      params.push(`eventCode=${eventCode}`);
-    }
-    if (teamNumber) {
-      params.push(`teamNumber=${teamNumber}`);
-    }
-    if (params.length > 0) {
-      requestString += `?${params.join('&')}`;
-    }
-  }
-
+router.get('/ftc/:year/events', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=86400');
-  const response = await requestUtils.GetDataFromFIRST(requestString);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/events`);
   res.json(response.body);
 });
 
-router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, res) => {
+router.get('/ftc/:year/events/:eventcode', async (req, res) => {
+  res.setHeader('Cache-Control', 's-maxage=86400');
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/events?eventCode=${req.params.eventcode}`);
+  res.json(response.body);
+});
+
+router.get('/ftc/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   let response;
   if (req.params.start === req.params.end) {
-    response = await requestUtils.GetDataFromFIRST(
+    response = await requestUtils.GetDataFromFTC(
       `${req.params.year}/scores/${req.params.eventCode}/${req.params.tournamentLevel}?matchNumber=${req.params.start}`
     );
   } else {
-    response = await requestUtils.GetDataFromFIRST(
+    response = await requestUtils.GetDataFromFTC(
       `${req.params.year}/scores/${req.params.eventCode}/${req.params.tournamentLevel}?start=${req.params.start}&end=${req.params.end}`
     );
   }
   res.json(response.body);
 });
 
-router.get('/:year/scores/:eventCode/playoff', async (req, res) => {
+router.get('/ftc/:year/scores/:eventCode/playoff', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Playoff`);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/scores/${req.params.eventCode}/Playoff`);
   res.json(response.body);
 });
 
-router.get('/:year/scores/:eventCode/qual', async (req, res) => {
+router.get('/ftc/:year/scores/:eventCode/qual', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/scores/${req.params.eventCode}/Qual`);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/scores/${req.params.eventCode}/Qual`);
   res.json(response.body);
 });
 
-router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
+router.get('ftc//:year/communityUpdates/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const teamList = await GetTeams(req.params.year, req.params.eventCode);
+  const teamList = await GetFTCTeams(req.params.year, req.params.eventCode);
   const teamData = await Promise.all(
     teamList.teams.map(async (t) => {
       try {
-        return { teamNumber: t.teamNumber, updates: JSON.parse(await GetTeamUpdates(t.teamNumber)) };
+        return { teamNumber: t.teamNumber, updates: JSON.parse(await GetFTCTeamUpdates(t.teamNumber)) };
       } catch (_e) {
         return { teamNumber: t.teamNumber, updates: null };
       }
@@ -197,10 +194,10 @@ router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
   res.json(teamData);
 });
 
-router.get('/team/:teamNumber/updates', async (req, res) => {
+router.get('/ftc/team/:teamNumber/updates', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   try {
-    const updates = await GetTeamUpdates(+req.params.teamNumber);
+    const updates = await GetFTCTeamUpdates(+req.params.teamNumber);
     res.json(JSON.parse(updates));
   } catch (e) {
     logger.error(e);
@@ -208,40 +205,30 @@ router.get('/team/:teamNumber/updates', async (req, res) => {
   }
 });
 
-router.put('/team/:teamNumber/updates', async (req, res) => {
-  await StoreTeamUpdates(+req.params.teamNumber, req.body, req.auth?.payload.email as string);
+router.put('/ftc/team/:teamNumber/updates', async (req, res) => {
+  await StoreFTCTeamUpdates(+req.params.teamNumber, req.body, req.auth?.payload.email as string);
   res.status(204).send();
 });
 
-router.put('/user/prefs', async (req, res) => {
-  await StoreUserPreferences(req.auth?.payload.email as string, req.body);
-  res.status(204).send();
-});
-
-router.get('/user/prefs', async (req, res) => {
-  await GetUserPreferences(req.auth?.payload.email as string);
-  res.status(204).send();
-});
-
-router.get('/team/:teamNumber/updates/history', async (req, res) => {
-  const r = await GetTeamUpdateHistory(+req.params.teamNumber);
+router.get('/ftc/team/:teamNumber/updates/history', async (req, res) => {
+  const r = await GetFTCTeamUpdateHistory(+req.params.teamNumber);
   res.json(r);
 });
 
-const getAwards = async (season: number, team: number) => {
+const getFTCAwards = async (season: number, team: number) => {
   let currentYearAwards, pastYearAwards, secondYearAwards;
   try {
-    currentYearAwards = await requestUtils.GetDataFromFIRST(`${season}/awards/team/${team}`);
+    currentYearAwards = await requestUtils.GetDataFromFTC(`${season}/awards/team/${team}`);
   } catch (_) {
     currentYearAwards = null;
   }
   try {
-    pastYearAwards = await requestUtils.GetDataFromFIRST(`${season - 1}/awards/team/${team}`);
+    pastYearAwards = await requestUtils.GetDataFromFTC(`${season - 1}/awards/team/${team}`);
   } catch (_) {
     pastYearAwards = null;
   }
   try {
-    secondYearAwards = await requestUtils.GetDataFromFIRST(`${season - 2}/awards/team/${team}`);
+    secondYearAwards = await requestUtils.GetDataFromFTC(`${season - 2}/awards/team/${team}`);
   } catch (_) {
     secondYearAwards = null;
   }
@@ -252,52 +239,58 @@ const getAwards = async (season: number, team: number) => {
   return awardList;
 };
 
-router.get('/team/:teamNumber/awards', async (req, res) => {
+router.get('/ftc/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(frcCurrentSeason, 10);
-  res.json(await getAwards(currentSeason, +req.params.teamNumber));
+  res.json(await getFTCAwards(currentSeason, +req.params.teamNumber));
 });
 
-router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
+router.get('/ftc/:currentSeason/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(req.params.currentSeason, 10);
-  res.json(await getAwards(currentSeason, +req.params.teamNumber));
+  res.json(await getFTCAwards(currentSeason, +req.params.teamNumber));
 });
 
-router.get('/team/:teamNumber/appearances', async (req, res) => {
+// Rework this for https://theorangealliance.org/apidocs
+// TOA history endpoint requires a specific season, unlike TBA,
+// so this might be one of those things we need to build on our side to cache.
+router.get('/ftc/team/:teamNumber/appearances', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=3600');
-  const key = `team/frc${req.params.teamNumber}/events`;
-  const cacheResults = await getRedisItem(`tbaapi:${key}`);
+  const key = `team/${req.params.teamNumber}/events`;
+  const cacheResults = await getRedisItem(`toaapi:${key}`);
   if (cacheResults) {
     res.json(JSON.parse(cacheResults));
   } else {
-    const response = await requestUtils.GetDataFromTBA(key);
-    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), 259200);
+    const response = await requestUtils.GetDataFromTOA(key);
+    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), 259200);
     res.json(response.body);
   }
 });
 
-router.get('/:year/team/:teamNumber/media', async (req, res) => {
+// rework this for https://theorangealliance.org/apidocs
+// No media endpoint at TOA. No images for anything, in fact.
+router.get('/ftc/:year/team/:teamNumber/media', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=3600');
   const currentSeason = parseInt(req.params.year, 10);
-  const key = `team/frc${req.params.teamNumber}/media/${currentSeason}`;
-  const cacheResults = await getRedisItem(`tbaapi:${key}`);
+  const key = `team/${req.params.teamNumber}/media/${currentSeason}`;
+  const cacheResults = await getRedisItem(`toaapi:${key}`);
   if (cacheResults) {
     res.json(JSON.parse(cacheResults));
   } else {
-    const response = await requestUtils.GetDataFromTBA(key);
+    const response = await requestUtils.GetDataFromTOA(key);
     res.json(response.body);
-    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), 259200);
+    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), 259200);
   }
 });
 
-router.get('/:year/awards/team/:teamNumber', async (req, res) => {
+router.get('/ftc/:year/awards/team/:teamNumber', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
-  const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/awards/team/${req.params.teamNumber}`);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/awards/${req.params.teamNumber}`);
   res.json(response.body);
 });
 
-router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
+// This is not available, but we're keeping it here in case it ever becomes available.
+router.get('/ftc/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=2629800');
   try {
     const key = `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`;
@@ -306,7 +299,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
     if (cacheResults) {
       encodedAvatar = cacheResults;
     } else {
-      const avatar = await requestUtils.GetDataFromFIRST<TeamAvatarResponse>(key);
+      const avatar = await requestUtils.GetDataFromFTC<TeamAvatarResponse>(key);
       const teamAvatar = avatar.body.teams[0];
       if (teamAvatar.encodedAvatar == null) {
         res.status(404);
@@ -326,21 +319,22 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
   }
 });
 
-router.get('/:year/rankings/:eventCode', async (req, res) => {
+router.get('/ftc/:year/rankings/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/rankings/${req.params.eventCode}`);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/rankings/${req.params.eventCode}`);
   res.json({ rankings: response.body, headers: response.headers });
 });
 
-router.get('/:year/alliances/:eventCode', async (req, res) => {
+router.get('/ftc/:year/alliances/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
-  const response = await requestUtils.GetDataFromFIRST(`${req.params.year}/alliances/${req.params.eventCode}`);
+  const response = await requestUtils.GetDataFromFTC(`${req.params.year}/alliances/${req.params.eventCode}`);
   res.json(response.body);
 });
 
-router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
+// Rework for https://theorangealliance.org/apidocs
+router.get('/ftc/:year/offseason/teams/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
-  const response = await requestUtils.GetDataFromTBA<TBATeamResponse>(`event/${req.params.eventCode}/teams`);
+  const response = await requestUtils.GetDataFromTOA<TOATeamResponse>(`event/${req.params.eventCode}/teams`);
   const teams = response.body;
   teams.sort(function (a, b) {
     return a.team_number - b.team_number;
@@ -350,15 +344,17 @@ router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
     try {
       const tmp = {
         teamNumber: teams[i].team_number,
-        nameFull: teams[i].name,
-        nameShort: teams[i].nickname,
+        region: teams[i].region_key,
+        league: teams[i].league_key,
+        nameFull: teams[i].team_name_long,
+        nameShort: teams[i].team_name_short,
         schoolName: null,
         city: teams[i].city,
         stateProv: teams[i].state_prov,
         country: teams[i].country,
         website: teams[i].website,
         rookieYear: teams[i].rookie_year,
-        robotName: null,
+        robotName: teams[i].robot_name,
         districtCode: null,
         homeCMP: null
       };
@@ -376,31 +372,28 @@ router.get('/:year/offseason/teams/:eventCode/:page', async (req, res) => {
   });
 });
 
-router.get('/:year/offseason/events', async (req, res) => {
+// rework for https://theorangealliance.org/apidocs
+router.get('/ftc/:year/offseason/events', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=86400');
-  const response = await requestUtils.GetDataFromTBA<TBAEventResponse>(`events/${req.params.year}`);
+  const response = await requestUtils.GetDataFromTOA<TOAEventResponse>(`events/${req.params.year}`);
   const events = response.body;
   const result = [];
   for (let i = 1; i < events.length; i++) {
     try {
-      if (events[i].event_type_string === 'Offseason') {
-        let address = 'no address, no city, no state, no country';
-        if (events[i].address) {
-          address = events[i].address;
-        }
+      if (events[i].event_type_key === 'OFFSSN') {
         const tmp = {
-          code: events[i].key,
-          divisionCode: events[i].event_code,
-          name: events[i].short_name,
-          type: events[i].event_type_string,
-          districtCode: events[i].district?.abbreviation,
-          venue: events[i].location_name,
-          address: address.split(', ')[0],
-          city: address.split(', ')[1],
-          stateprov: address.split(', ')[2],
-          country: address.split(', ')[3],
+          code: events[i].event_code,
+          divisionCode: events[i].division_key,
+          name: events[i].event_name,
+          type: TOAEventTypes[events[i].event_type_key] || null,
+          leagueCode: events[i].league_key,
+          venue: events[i].venue,
+          address: null,
+          city: events[i].city,
+          stateprov: events[i].state_prov,
+          country: events[i].country,
           website: events[i].website,
-          timezone: events[i].timezone,
+          timezone: events[i].time_zone,
           dateStart: events[i].start_date,
           dateEnd: events[i].end_date
         };
@@ -411,85 +404,72 @@ router.get('/:year/offseason/events', async (req, res) => {
     }
   }
   res.json({
-    Events: result,
+    events: result,
     eventCount: result.length
   });
 });
 
-router.get('/:year/district/rankings/:districtCode', async (req, res) => {
+router.get('/ftc/:year/leagues/rankings/:regionCode/:leagueCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=86400');
-  const query = [];
-  query.push(`districtCode=${req.params.districtCode}`);
-  if (req.query) {
-    const top = req.query.top;
-    if (top) {
-      query.push(`top=${top}`);
-    }
-  }
-  const rankingData = await requestUtils.GetDataFromFIRST<DistrictRankingsResponse>(
-    `${req.params.year}/rankings/district?${query.join('&')}&page=1`
+  const rankingData = await requestUtils.GetDataFromFTC<LeagueRankingsResponse>(
+    `${req.params.year}/leagues/rankings/${req.params.regionCode}/${req.params.leagueCode}`
   );
-  if (rankingData.body.pageTotal === 1) {
-    res.json(rankingData.body);
-  } else {
-    const promises = [];
-    for (let i = 2; i <= rankingData.body.pageTotal; i++) {
-      promises.push(
-        requestUtils.GetDataFromFIRST<DistrictRankingsResponse>(
-          `${req.params.year}/rankings/district?${query.join('&')}&page=${i}`
-        )
-      );
-    }
-    const allRankData = await Promise.all(promises);
-    allRankData.map((districtRank) => {
-      rankingData.body.rankingCountPage += districtRank.body.rankingCountPage;
-      rankingData.body.districtRanks = rankingData.body.districtRanks.concat(districtRank.body.districtRanks);
-    });
-    rankingData.body.pageTotal = 1;
-    res.json(rankingData.body);
-  }
+  res.json(rankingData.body);
 });
 
-router.get('/:year/highscores/:eventCode', async (req, res) => {
+// make this work for FTC
+router.get('/ftc/:year/highscores/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
-  const eventList = await requestUtils.GetDataFromFIRST<EventListResponse>(`${req.params.year}/events/`);
-  const evtList = eventList.body.Events.filter((evt) => evt.code === req.params.eventCode);
+  const eventList = await requestUtils.GetDataFromFTC<FTCEventListResponse>(
+    `${req.params.year}/events?eventCode=${req.params.eventCode}`
+  );
+  const evtList = eventList.body.events.filter((evt) => evt.code === req.params.eventCode);
   if (evtList.length !== 1) {
     res.status(404).send('Event not found');
   }
   const eventDetails = evtList[0];
-  const qualMatchList = await BuildHybridSchedule(+req.params.year, req.params.eventCode, 'qual');
-  const playoffMatchList = await BuildHybridSchedule(+req.params.year, req.params.eventCode, 'playoff');
+  const response = await requestUtils.GetDataFromFTC<FTCHybridScheduleResponse>(
+    `${req.params.year}/schedule/${req.params.eventCode}/qual/hybrid`
+  );
+  const qualMatchList = response.body;
+  const response2 = await requestUtils.GetDataFromFTC<FTCHybridScheduleResponse>(
+    `${req.params.year}/schedule/${req.params.eventCode}/playoff/hybrid`
+  );
+  const playoffMatchList = response2.body;
 
   let matches = qualMatchList.schedule
     .map((x) => {
       return {
-        event: { eventCode: eventDetails.code, districtCode: eventDetails.districtCode, type: 'qual' },
+        event: {
+          eventCode: eventDetails.code,
+          regionCode: eventDetails.regionCode,
+          leagueCode: eventDetails.leagueCode,
+          type: 'qual'
+        },
         match: x
       };
     })
     .concat(
       playoffMatchList.schedule.map((x) => {
         return {
-          event: { eventCode: eventDetails.code, districtCode: eventDetails.districtCode, type: 'playoff' },
+          event: {
+            eventCode: eventDetails.code,
+            regionCode: eventDetails.regionCode,
+            leagueCode: eventDetails.leagueCode,
+            type: 'playoff'
+          },
           match: x
         };
       })
     );
-  matches = matches.filter(
-    (match) =>
-      match.match.postResultTime &&
-      match.match.postResultTime !== '' &&
-      // TODO: find a better way to filter these demo teams out, this way is not sustainable
-      match.match.teams.filter((t) => t.teamNumber >= 9986 && t.teamNumber <= 9999).length === 0
-  );
+  matches = matches.filter((match) => match.match.postResultTime && match.match.postResultTime !== '');
 
   const overallHighScorePlayoff = [];
   const overallHighScoreQual = [];
   const penaltyFreeHighScorePlayoff = [];
   const penaltyFreeHighScoreQual = [];
-  const TBAPenaltyFreeHighScorePlayoff = [];
-  const TBAPenaltyFreeHighScoreQual = [];
+  const TOAPenaltyFreeHighScorePlayoff = [];
+  const TOAPenaltyFreeHighScoreQual = [];
   const offsettingPenaltyHighScorePlayoff = [];
   const offsettingPenaltyHighScoreQual = [];
   for (const match of matches) {
@@ -506,16 +486,16 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
       ((match.match.scoreBlueFoul === 0 && match.match.scoreBlueFinal >= match.match.scoreRedFinal) ||
         (match.match.scoreRedFoul === 0 && match.match.scoreBlueFinal <= match.match.scoreRedFinal))
     ) {
-      // Load match results into TBA playoff bucket because the winning Alliance had no fouls
-      TBAPenaltyFreeHighScorePlayoff.push(match);
+      // Load match results into TOA playoff bucket because the winning Alliance had no fouls
+      TOAPenaltyFreeHighScorePlayoff.push(match);
     }
     if (
       match.event.type === 'qual' &&
       ((match.match.scoreBlueFoul === 0 && match.match.scoreBlueFinal >= match.match.scoreRedFinal) ||
         (match.match.scoreRedFoul === 0 && match.match.scoreBlueFinal <= match.match.scoreRedFinal))
     ) {
-      // Load match results into TBA playoff bucket because the winning Alliance had no fouls
-      TBAPenaltyFreeHighScoreQual.push(match);
+      // Load match results into TOA playoff bucket because the winning Alliance had no fouls
+      TOAPenaltyFreeHighScoreQual.push(match);
     }
     if (match.event.type === 'playoff' && match.match.scoreBlueFoul === 0 && match.match.scoreRedFoul === 0) {
       // Load match results into penalty free playoff bucket
@@ -546,7 +526,7 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
         +req.params.year,
         'overall',
         'playoff',
-        scoreUtils.FindHighestScore(overallHighScorePlayoff)
+        scoreUtils.FindFTCHighestScore(overallHighScorePlayoff)
       )
     );
   }
@@ -556,7 +536,7 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
         +req.params.year,
         'overall',
         'qual',
-        scoreUtils.FindHighestScore(overallHighScoreQual)
+        scoreUtils.FindFTCHighestScore(overallHighScoreQual)
       )
     );
   }
@@ -566,7 +546,7 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
         +req.params.year,
         'penaltyFree',
         'playoff',
-        scoreUtils.FindHighestScore(penaltyFreeHighScorePlayoff)
+        scoreUtils.FindFTCHighestScore(penaltyFreeHighScorePlayoff)
       )
     );
   }
@@ -576,7 +556,7 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
         +req.params.year,
         'penaltyFree',
         'qual',
-        scoreUtils.FindHighestScore(penaltyFreeHighScoreQual)
+        scoreUtils.FindFTCHighestScore(penaltyFreeHighScoreQual)
       )
     );
   }
@@ -586,7 +566,7 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
         +req.params.year,
         'offsetting',
         'playoff',
-        scoreUtils.FindHighestScore(offsettingPenaltyHighScorePlayoff)
+        scoreUtils.FindFTCHighestScore(offsettingPenaltyHighScorePlayoff)
       )
     );
   }
@@ -596,35 +576,35 @@ router.get('/:year/highscores/:eventCode', async (req, res) => {
         +req.params.year,
         'offsetting',
         'qual',
-        scoreUtils.FindHighestScore(offsettingPenaltyHighScoreQual)
+        scoreUtils.FindFTCHighestScore(offsettingPenaltyHighScoreQual)
       )
     );
   }
-  if (TBAPenaltyFreeHighScoreQual.length > 0) {
+  if (TOAPenaltyFreeHighScoreQual.length > 0) {
     highScoresData.push(
       scoreUtils.BuildHighScoreJson(
         +req.params.year,
-        'TBAPenaltyFree',
+        'TOAPenaltyFree',
         'qual',
-        scoreUtils.FindHighestScore(TBAPenaltyFreeHighScoreQual)
+        scoreUtils.FindFTCHighestScore(TOAPenaltyFreeHighScoreQual)
       )
     );
   }
-  if (TBAPenaltyFreeHighScorePlayoff.length > 0) {
+  if (TOAPenaltyFreeHighScorePlayoff.length > 0) {
     highScoresData.push(
       scoreUtils.BuildHighScoreJson(
         +req.params.year,
-        'TBAPenaltyFree',
+        'TOAPenaltyFree',
         'playoff',
-        scoreUtils.FindHighestScore(TBAPenaltyFreeHighScorePlayoff)
+        scoreUtils.FindFTCHighestScore(TOAPenaltyFreeHighScorePlayoff)
       )
     );
   }
   res.json(highScoresData);
 });
 
-router.get('/:year/highscores', async (req, res) => {
+router.get('/ftc/:year/highscores', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
-  const scores = await GetHighScores(req.params.year);
+  const scores = await GetFTCHighScores(req.params.year);
   res.json(scores);
 });

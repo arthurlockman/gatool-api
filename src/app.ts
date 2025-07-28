@@ -10,6 +10,7 @@ import { unless } from 'express-unless';
 import 'express-async-errors';
 
 import { router as v3Router } from './routes/v3-endpoints';
+import { router as ftcV2Router } from './routes/ftc-v2-endpoints';
 import { router as systemRouter } from './routes/systemEndpoints';
 import { router as userRouter } from './routes/userEndpoints';
 import { router as announcementsRouter } from './routes/announcementsEndpoints';
@@ -78,6 +79,8 @@ app.use((err: any, _1: Request, _2: Response, next: NextFunction) => {
 
 app.use('/v3', v3Router);
 app.use('/v3/announcements', announcementsRouter);
+app.use('/v3/announcements', announcementsRouter);
+app.use('/ftc/v2', ftcV2Router);
 
 // Authenticated routes below here
 app.use(auth0);
