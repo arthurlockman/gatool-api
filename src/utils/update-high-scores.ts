@@ -18,7 +18,7 @@ export const UpdateHighScores = async () => {
   const eventDataQueue = new PQueue({
     concurrency: 50
   });
-  eventDataQueue.on('completed', result => {
+  eventDataQueue.on('completed', (result: any) => {
     events.push(result);
   })
   for (const _event of eventList.body.Events) {
