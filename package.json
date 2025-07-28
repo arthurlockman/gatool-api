@@ -37,7 +37,7 @@
     "got": "^14.4.5",
     "lodash": "^4.17.21",
     "newrelic": "^12.11.1",
-    "node_extra_ca_certs_mozilla_bundle": "^1.0.6",
+    "node_extra_ca_certs_mozilla_bundle": "^1.0.7",
     "node-cache": "^5.1.2",
     "p-queue": "^8.1.0",
     "pino-http": "^10.4.0",
