@@ -92,7 +92,7 @@ const GetFTCTeams = async (
 
 // Routes
 
-router.get('/ftc/:year/teams', async (req, res) => {
+router.get('/:year/teams', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
   if (req.query === null) {
     res.statusCode = 400;
@@ -104,7 +104,7 @@ router.get('/ftc/:year/teams', async (req, res) => {
   res.json(await GetFTCTeams(req.params.year, eventCode, state, teamNumber));
 });
 
-router.get('/ftc/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
+router.get('/:year/schedule/:eventCode/:tournamentLevel', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const response = await requestUtils.GetDataFromFTC(
     `${req.params.year}/schedule/${req.params.eventCode}/?tournamentLevel=${req.params.tournamentLevel}`
@@ -112,13 +112,13 @@ router.get('/ftc/:year/schedule/:eventCode/:tournamentLevel', async (req, res) =
   res.json(response.body);
 });
 
-router.get('/ftc/:year/leagues/', async (req, res) => {
+router.get('/:year/leagues/', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/leagues`);
   res.json(response.body);
 });
 
-router.get('/ftc/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
+router.get('/:year/matches/:eventCode/:tournamentLevel', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const response = await requestUtils.GetDataFromFTC(
     `${req.params.year}/matches/${req.params.eventCode}?tournamentLevel=${req.params.tournamentLevel}`
@@ -126,7 +126,7 @@ router.get('/ftc/:year/matches/:eventCode/:tournamentLevel', async (req, res) =>
   res.json(response.body);
 });
 
-router.get('/ftc/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res) => {
+router.get('/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const schedule = await requestUtils.GetDataFromFTC(
     `${req.params.year}/schedule/${req.params.eventCode}/${req.params.tournamentLevel}/hybrid`
@@ -134,25 +134,25 @@ router.get('/ftc/:year/schedule/hybrid/:eventCode/:tournamentLevel', async (req,
   res.json(schedule.body);
 });
 
-router.get('/ftc/:year/awards/event/:eventCode', async (req, res) => {
+router.get('/:year/awards/event/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/awards/${req.params.eventCode}`);
   res.json(response.body);
 });
 
-router.get('/ftc/:year/events', async (req, res) => {
+router.get('/:year/events', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=86400');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/events`);
   res.json(response.body);
 });
 
-router.get('/ftc/:year/events/:eventcode', async (req, res) => {
+router.get('/:year/events/:eventcode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=86400');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/events?eventCode=${req.params.eventcode}`);
   res.json(response.body);
 });
 
-router.get('/ftc/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, res) => {
+router.get('/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   let response;
   if (req.params.start === req.params.end) {
@@ -167,13 +167,13 @@ router.get('/ftc/:year/scores/:eventCode/:tournamentLevel/:start/:end', async (r
   res.json(response.body);
 });
 
-router.get('/ftc/:year/scores/:eventCode/playoff', async (req, res) => {
+router.get('/:year/scores/:eventCode/playoff', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/scores/${req.params.eventCode}/Playoff`);
   res.json(response.body);
 });
 
-router.get('/ftc/:year/scores/:eventCode/qual', async (req, res) => {
+router.get('/:year/scores/:eventCode/qual', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/scores/${req.params.eventCode}/Qual`);
   res.json(response.body);
@@ -194,7 +194,7 @@ router.get('ftc//:year/communityUpdates/:eventCode', async (req, res) => {
   res.json(teamData);
 });
 
-router.get('/ftc/team/:teamNumber/updates', async (req, res) => {
+router.get('/team/:teamNumber/updates', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   try {
     const updates = await GetFTCTeamUpdates(+req.params.teamNumber);
@@ -205,12 +205,13 @@ router.get('/ftc/team/:teamNumber/updates', async (req, res) => {
   }
 });
 
-router.put('/ftc/team/:teamNumber/updates', async (req, res) => {
+router.put('/team/:teamNumber/updates', async (req, res) => {
+  ensureUser(req, res);
   await StoreFTCTeamUpdates(+req.params.teamNumber, req.body, req.auth?.payload.email as string);
   res.status(204).send();
 });
 
-router.get('/ftc/team/:teamNumber/updates/history', async (req, res) => {
+router.get('/team/:teamNumber/updates/history', async (req, res) => {
   const r = await GetFTCTeamUpdateHistory(+req.params.teamNumber);
   res.json(r);
 });
@@ -239,13 +240,13 @@ const getFTCAwards = async (season: number, team: number) => {
   return awardList;
 };
 
-router.get('/ftc/team/:teamNumber/awards', async (req, res) => {
+router.get('/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(frcCurrentSeason, 10);
   res.json(await getFTCAwards(currentSeason, +req.params.teamNumber));
 });
 
-router.get('/ftc/:currentSeason/team/:teamNumber/awards', async (req, res) => {
+router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(req.params.currentSeason, 10);
   res.json(await getFTCAwards(currentSeason, +req.params.teamNumber));
@@ -254,7 +255,7 @@ router.get('/ftc/:currentSeason/team/:teamNumber/awards', async (req, res) => {
 // Rework this for https://theorangealliance.org/apidocs
 // TOA history endpoint requires a specific season, unlike TBA,
 // so this might be one of those things we need to build on our side to cache.
-router.get('/ftc/team/:teamNumber/appearances', async (req, res) => {
+router.get('/team/:teamNumber/appearances', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=3600');
   const key = `team/${req.params.teamNumber}/events`;
   const cacheResults = await getRedisItem(`toaapi:${key}`);
@@ -269,7 +270,7 @@ router.get('/ftc/team/:teamNumber/appearances', async (req, res) => {
 
 // rework this for https://theorangealliance.org/apidocs
 // No media endpoint at TOA. No images for anything, in fact.
-router.get('/ftc/:year/team/:teamNumber/media', async (req, res) => {
+router.get('/:year/team/:teamNumber/media', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=3600');
   const currentSeason = parseInt(req.params.year, 10);
   const key = `team/${req.params.teamNumber}/media/${currentSeason}`;
@@ -283,14 +284,14 @@ router.get('/ftc/:year/team/:teamNumber/media', async (req, res) => {
   }
 });
 
-router.get('/ftc/:year/awards/team/:teamNumber', async (req, res) => {
+router.get('/:year/awards/team/:teamNumber', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/awards/${req.params.teamNumber}`);
   res.json(response.body);
 });
 
 // This is not available, but we're keeping it here in case it ever becomes available.
-router.get('/ftc/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
+router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=2629800');
   try {
     const key = `${req.params.year}/avatars?teamNumber=${req.params.teamNumber}`;
@@ -319,20 +320,20 @@ router.get('/ftc/:year/avatars/team/:teamNumber/avatar.png', async (req, res) =>
   }
 });
 
-router.get('/ftc/:year/rankings/:eventCode', async (req, res) => {
+router.get('/:year/rankings/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/rankings/${req.params.eventCode}`);
   res.json({ rankings: response.body, headers: response.headers });
 });
 
-router.get('/ftc/:year/alliances/:eventCode', async (req, res) => {
+router.get('/:year/alliances/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const response = await requestUtils.GetDataFromFTC(`${req.params.year}/alliances/${req.params.eventCode}`);
   res.json(response.body);
 });
 
 // Rework for https://theorangealliance.org/apidocs
-router.get('/ftc/:year/offseason/teams/:eventCode', async (req, res) => {
+router.get('/:year/offseason/teams/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
   const response = await requestUtils.GetDataFromTOA<TOATeamResponse>(`event/${req.params.eventCode}/teams`);
   const teams = response.body;
@@ -373,7 +374,7 @@ router.get('/ftc/:year/offseason/teams/:eventCode', async (req, res) => {
 });
 
 // rework for https://theorangealliance.org/apidocs
-router.get('/ftc/:year/offseason/events', async (req, res) => {
+router.get('/:year/offseason/events', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=86400');
   const response = await requestUtils.GetDataFromTOA<TOAEventResponse>(`events/${req.params.year}`);
   const events = response.body;
@@ -409,7 +410,7 @@ router.get('/ftc/:year/offseason/events', async (req, res) => {
   });
 });
 
-router.get('/ftc/:year/leagues/rankings/:regionCode/:leagueCode', async (req, res) => {
+router.get('/:year/leagues/rankings/:regionCode/:leagueCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=86400');
   const rankingData = await requestUtils.GetDataFromFTC<LeagueRankingsResponse>(
     `${req.params.year}/leagues/rankings/${req.params.regionCode}/${req.params.leagueCode}`
@@ -418,7 +419,7 @@ router.get('/ftc/:year/leagues/rankings/:regionCode/:leagueCode', async (req, re
 });
 
 // make this work for FTC
-router.get('/ftc/:year/highscores/:eventCode', async (req, res) => {
+router.get('/:year/highscores/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
   const eventList = await requestUtils.GetDataFromFTC<FTCEventListResponse>(
     `${req.params.year}/events?eventCode=${req.params.eventCode}`
@@ -603,8 +604,14 @@ router.get('/ftc/:year/highscores/:eventCode', async (req, res) => {
   res.json(highScoresData);
 });
 
-router.get('/ftc/:year/highscores', async (req, res) => {
+router.get('/:year/highscores', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=600');
   const scores = await GetFTCHighScores(req.params.year);
   res.json(scores);
 });
+
+const ensureUser = (req: express.Request, res: express.Response) => {
+  if (!(req.auth?.payload['https://gatool.org/roles'] as string[]).includes('user')) {
+    res.status(403).send();
+  }
+};
