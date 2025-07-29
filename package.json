@@ -9,7 +9,6 @@
   "scripts": {
     "prebuild": "eslint .",
     "build": "tsc",
-    "prestart": "npm run build",
     "start": "tsx src/app.ts",
     "start:no-redis": "export DISABLE_REDIS=true && tsx src/app.ts",
     "start:env": "tsx --env-file .env src/app.ts",
