@@ -7,7 +7,6 @@ import pinoHTTP from 'pino-http';
 import logger from './logger';
 import { auth } from 'express-oauth2-jwt-bearer';
 import { unless } from 'express-unless';
-import 'express-async-errors';
 
 import { router as v3Router } from './routes/v3-endpoints';
 import { router as ftcV2Router } from './routes/ftc-v2-endpoints';
@@ -38,11 +37,11 @@ const auth0 = auth({
 });
 
 // noinspection JSUnusedLocalSymbols
-app.options('/*', (_req, res) => {
+app.options('/{*any}', (_req, res) => {
   res.header('Access-Control-Allow-Origin', '*');
   res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
-  res.send(200);
+  res.sendStatus(200);
 });
 
 let appVersion;
