@@ -209,11 +209,13 @@ router.get('/team/:teamNumber/updates', async (req, res) => {
 });
 
 router.put('/team/:teamNumber/updates', async (req, res) => {
+  ensureUser(req, res);
   await StoreTeamUpdates(+req.params.teamNumber, req.body, req.auth?.payload.email as string);
   res.status(204).send();
 });
 
 router.put('/user/prefs', async (req, res) => {
+  ensureUser(req, res);
   await StoreUserPreferences(req.auth?.payload.email as string, req.body);
   res.status(204).send();
 });
@@ -628,3 +630,9 @@ router.get('/:year/highscores', async (req, res) => {
   const scores = await GetHighScores(req.params.year);
   res.json(scores);
 });
+
+const ensureUser = (req: express.Request, res: express.Response) => {
+  if (!(req.auth?.payload['https://gatool.org/roles'] as string[]).includes('user')) {
+    res.status(403).send();
+  }
+};
