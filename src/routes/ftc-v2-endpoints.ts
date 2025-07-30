@@ -179,7 +179,7 @@ router.get('/:year/scores/:eventCode/qual', async (req, res) => {
   res.json(response.body);
 });
 
-router.get('ftc//:year/communityUpdates/:eventCode', async (req, res) => {
+router.get('/:year/communityUpdates/:eventCode', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   const teamList = await GetFTCTeams(req.params.year, req.params.eventCode);
   const teamData = await Promise.all(
