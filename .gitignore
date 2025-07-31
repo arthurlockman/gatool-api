@@ -63,7 +63,6 @@ typings/
 # tsc build output
 build
 
-package-lock.json
 .DS_Store
 
 dist
