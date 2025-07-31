@@ -219,17 +219,17 @@ router.get('/team/:teamNumber/updates/history', async (req, res) => {
 const getFTCAwards = async (season: number, team: number) => {
   let currentYearAwards, pastYearAwards, secondYearAwards;
   try {
-    currentYearAwards = await requestUtils.GetDataFromFTC(`${season}/awards/team/${team}`);
+    currentYearAwards = await requestUtils.GetDataFromFTC(`${season}/awards/${team}`);
   } catch (_) {
     currentYearAwards = null;
   }
   try {
-    pastYearAwards = await requestUtils.GetDataFromFTC(`${season - 1}/awards/team/${team}`);
+    pastYearAwards = await requestUtils.GetDataFromFTC(`${season - 1}/awards/${team}`);
   } catch (_) {
     pastYearAwards = null;
   }
   try {
-    secondYearAwards = await requestUtils.GetDataFromFTC(`${season - 2}/awards/team/${team}`);
+    secondYearAwards = await requestUtils.GetDataFromFTC(`${season - 2}/awards/${team}`);
   } catch (_) {
     secondYearAwards = null;
   }
