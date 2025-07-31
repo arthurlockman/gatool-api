@@ -78,7 +78,6 @@ app.use((err: any, _1: Request, _2: Response, next: NextFunction) => {
 
 app.use('/v3', v3Router);
 app.use('/v3/announcements', announcementsRouter);
-app.use('/v3/announcements', announcementsRouter);
 app.use('/ftc/v2', ftcV2Router);
 
 // Authenticated routes below here
