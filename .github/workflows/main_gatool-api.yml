@@ -102,13 +102,19 @@ jobs:
         run: |
           echo "Creating new revision with image: ghcr.io/${{ github.repository }}:${{ github.sha }}"
 
-          # Create a new revision with the updated image
+          # Create a new revision with the updated image (suppress output to prevent env var leaks)
           az containerapp revision copy \
             --name gatool-api \
             --resource-group gatool \
-            --image ghcr.io/${{ github.repository }}:${{ github.sha }}
+            --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
+            --output none >/dev/null 2>&1
 
-          echo "New revision created successfully!"
+          if [ $? -eq 0 ]; then
+            echo "New revision created successfully!"
+          else
+            echo "Failed to create new revision"
+            exit 1
+          fi
 
   newrelic-notify:
     runs-on: ubuntu-latest
