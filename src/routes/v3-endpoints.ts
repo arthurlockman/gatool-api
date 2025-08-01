@@ -10,38 +10,14 @@ import {
   StoreUserPreferences
 } from '../utils/storageUtils';
 import { ReadSecret } from '../utils/secretUtils';
-import * as redis from 'redis';
 import { BuildHybridSchedule } from '../utils/scheduleUtils';
 import logger from '../logger';
+import { getRedisItem, REDIS_RETENTION_12_HOUR, REDIS_RETENTION_14_DAY, REDIS_RETENTION_3_DAY, REDIS_RETENTION_7_DAY, setRedisItem } from '../clients/redisClient';
+import PQueue from 'p-queue';
 
 export const router = express.Router();
 
 const frcCurrentSeason = await ReadSecret('FRCCurrentSeason');
-
-const redisDisabled = process.env.DISABLE_REDIS === 'true';
-
-let redisClient = null;
-if (!redisDisabled) {
-  redisClient = redis.createClient({
-    url: 'redis://gatool-redis-01:6379'
-  });
-  redisClient.on('error', (error) => logger.error(`Error : ${error}`));
-  await redisClient.connect();
-} else {
-  logger.warn('Redis disabled by CLI argument.');
-}
-
-const getRedisItem = async (key: string) => {
-  return redisDisabled ? null : await redisClient?.get(key);
-};
-
-const setRedisItem = async (key: string, value: string, expiration: number) => {
-  if (!redisDisabled) {
-    await redisClient?.set(key, value, {
-      EX: expiration
-    });
-  }
-};
 
 // Common data getters
 
@@ -230,23 +206,27 @@ router.get('/team/:teamNumber/updates/history', async (req, res) => {
   res.json(r);
 });
 
-const getAwards = async (season: number, team: number) => {
-  let currentYearAwards, pastYearAwards, secondYearAwards;
-  try {
-    currentYearAwards = await requestUtils.GetDataFromFIRST(`${season}/awards/team/${team}`);
-  } catch (_) {
-    currentYearAwards = null;
+const getTeamAwards = async (season: number, team: number, cachePeriod: number = REDIS_RETENTION_14_DAY) => {
+  let awards = null;
+  const cacheKey = `frc:team:${team}:season:${season}:awards`;
+  const cached = await getRedisItem(cacheKey);
+  if (cached) {
+    awards = JSON.parse(cached);
+  } else {
+    try {
+      awards = await requestUtils.GetDataFromFIRST(`${season - 1}/awards/team/${team}`);
+      setRedisItem(cacheKey, JSON.stringify(awards), cachePeriod);
+    } catch (_) {
+      awards = null;
+    }
   }
-  try {
-    pastYearAwards = await requestUtils.GetDataFromFIRST(`${season - 1}/awards/team/${team}`);
-  } catch (_) {
-    pastYearAwards = null;
-  }
-  try {
-    secondYearAwards = await requestUtils.GetDataFromFIRST(`${season - 2}/awards/team/${team}`);
-  } catch (_) {
-    secondYearAwards = null;
-  }
+  return awards;
+}
+
+const getLast3YearAwards = async (season: number, team: number) => {
+  const currentYearAwards = await getTeamAwards(season, team, REDIS_RETENTION_12_HOUR);
+  const pastYearAwards = await getTeamAwards(season - 1, team);
+  const secondYearAwards = await getTeamAwards(season - 2, team);
   const awardList: any = {};
   awardList[`${season}`] = currentYearAwards ? currentYearAwards.body : null;
   awardList[`${season - 1}`] = pastYearAwards ? pastYearAwards.body : null;
@@ -257,13 +237,32 @@ const getAwards = async (season: number, team: number) => {
 router.get('/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(frcCurrentSeason, 10);
-  res.json(await getAwards(currentSeason, +req.params.teamNumber));
+  res.json(await getLast3YearAwards(currentSeason, +req.params.teamNumber));
 });
 
 router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(req.params.currentSeason, 10);
-  res.json(await getAwards(currentSeason, +req.params.teamNumber));
+  res.json(await getLast3YearAwards(currentSeason, +req.params.teamNumber));
+});
+
+router.post('/:currentSeason/queryAwards', async (req, res) => {
+  res.setHeader('Cache-Control', 's-maxage=300');
+  const awards = new Map();
+  const currentSeason = parseInt(req.params.currentSeason, 10);
+  const awardDataQueue = new PQueue({
+    concurrency: 10
+  });
+  awardDataQueue.on('completed', (result: any) => {
+    awards.set(result[0], result[1]);
+  });
+  req.body.teams.forEach((team: number) => {
+    awardDataQueue.add(async () => {
+      return [team, await getLast3YearAwards(currentSeason, team)];
+    })
+  });
+  await awardDataQueue.onIdle();
+  res.json(Object.fromEntries(awards));
 });
 
 router.get('/team/:teamNumber/appearances', async (req, res) => {
@@ -274,23 +273,46 @@ router.get('/team/:teamNumber/appearances', async (req, res) => {
     res.json(JSON.parse(cacheResults));
   } else {
     const response = await requestUtils.GetDataFromTBA(key);
-    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), 259200);
+    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), REDIS_RETENTION_3_DAY);
     res.json(response.body);
   }
 });
 
+const getTeamMedia = async (year: number, team: string) => {
+  const key = `team/frc${team}/media/${year}`;
+  const cacheResults = await getRedisItem(`tbaapi:${key}`);
+  if (cacheResults) {
+    return JSON.parse(cacheResults);
+  } else {
+    const response = await requestUtils.GetDataFromTBA(key);
+    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), REDIS_RETENTION_3_DAY);
+    return response.body;
+  }
+};
+
 router.get('/:year/team/:teamNumber/media', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=3600');
   const currentSeason = parseInt(req.params.year, 10);
-  const key = `team/frc${req.params.teamNumber}/media/${currentSeason}`;
-  const cacheResults = await getRedisItem(`tbaapi:${key}`);
-  if (cacheResults) {
-    res.json(JSON.parse(cacheResults));
-  } else {
-    const response = await requestUtils.GetDataFromTBA(key);
-    res.json(response.body);
-    await setRedisItem(`tbaapi:${key}`, JSON.stringify(response.body), 259200);
-  }
+  const media = await getTeamMedia(currentSeason, req.params.teamNumber);
+  res.json(media);
+});
+
+router.post('/:year/queryMedia', async (req, res) => {
+  res.setHeader('Cache-Control', 's-maxage=3600');
+  const media = new Map();
+  const mediaQueue = new PQueue({
+    concurrency: 10
+  });
+  mediaQueue.on('completed', (result: any) => {
+    media.set(result[0], result[1]);
+  });
+  req.body.teams.forEach((team: string) => {
+    mediaQueue.add(async () => {
+      return [team, await getTeamMedia(parseInt(req.params.year, 10), team)];
+    })
+  });
+  await mediaQueue.onIdle();
+  res.json(Object.fromEntries(media));
 });
 
 router.get('/:year/awards/team/:teamNumber', async (req, res) => {
@@ -315,7 +337,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         res.json({ message: 'Avatar not found' });
       }
       encodedAvatar = teamAvatar.encodedAvatar;
-      await setRedisItem(`frcapi:${key}`, encodedAvatar, 604800);
+      await setRedisItem(`frcapi:${key}`, encodedAvatar, REDIS_RETENTION_7_DAY);
     }
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Charset', 'utf-8');

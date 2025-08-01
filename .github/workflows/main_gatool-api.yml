@@ -3,17 +3,67 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 
 jobs:
+  # Build and test Docker image for pull requests
+  build-image-pr:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run build (includes ESLint via prebuild)
+        run: npm run build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (PR validation)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: false
+          tags: ghcr.io/${{ github.repository }}:pr-${{ github.event.number }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   build-and-push-image:
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
       packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run build (includes ESLint via prebuild)
+        run: npm run build
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -32,37 +82,71 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository }}:latest
 
-  deploy-classic:
-    runs-on: self-hosted
+  deploy-aca:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build-and-push-image
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-
-      - name: Install
-        run: npm install
-
-      - name: Build
-        run: npm run build
-
-      - name: Set up SSH key
-        uses: webfactory/ssh-agent@v0.7.0
-        if: github.ref == 'refs/heads/main'
+      - name: Azure Login
+        uses: azure/login@v2
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Install PM2
-        if: github.ref == 'refs/heads/main'
-        run: npm i pm2
+      - name: Deploy new revision to Azure Container App
+        run: |
+          echo "Creating new revision with image: ghcr.io/${{ github.repository }}:latest"
 
-      - name: Deploy
-        run: npm run deploy:production
-        if: github.ref == 'refs/heads/main'
+          # Create a new revision with the updated image
+          az containerapp revision copy \
+            --name gatool-api \
+            --resource-group gatool \
+            --image ghcr.io/${{ github.repository }}:latest
+
+          echo "New revision created successfully!"
+
+          echo "Active revisions:"
+          az containerapp revision list \
+            --name gatool-api \
+            --resource-group gatool \
+            --query "[?properties.active==true].{Name:name,CreatedTime:properties.createdTime,TrafficWeight:properties.trafficWeight}" \
+            --output table
+
+  # deploy-classic:
+  #   runs-on: self-hosted
+  #   needs: build-and-push-image
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
+
+  #     - name: Install
+  #       run: npm install
+
+  #     - name: Build
+  #       run: npm run build
+
+  #     - name: Set up SSH key
+  #       uses: webfactory/ssh-agent@v0.7.0
+  #       if: github.ref == 'refs/heads/main'
+  #       with:
+  #         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  #     - name: Install PM2
+  #       if: github.ref == 'refs/heads/main'
+  #       run: npm i pm2
+
+  #     - name: Deploy
+  #       run: npm run deploy:production
+  #       if: github.ref == 'refs/heads/main'
 
   newrelic-notify:
     runs-on: ubuntu-latest
     name: New Relic
-    needs: deploy-classic
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      # - deploy-classic
+      - deploy-aca
     steps:
       # This step builds a var with the release tag value to use later
       - name: Set Release Version from Tag

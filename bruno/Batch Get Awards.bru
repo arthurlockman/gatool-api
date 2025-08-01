@@ -1,0 +1,23 @@
+meta {
+  name: Batch Get Awards
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/v3/:year/queryAwards
+  body: json
+  auth: bearer
+}
+
+params:path {
+  year: 2024
+}
+
+auth:bearer {
+  token: {{bearerToken}}
+}
+
+body:json {
+  {teams: [172, 250, 190]}
+}
