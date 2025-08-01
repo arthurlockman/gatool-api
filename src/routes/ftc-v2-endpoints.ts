@@ -9,7 +9,7 @@ import {
 } from '../utils/storageUtils';
 import { ReadSecret } from '../utils/secretUtils';
 import logger from '../logger';
-import { getRedisItem, setRedisItem } from '../clients/redisClient';
+import { getRedisItem, REDIS_RETENTION_3_DAY, REDIS_RETENTION_7_DAY, setRedisItem } from '../clients/redisClient';
 
 export const router = express.Router();
 
@@ -238,7 +238,7 @@ router.get('/team/:teamNumber/appearances', async (req, res) => {
     res.json(JSON.parse(cacheResults));
   } else {
     const response = await requestUtils.GetDataFromTOA(key);
-    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), 259200);
+    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), REDIS_RETENTION_3_DAY);
     res.json(response.body);
   }
 });
@@ -255,7 +255,7 @@ router.get('/:year/team/:teamNumber/media', async (req, res) => {
   } else {
     const response = await requestUtils.GetDataFromTOA(key);
     res.json(response.body);
-    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), 259200);
+    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), REDIS_RETENTION_3_DAY);
   }
 });
 
@@ -282,7 +282,7 @@ router.get('/:year/avatars/team/:teamNumber/avatar.png', async (req, res) => {
         res.json({ message: 'Avatar not found' });
       }
       encodedAvatar = teamAvatar.encodedAvatar;
-      await setRedisItem(`frcapi:${key}`, encodedAvatar, 604800);
+      await setRedisItem(`frcapi:${key}`, encodedAvatar, REDIS_RETENTION_7_DAY);
     }
     res.setHeader('Content-Type', 'image/png');
     res.setHeader('Charset', 'utf-8');

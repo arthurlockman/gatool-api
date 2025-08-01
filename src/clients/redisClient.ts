@@ -1,6 +1,12 @@
 import * as redis from 'redis';
 import logger from '../logger';
 
+export const REDIS_RETENTION_1_DAY = 86400;
+export const REDIS_RETENTION_3_DAY = REDIS_RETENTION_1_DAY * 3;
+export const REDIS_RETENTION_7_DAY = REDIS_RETENTION_1_DAY * 7;
+export const REDIS_RETENTION_14_DAY = REDIS_RETENTION_1_DAY * 14;
+export const REDIS_RETENTION_12_HOUR = REDIS_RETENTION_1_DAY / 2;
+
 const redisDisabled = process.env.DISABLE_REDIS === 'true';
 
 let redisClient = null;

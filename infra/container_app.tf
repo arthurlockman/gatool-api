@@ -14,6 +14,13 @@ resource "azurerm_container_app" "main" {
 
   template {
     min_replicas = 0
+    max_replicas = 5
+
+    http_scale_rule {
+      name                = "http-requests"
+      concurrent_requests = 100
+    }
+
     container {
       name   = var.containerapp_name
       image  = var.image_name
@@ -24,6 +31,8 @@ resource "azurerm_container_app" "main" {
         transport = "HTTP"
         port = 3001
         initial_delay = 5
+        interval_seconds = 30
+        timeout = 30
         path = "/livecheck"
       }
 
