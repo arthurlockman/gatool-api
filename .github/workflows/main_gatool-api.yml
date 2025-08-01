@@ -86,6 +86,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build-and-push-image
+    permissions:
+      id-token: write
     steps:
       - name: Azure Login
         uses: azure/login@v2
