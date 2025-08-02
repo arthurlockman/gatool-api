@@ -24,8 +24,8 @@ resource "azurerm_container_app" "main" {
     container {
       name   = var.containerapp_name
       image  = var.image_name
-      cpu    = 0.5
-      memory = "1Gi"
+      cpu    = 1.0
+      memory = "2Gi"
 
       liveness_probe {
         transport = "HTTP"
