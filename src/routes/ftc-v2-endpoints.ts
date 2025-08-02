@@ -9,7 +9,8 @@ import {
 } from '../utils/storageUtils';
 import { ReadSecret } from '../utils/secretUtils';
 import logger from '../logger';
-import { getRedisItem, REDIS_RETENTION_3_DAY, REDIS_RETENTION_7_DAY, setRedisItem } from '../clients/redisClient';
+import { getRedisItem, REDIS_RETENTION_12_HOUR, REDIS_RETENTION_14_DAY, REDIS_RETENTION_3_DAY, REDIS_RETENTION_7_DAY, setRedisItem  } from '../clients/redisClient';
+import PQueue from 'p-queue';
 
 export const router = express.Router();
 
@@ -215,6 +216,34 @@ const getFTCAwards = async (season: number, team: number) => {
   return awardList;
 };
 
+const getTeamAwards = async (season: number, team: number, cachePeriod: number = REDIS_RETENTION_14_DAY) => {
+  let awards = null;
+  const cacheKey = `frc:team:${team}:season:${season}:awards`;
+  const cached = await getRedisItem(cacheKey);
+  if (cached) {
+    awards = JSON.parse(cached);
+  } else {
+    try {
+      awards = await requestUtils.GetDataFromFTC(`${season - 1}/awards/${team}`);
+      setRedisItem(cacheKey, JSON.stringify(awards), cachePeriod);
+    } catch (_) {
+      awards = null;
+    }
+  }
+  return awards;
+}
+
+const getLast3YearAwards = async (season: number, team: number) => {
+  const currentYearAwards = await getTeamAwards(season, team, REDIS_RETENTION_12_HOUR);
+  const pastYearAwards = await getTeamAwards(season - 1, team);
+  const secondYearAwards = await getTeamAwards(season - 2, team);
+  const awardList: any = {};
+  awardList[`${season}`] = currentYearAwards ? currentYearAwards.body : null;
+  awardList[`${season - 1}`] = pastYearAwards ? pastYearAwards.body : null;
+  awardList[`${season - 2}`] = secondYearAwards ? secondYearAwards.body : null;
+  return awardList;
+};
+
 router.get('/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(frcCurrentSeason, 10);
@@ -225,6 +254,25 @@ router.get('/:currentSeason/team/:teamNumber/awards', async (req, res) => {
   res.setHeader('Cache-Control', 's-maxage=300');
   const currentSeason = parseInt(req.params.currentSeason, 10);
   res.json(await getFTCAwards(currentSeason, +req.params.teamNumber));
+});
+
+router.post('/:currentSeason/queryAwards', async (req, res) => {
+  res.setHeader('Cache-Control', 's-maxage=300');
+  const awards = new Map();
+  const currentSeason = parseInt(req.params.currentSeason, 10);
+  const awardDataQueue = new PQueue({
+    concurrency: 10
+  });
+  awardDataQueue.on('completed', (result: any) => {
+    awards.set(result[0], result[1]);
+  });
+  req.body.teams.forEach((team: number) => {
+    awardDataQueue.add(async () => {
+      return [team, await getLast3YearAwards(currentSeason, team)];
+    })
+  });
+  await awardDataQueue.onIdle();
+  res.json(Object.fromEntries(awards));
 });
 
 // Rework this for https://theorangealliance.org/apidocs
