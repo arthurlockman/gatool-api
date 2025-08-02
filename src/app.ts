@@ -15,19 +15,16 @@ import { router as userRouter } from './routes/userEndpoints';
 import { router as announcementsRouter } from './routes/announcementsEndpoints';
 import { ReadSecret } from './utils/secretUtils';
 import * as fs from 'fs';
+import blocked from 'blocked-at';
+
+blocked((time, stack) => {
+  logger.warn(`Event loop blocked for ${time}ms`);
+  logger.warn(stack);
+}, {
+  threshold: 100  // Report blocks longer than 100ms
+});
 
 const app = express();
-
-// Event loop lag monitoring
-let lastCheck = process.hrtime.bigint();
-setInterval(() => {
-  const now = process.hrtime.bigint();
-  const lag = Number(now - lastCheck - 100000000n) / 1000000; // Convert to ms, subtract expected 100ms
-  if (lag > 10) { // Log if lag is more than 10ms
-    logger.warn(`Event loop lag detected: ${lag.toFixed(2)}ms`);
-  }
-  lastCheck = process.hrtime.bigint();
-}, 100);
 
 const pino = pinoHTTP({
   logger,
