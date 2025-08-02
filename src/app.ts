@@ -18,6 +18,17 @@ import * as fs from 'fs';
 
 const app = express();
 
+// Event loop lag monitoring
+let lastCheck = process.hrtime.bigint();
+setInterval(() => {
+  const now = process.hrtime.bigint();
+  const lag = Number(now - lastCheck - 100000000n) / 1000000; // Convert to ms, subtract expected 100ms
+  if (lag > 10) { // Log if lag is more than 10ms
+    logger.warn(`Event loop lag detected: ${lag.toFixed(2)}ms`);
+  }
+  lastCheck = process.hrtime.bigint();
+}, 100);
+
 const pino = pinoHTTP({
   logger,
   redact: ['req.headers.authorization']

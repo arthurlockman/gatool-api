@@ -18,7 +18,7 @@ resource "azurerm_container_app" "main" {
 
     http_scale_rule {
       name                = "http-requests"
-      concurrent_requests = 100
+      concurrent_requests = 20
     }
 
     container {
@@ -30,9 +30,19 @@ resource "azurerm_container_app" "main" {
       liveness_probe {
         transport = "HTTP"
         port = 3001
-        initial_delay = 5
-        interval_seconds = 30
-        timeout = 30
+        initial_delay = 15
+        interval_seconds = 60
+        timeout = 10
+        path = "/livecheck"
+        failure_count_threshold = 3
+      }
+
+      readiness_probe {
+        transport = "HTTP"
+        port = 3001
+        initial_delay = 20
+        interval_seconds = 10
+        timeout = 10
         path = "/livecheck"
       }
 
@@ -85,4 +95,15 @@ resource "azurerm_role_assignment" "containerapp_keyvault_secrets_user" {
   scope                = data.azurerm_key_vault.main.id
   role_definition_name = "Key Vault Secrets User"
   principal_id         = azurerm_container_app.main.identity[0].principal_id
+}
+
+# Configure diagnostic settings for Container Apps Environment to enable logging
+resource "azurerm_monitor_diagnostic_setting" "containerapp_env" {
+  name                       = "${var.containerapp_env_name}-diagnostic-settings"
+  target_resource_id         = azurerm_container_app_environment.main.id
+  log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
+
+  enabled_log {
+    category_group = "allLogs"
+  }
 }
