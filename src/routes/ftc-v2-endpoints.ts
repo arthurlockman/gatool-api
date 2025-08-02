@@ -291,6 +291,34 @@ router.get('/team/:teamNumber/appearances', async (req, res) => {
   }
 });
 
+// TOA tracks regions with names and codes
+router.get('/regions', async (req, res) => {
+  res.setHeader('Cache-Control', 's-maxage=3600');
+  const key = `regions`;
+  const cacheResults = await getRedisItem(`toaapi:${key}`);
+  if (cacheResults) {
+    res.json(JSON.parse(cacheResults));
+  } else {
+    const response = await requestUtils.GetDataFromTOA(key);
+    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), REDIS_RETENTION_14_DAY);
+    res.json(response.body);
+  }
+});
+
+// TOA tracks event types with names and codes
+router.get('/event-types', async (req, res) => {
+  res.setHeader('Cache-Control', 's-maxage=3600');
+  const key = `event-types`;
+  const cacheResults = await getRedisItem(`toaapi:${key}`);
+  if (cacheResults) {
+    res.json(JSON.parse(cacheResults));
+  } else {
+    const response = await requestUtils.GetDataFromTOA(key);
+    await setRedisItem(`toaapi:${key}`, JSON.stringify(response.body), REDIS_RETENTION_14_DAY);
+    res.json(response.body);
+  }
+});
+
 // rework this for https://theorangealliance.org/apidocs
 // No media endpoint at TOA. No images for anything, in fact.
 router.get('/:year/team/:teamNumber/media', async (req, res) => {
