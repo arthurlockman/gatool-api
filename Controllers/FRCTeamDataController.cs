@@ -1,3 +1,4 @@
+using GAToolAPI.Attributes;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -6,11 +7,12 @@ using NSwag.Annotations;
 namespace GAToolAPI.Controllers;
 
 [ApiController]
-[Microsoft.AspNetCore.Components.Route("v3")]
+[Route("v3")]
 public class FrcTeamDataController(TBAApiService tbaApi): ControllerBase
 {
-    [HttpGet("/team/{teamNumber:int}/appearances")]
+    [HttpGet("team/{teamNumber:int}/appearances")]
     [ProducesResponseType<List<RawTbaEvent>>(StatusCodes.Status200OK)]
+    [RedisCache("frcapi:teamappearances",  RedisCacheTime.ThreeDays)]
     [OpenApiTag("FRC Team Data")]
     public async Task<ActionResult> GetAppearances(int teamNumber)
     {

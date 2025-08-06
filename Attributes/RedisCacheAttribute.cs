@@ -46,3 +46,14 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
         return string.Join(":", keyParts);
     }
 }
+
+public static class RedisCacheTime
+{
+    public const int OneMinute = 1;
+    public const int FiveMinutes = OneMinute * 5;
+    public const int OneHour = OneMinute * 60;
+    public const int OneDay = OneHour * 24;
+    public const int ThreeDays = OneDay * 3;
+    public const int OneWeek = OneDay * 7;
+    public const int OneMonth = OneDay * 30;
+}

@@ -25,7 +25,7 @@ public class FrcApiController(
     private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
 
     [HttpGet("teams")]
-    [RedisCache("frcapi:teams", 60 * 24 * 7)]
+    [RedisCache("frcapi:teams", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(TeamsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -38,7 +38,7 @@ public class FrcApiController(
     }
 
     [HttpGet("schedule/{eventCode}/{tournamentLevel}")]
-    [RedisCache("frcapi:schedule", 5)]
+    [RedisCache("frcapi:schedule", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(ScheduleResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -50,7 +50,7 @@ public class FrcApiController(
     }
 
     [HttpGet("districts")]
-    [RedisCache("frcapi:districtlist", 5)]
+    [RedisCache("frcapi:districtlist", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(DistrictsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -62,7 +62,7 @@ public class FrcApiController(
     }
 
     [HttpGet("matches/{eventCode}/{tournamentLevel}")]
-    [RedisCache("frcapi:districtlist", 5)]
+    [RedisCache("frcapi:districtlist", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -74,7 +74,7 @@ public class FrcApiController(
     }
 
     [HttpGet("schedule/hybrid/{eventCode}/{tournamentLevel}")]
-    [RedisCache("frcapi:schedule", 5)]
+    [RedisCache("frcapi:schedule", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(HybridScheduleResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -89,7 +89,7 @@ public class FrcApiController(
     }
 
     [HttpGet("awards/event/{eventCode}")]
-    [RedisCache("frcapi:events", 60 * 24 * 7)]
+    [RedisCache("frcapi:events", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(EventAwardsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -101,7 +101,7 @@ public class FrcApiController(
     }
 
     [HttpGet("events")]
-    [RedisCache("frcapi:events", 60 * 24 * 7)]
+    [RedisCache("frcapi:events", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(EventListResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -186,7 +186,7 @@ public class FrcApiController(
     }
 
     [HttpGet("team/{teamNumber:int}/media")]
-    [RedisCache("frc:teammedia", 60 * 24 * 3)] // 3 day cache
+    [RedisCache("frc:teammedia", RedisCacheTime.ThreeDays)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(List<TeamMedia>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -198,7 +198,7 @@ public class FrcApiController(
     }
 
     [HttpPost("queryMedia")]
-    [RedisCache("frc:teammediaquery", 60 * 24 * 3)] // 3 day cache
+    [RedisCache("frc:teammediaquery", RedisCacheTime.ThreeDays)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<string, List<TeamMedia>>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
@@ -220,7 +220,7 @@ public class FrcApiController(
     }
 
     [HttpGet("avatars/team/{teamNumber:int}/avatar.png")]
-    [RedisCache("frc:teamavatar", 60 * 24 * 30)] // 30 day cache
+    [RedisCache("frc:teamavatar", RedisCacheTime.OneMonth)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(FileResult), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
@@ -287,7 +287,7 @@ public class FrcApiController(
     }
 
     [HttpGet("district/rankings/{districtCode}")]
-    [RedisCache("frcapi:district:rankings", 60 * 24)] // 24 hour cache
+    [RedisCache("frcapi:district:rankings", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(DistrictRankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -342,7 +342,7 @@ public class FrcApiController(
     }
 
     [HttpGet("offseason/teams/{eventCode}")]
-    [RedisCache("tbaapi:offseason:teams", 10)]
+    [RedisCache("tbaapi:offseason:teams", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Offseason")]
     [ProducesResponseType(typeof(OffseasonTeamsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -386,7 +386,7 @@ public class FrcApiController(
     }
 
     [HttpGet("offseason/events")]
-    [RedisCache("tbaapi:offseason:events", 60 * 24)] // 24 hour cache
+    [RedisCache("tbaapi:offseason:events", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Offseason")]
     [ProducesResponseType(typeof(OffseasonEventsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]

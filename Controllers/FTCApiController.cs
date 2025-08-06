@@ -12,7 +12,7 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
     : ControllerBase
 {
     [HttpGet("teams")]
-    [RedisCache("ftcapi:teams", 60 * 24 * 7)]
+    [RedisCache("ftcapi:teams", RedisCacheTime.OneWeek)]
     [OpenApiTag("FTC Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -36,7 +36,7 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
     }
 
     [HttpGet("awards/event/{eventCode}")]
-    [RedisCache("ftcapi:awards", 60 * 5)]
+    [RedisCache("ftcapi:awards", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -48,7 +48,7 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
     }
 
     [HttpGet("events")]
-    [RedisCache("ftcapi:events", 60 * 24)]
+    [RedisCache("ftcapi:events", RedisCacheTime.OneDay)]
     [OpenApiTag("FTC Season Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -60,7 +60,7 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
     }
 
     [HttpGet("events/{eventCode}")]
-    [RedisCache("ftcapi:event", 60 * 24)]
+    [RedisCache("ftcapi:event", RedisCacheTime.OneDay)]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -182,7 +182,7 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
     }
 
     [HttpGet("awards/team/{teamNumber}")]
-    [RedisCache("ftcapi:team-awards", 60 * 5)]
+    [RedisCache("ftcapi:team-awards", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
