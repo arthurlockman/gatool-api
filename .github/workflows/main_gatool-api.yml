@@ -108,6 +108,42 @@ jobs:
             exit 1
           fi
 
+      - name: Update scheduled jobs with new image
+        run: |
+          echo "Updating scheduled container app jobs with new image..."
+
+          # Update the high scores job
+          echo "Updating update-high-scores-job..."
+          az containerapp job update \
+            --name update-high-scores-job \
+            --resource-group gatool \
+            --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
+            --output none >/dev/null 2>&1
+
+          if [ $? -eq 0 ]; then
+            echo "High scores job updated successfully!"
+          else
+            echo "Failed to update high scores job"
+            exit 1
+          fi
+
+          # Update the sync users job
+          echo "Updating sync-users-job..."
+          az containerapp job update \
+            --name sync-users-job \
+            --resource-group gatool \
+            --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
+            --output none >/dev/null 2>&1
+
+          if [ $? -eq 0 ]; then
+            echo "Sync users job updated successfully!"
+          else
+            echo "Failed to update sync users job"
+            exit 1
+          fi
+
+          echo "All scheduled jobs updated successfully!"
+
   newrelic-notify:
     runs-on: ubuntu-latest
     name: New Relic

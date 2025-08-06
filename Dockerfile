@@ -49,4 +49,4 @@ EXPOSE 3001
 # Health check
 
 # Set the entry point
-ENTRYPOINT ["dotnet", "gatool-api-v3.dll"]
+ENTRYPOINT ["dotnet", "gatool-api.dll"]

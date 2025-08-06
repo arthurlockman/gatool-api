@@ -20,8 +20,8 @@ resource "azurerm_container_app_job" "update_high_scores" {
       cpu    = 1.0
       memory = "2Gi"
 
-      # Override the default command to run the high scores script
-      command = ["npm", "run", "update-high-scores"]
+      # Override the default command to run the high scores job
+      command = ["dotnet", "gatool-api.dll", "--job", "UpdateGlobalHighScores"]
 
       env {
         name  = "NEW_RELIC_LICENSE_KEY"
@@ -36,19 +36,19 @@ resource "azurerm_container_app_job" "update_high_scores" {
         value = "production"
       }
       env {
-        name  = "REDIS_HOST"
+        name  = "Redis__Host"
         value = azapi_resource.redis_cluster.output.properties.hostName
       }
       env {
-        name  = "REDIS_PORT"
+        name  = "Redis__Port"
         value = "10000"
       }
       env {
-        name  = "REDIS_PASSWORD"
+        name  = "Redis__Password"
         value = data.azapi_resource_action.redis_keys.output.primaryKey
       }
       env {
-        name  = "REDIS_TLS"
+        name  = "Redis__UseTls"
         value = "true"
       }
     }
@@ -88,8 +88,8 @@ resource "azurerm_container_app_job" "sync_users" {
       cpu    = 0.25
       memory = "0.5Gi"
 
-      # Override the default command to run the sync users script
-      command = ["npm", "run", "sync-users"]
+      # Override the default command to run the sync users job
+      command = ["dotnet", "gatool-api.dll", "--job", "SyncUsers"]
 
       env {
         name  = "NEW_RELIC_LICENSE_KEY"
@@ -104,19 +104,19 @@ resource "azurerm_container_app_job" "sync_users" {
         value = "production"
       }
       env {
-        name  = "REDIS_HOST"
+        name  = "Redis__Host"
         value = azapi_resource.redis_cluster.output.properties.hostName
       }
       env {
-        name  = "REDIS_PORT"
+        name  = "Redis__Port"
         value = "10000"
       }
       env {
-        name  = "REDIS_PASSWORD"
+        name  = "Redis__Password"
         value = data.azapi_resource_action.redis_keys.output.primaryKey
       }
       env {
-        name  = "REDIS_TLS"
+        name  = "Redis__UseTls"
         value = "true"
       }
     }

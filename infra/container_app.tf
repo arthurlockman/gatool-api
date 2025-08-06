@@ -59,19 +59,19 @@ resource "azurerm_container_app" "main" {
         value = "production"
       }
       env {
-        name  = "REDIS_HOST"
+        name  = "Redis__Host"
         value = azapi_resource.redis_cluster.output.properties.hostName
       }
       env {
-        name  = "REDIS_PORT"
+        name  = "Redis__Port"
         value = "10000"
       }
       env {
-        name  = "REDIS_PASSWORD"
+        name  = "Redis__Password"
         value = data.azapi_resource_action.redis_keys.output.primaryKey
       }
       env {
-        name  = "REDIS_TLS"
+        name  = "Redis__UseTls"
         value = "true"
       }
     }
