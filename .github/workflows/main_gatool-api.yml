@@ -101,24 +101,6 @@ jobs:
             --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
             --output none >/dev/null 2>&1
 
-      - name: Update scheduled jobs with new image
-        run: |
-          echo "Updating scheduled container app jobs with new image..."
-
-          # Update the high scores job
-          echo "Updating update-high-scores-job..."
-          az containerapp job update \
-            --name update-high-scores-job \
-            --resource-group gatool \
-            --image ghcr.io/${{ github.repository }}:${{ github.sha }}
-
-          # Update the sync users job
-          echo "Updating sync-users-job..."
-          az containerapp job update \
-            --name sync-users-job \
-            --resource-group gatool \
-            --image ghcr.io/${{ github.repository }}:${{ github.sha }}
-
   newrelic-notify:
     runs-on: ubuntu-latest
     name: New Relic
