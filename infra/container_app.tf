@@ -29,7 +29,7 @@ resource "azurerm_container_app" "main" {
 
       liveness_probe {
         transport = "HTTP"
-        port = 3001
+        port = 8080
         initial_delay = 15
         interval_seconds = 60
         timeout = 10
@@ -39,7 +39,7 @@ resource "azurerm_container_app" "main" {
 
       readiness_probe {
         transport = "HTTP"
-        port = 3001
+        port = 8080
         initial_delay = 20
         interval_seconds = 10
         timeout = 10
@@ -79,7 +79,7 @@ resource "azurerm_container_app" "main" {
 
   ingress {
     external_enabled = true
-    target_port      = 3001
+    target_port      = 8080
     traffic_weight {
       percentage      = 100
       latest_revision = true

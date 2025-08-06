@@ -44,7 +44,7 @@ ENV Redis__UseTls=false
 ENV Redis__Password=""
 
 # Expose port
-EXPOSE 3001
+EXPOSE 8080
 
 # Health check
 
