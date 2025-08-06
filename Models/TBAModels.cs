@@ -1,3 +1,6 @@
+using System.Text.Json.Serialization;
+using JetBrains.Annotations;
+
 namespace GAToolAPI.Models;
 
 public class TBATeam
@@ -70,3 +73,38 @@ public class TBAEvent
     public int? PlayoffType { get; set; }
     public string? PlayoffTypeString { get; set; }
 }
+
+[UsedImplicitly]
+public record RawTbaEvent(
+    [property: JsonPropertyName("address")] string? Address,
+    [property: JsonPropertyName("city")] string? City,
+    [property: JsonPropertyName("country")] string? Country,
+    [property: JsonPropertyName("district")] object? District,
+    [property: JsonPropertyName("division_keys")] List<string>? DivisionKeys,
+    [property: JsonPropertyName("end_date")] string? EndDate,
+    [property: JsonPropertyName("event_code")] string? EventCode,
+    [property: JsonPropertyName("event_type")] int? EventType,
+    [property: JsonPropertyName("event_type_string")] string? EventTypeString,
+    [property: JsonPropertyName("first_event_code")] string? FirstEventCode,
+    [property: JsonPropertyName("first_event_id")] string? FirstEventId,
+    [property: JsonPropertyName("gmaps_place_id")] string? GmapsPlaceId,
+    [property: JsonPropertyName("gmaps_url")] string? GmapsUrl,
+    [property: JsonPropertyName("key")] string? Key,
+    [property: JsonPropertyName("lat")] double? Lat,
+    [property: JsonPropertyName("lng")] double? Lng,
+    [property: JsonPropertyName("location_name")] string? LocationName,
+    [property: JsonPropertyName("name")] string? Name,
+    [property: JsonPropertyName("parent_event_key")] string? ParentEventKey,
+    [property: JsonPropertyName("playoff_type")] int? PlayoffType,
+    [property: JsonPropertyName("playoff_type_string")] string? PlayoffTypeString,
+    [property: JsonPropertyName("postal_code")] string? PostalCode,
+    [property: JsonPropertyName("remap_teams")] object? RemapTeams,
+    [property: JsonPropertyName("short_name")] string? ShortName,
+    [property: JsonPropertyName("start_date")] string? StartDate,
+    [property: JsonPropertyName("state_prov")] string? StateProv,
+    [property: JsonPropertyName("timezone")] string? Timezone,
+    [property: JsonPropertyName("webcasts")] List<object>? Webcasts,
+    [property: JsonPropertyName("website")] string? Website,
+    [property: JsonPropertyName("week")] int? Week,
+    [property: JsonPropertyName("year")] int? Year
+);

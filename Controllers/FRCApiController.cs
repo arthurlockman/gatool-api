@@ -234,7 +234,7 @@ public class FrcApiController(
             var avatarResponse = await frcApiClient.Get<TeamAvatarResponse>($"{year}/avatars",
                 new Dictionary<string, string?> { ["teamNumber"] = teamNumber.ToString() });
 
-            if (avatarResponse?.Teams == null || !avatarResponse.Teams.Any())
+            if (avatarResponse?.Teams == null || avatarResponse.Teams.Count == 0)
                 return NotFound(new { message = "Avatar not found" });
 
             var teamAvatar = avatarResponse.Teams[0];
