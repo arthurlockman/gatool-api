@@ -12,6 +12,13 @@ resource "azurerm_container_app" "main" {
   resource_group_name          = var.resource_group_name
   revision_mode                = "Single"
 
+  # Ignore changes to the container image to prevent Terraform drift during deployments
+  lifecycle {
+    ignore_changes = [
+      template[0].container[0].image
+    ]
+  }
+
   template {
     min_replicas = 0
     max_replicas = 5
@@ -24,8 +31,8 @@ resource "azurerm_container_app" "main" {
     container {
       name   = var.containerapp_name
       image  = var.image_name
-      cpu    = 1.0
-      memory = "2Gi"
+      cpu    = 0.5
+      memory = "1Gi"
 
       liveness_probe {
         transport = "HTTP"

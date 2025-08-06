@@ -91,12 +91,15 @@ try
         EndPoints =
         {
             {
+                // ReSharper disable once NotResolvedInText
                 builder.Configuration["Redis:Host"] ?? throw new ArgumentNullException("Redis:Host"),
+                // ReSharper disable once NotResolvedInText
                 int.Parse(builder.Configuration["Redis:Port"] ?? throw new ArgumentNullException("Redis:Port"))
             }
         },
         Password = builder.Configuration["Redis:Password"] ?? null,
-        Ssl = builder.Configuration.GetValue<bool?>("Redis:UseTls") ?? false
+        Ssl = builder.Configuration.GetValue<bool?>("Redis:UseTls") ?? false,
+        AllowAdmin = true
     };
     builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfig));
 
