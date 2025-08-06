@@ -10,7 +10,7 @@ namespace GAToolAPI.Controllers;
 
 [Route("/v3/system")]
 [OpenApiTag("Administration")]
-public class AdminController(UserStorageService userStorage): ControllerBase
+public class AdminController(UserStorageService userStorage) : ControllerBase
 {
     [HttpPut("announcements")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]

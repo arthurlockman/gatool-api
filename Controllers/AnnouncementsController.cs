@@ -2,7 +2,6 @@ using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using GAToolAPI.Services;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSwag.Annotations;
 

@@ -1,5 +1,5 @@
-using JetBrains.Annotations;
 using System.Reflection;
+using JetBrains.Annotations;
 
 namespace GAToolAPI.Models;
 
@@ -27,4 +27,3 @@ public static class VersionInfo
         return new VersionResponse(version, gitSha, buildDate, environment);
     }
 }
-

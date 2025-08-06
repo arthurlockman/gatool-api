@@ -225,13 +225,13 @@ public class UserStorageService(BlobServiceClient blobServiceClient)
     public async Task SaveUserSyncResults(int fullUsers, int readOnlyUsers, int deletedUsers)
     {
         var timestamp = DateTimeOffset.UtcNow;
-        var blob = _userPrefsClient.GetBlobClient($"system.userSync.json");
+        var blob = _userPrefsClient.GetBlobClient("system.userSync.json");
         var data = new
         {
             timestamp,
             fullUsers,
             readOnlyUsers,
-            deletedUsers,
+            deletedUsers
         };
         await using var stream = await blob.OpenWriteAsync(true);
         await using var writer = new StreamWriter(stream);
@@ -240,7 +240,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient)
 
     public async Task<string?> GetUserSyncResults()
     {
-        var blob = _userPrefsClient.GetBlobClient($"system.userSync.json");
+        var blob = _userPrefsClient.GetBlobClient("system.userSync.json");
         var content = await blob.DownloadAsync();
         if (!content.HasValue) return null;
         var reader = new StreamReader(content.Value.Content);

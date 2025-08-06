@@ -8,7 +8,8 @@ using NSwag.Annotations;
 namespace GAToolAPI.Controllers;
 
 [Route("ftc/v2/{year}")]
-public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDataService teamDataService): ControllerBase
+public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDataService teamDataService)
+    : ControllerBase
 {
     [HttpGet("teams")]
     [RedisCache("ftcapi:teams", 60 * 24 * 7)]
@@ -74,17 +75,14 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
-    public async Task<IActionResult> GetScores(string year, string eventCode, string tournamentLevel, string start, string end)
+    public async Task<IActionResult> GetScores(string year, string eventCode, string tournamentLevel, string start,
+        string end)
     {
         JsonObject? result;
         if (start == end)
-        {
             result = await ftcApi.GetGeneric($"{year}/scores/{eventCode}/{tournamentLevel}?matchNumber={start}");
-        }
         else
-        {
             result = await ftcApi.GetGeneric($"{year}/scores/{eventCode}/{tournamentLevel}?start={start}&end={end}");
-        }
 
         if (result == null) return NoContent();
         return Ok(result);
@@ -167,7 +165,7 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
 
         var result = new JsonObject
         {
-            ["rankings"] = rankings,
+            ["rankings"] = rankings
         };
         return Ok(result);
     }

@@ -7,7 +7,7 @@ using Microsoft.Net.Http.Headers;
 namespace GAToolAPI.Services;
 
 // ReSharper disable once InconsistentNaming
-public class FRCApiService: IApiService
+public class FRCApiService : IApiService
 {
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;

@@ -1,11 +1,11 @@
+using GAToolAPI.Models;
 using Microsoft.AspNetCore.Mvc;
 using NSwag.Annotations;
-using GAToolAPI.Models;
 
 namespace GAToolAPI.Controllers;
 
 [OpenApiTag("Administration")]
-public class LiveCheckController(IWebHostEnvironment environment): ControllerBase
+public class LiveCheckController(IWebHostEnvironment environment) : ControllerBase
 {
     [HttpGet("/livecheck")]
     [Produces("text/plain")]

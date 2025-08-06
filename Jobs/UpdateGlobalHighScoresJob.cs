@@ -48,7 +48,6 @@ public class UpdateGlobalHighScoresJob(
                     }).Where(m =>
                         !string.IsNullOrWhiteSpace(m.PostResultTime) &&
                         !m.Teams.Any(t => t.TeamNumber is >= 9986 and <= 9999));
-                    ;
                 }
                 finally
                 {

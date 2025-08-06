@@ -12,7 +12,8 @@ public class TeamDataService(FRCApiService frcApiClient, FTCApiService ftcApiCli
         return await DepaginateTeamData($"{year}/teams", frcApiClient, parameters);
     }
 
-    public async Task<JsonObject?> GetFtcTeamData(string year, string? eventCode = null, int? teamNumber = null, string? state = null)
+    public async Task<JsonObject?> GetFtcTeamData(string year, string? eventCode = null, int? teamNumber = null,
+        string? state = null)
     {
         var parameters = new { eventCode, state, teamNumber }.ToParameterDictionary();
         return await DepaginateTeamData($"{year}/teams", ftcApiClient, parameters);
