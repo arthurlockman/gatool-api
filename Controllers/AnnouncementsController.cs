@@ -31,7 +31,7 @@ public class AnnouncementsController(UserStorageService userStorage) : Controlle
     {
         var data = await userStorage.GetEventAnnouncements(eventCode);
         if (data == null) return NoContent();
-        var json = JsonSerializer.Deserialize<JsonObject>(data);
+        var json = JsonSerializer.Deserialize<object>(data);
         return Ok(json);
     }
 }

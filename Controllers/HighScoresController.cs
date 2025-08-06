@@ -5,10 +5,12 @@ using GAToolAPI.Extensions;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using NSwag.Annotations;
 
 namespace GAToolAPI.Controllers;
 
 [Route("v3/{year:int}/highscores")]
+[OpenApiTag("High Scores")]
 public class HighScoresController(FRCApiService frcApi, ScheduleService schedule, UserStorageService storageService)
     : ControllerBase
 {

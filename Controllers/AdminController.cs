@@ -8,7 +8,7 @@ using NSwag.Annotations;
 
 namespace GAToolAPI.Controllers;
 
-[Route("/v3/system/admin")]
+[Route("/v3/system")]
 [OpenApiTag("Administration")]
 public class AdminController(UserStorageService userStorage): ControllerBase
 {
