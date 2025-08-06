@@ -39,7 +39,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
     private string BuildCacheKey(ActionExecutingContext context)
     {
         var keyParts = new List<string> { keyPrefix };
-        keyParts.AddRange(context.RouteData.Values.Select(routeValue => $"{routeValue.Key}:{routeValue.Value}"));
+        keyParts.AddRange(context.RouteData.Values.Select(routeValue => $"net:{routeValue.Key}:{routeValue.Value}"));
         keyParts.AddRange(from queryParam in context.HttpContext.Request.Query
             where !string.IsNullOrEmpty(queryParam.Value)
             select $"{queryParam.Key}:{queryParam.Value}");

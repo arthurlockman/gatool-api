@@ -204,15 +204,15 @@ public record Tiebreaker(int Item1, string Item2);
 [UsedImplicitly]
 public record MatchScore(
     string MatchLevel,
-    int MatchNumber,
-    int WinningAlliance,
+    int? MatchNumber,
+    int? WinningAlliance,
     Tiebreaker? Tiebreaker,
     bool CoopertitionBonusAchieved,
-    int CoralBonusLevelsThresholdCoop,
-    int CoralBonusLevelsThresholdNonCoop,
-    int CoralBonusLevelsThreshold,
-    int BargeBonusThreshold,
-    int AutoBonusCoralThreshold,
+    int? CoralBonusLevelsThresholdCoop,
+    int? CoralBonusLevelsThresholdNonCoop,
+    int? CoralBonusLevelsThreshold,
+    int? BargeBonusThreshold,
+    int? AutoBonusCoralThreshold,
     List<AllianceScore>? Alliances);
 
 [UsedImplicitly]

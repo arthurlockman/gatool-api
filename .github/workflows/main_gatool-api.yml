@@ -110,18 +110,14 @@ jobs:
           az containerapp job update \
             --name update-high-scores-job \
             --resource-group gatool \
-            --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
-            --output none >/dev/null 2>&1
+            --image ghcr.io/${{ github.repository }}:${{ github.sha }}
 
           # Update the sync users job
           echo "Updating sync-users-job..."
           az containerapp job update \
             --name sync-users-job \
             --resource-group gatool \
-            --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
-            --output none >/dev/null 2>&1
-
-          echo "All scheduled jobs updated successfully!"
+            --image ghcr.io/${{ github.repository }}:${{ github.sha }}
 
   newrelic-notify:
     runs-on: ubuntu-latest
