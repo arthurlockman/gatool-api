@@ -24,6 +24,12 @@ CORECLR_PROFILER={36032161-FFC0-4B61-B559-F6C5D41BAE5A} \
 CORECLR_NEWRELIC_HOME=/usr/local/newrelic-dotnet-agent \
 CORECLR_PROFILER_PATH=/usr/local/newrelic-dotnet-agent/libNewRelicProfiler.so
 
+# Disable automatic log forwarding to prevent duplicates (we use Serilog instead)
+ENV NEW_RELIC_APPLICATION_LOGGING_ENABLED=false \
+NEW_RELIC_APPLICATION_LOGGING_FORWARDING_ENABLED=false \
+NEW_RELIC_APPLICATION_LOGGING_METRICS_ENABLED=true \
+NEW_RELIC_APPLICATION_LOGGING_LOCAL_DECORATING_ENABLED=false
+
 # Will be filled in by deployment
 ENV NEW_RELIC_LICENSE_KEY=""
 ENV NEW_RELIC_APP_NAME=""
