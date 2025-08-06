@@ -101,13 +101,6 @@ jobs:
             --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
             --output none >/dev/null 2>&1
 
-          if [ $? -eq 0 ]; then
-            echo "New revision created successfully!"
-          else
-            echo "Failed to create new revision"
-            exit 1
-          fi
-
       - name: Update scheduled jobs with new image
         run: |
           echo "Updating scheduled container app jobs with new image..."
@@ -120,13 +113,6 @@ jobs:
             --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
             --output none >/dev/null 2>&1
 
-          if [ $? -eq 0 ]; then
-            echo "High scores job updated successfully!"
-          else
-            echo "Failed to update high scores job"
-            exit 1
-          fi
-
           # Update the sync users job
           echo "Updating sync-users-job..."
           az containerapp job update \
@@ -134,13 +120,6 @@ jobs:
             --resource-group gatool \
             --image ghcr.io/${{ github.repository }}:${{ github.sha }} \
             --output none >/dev/null 2>&1
-
-          if [ $? -eq 0 ]; then
-            echo "Sync users job updated successfully!"
-          else
-            echo "Failed to update sync users job"
-            exit 1
-          fi
 
           echo "All scheduled jobs updated successfully!"
 
