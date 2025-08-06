@@ -1,19 +1,52 @@
-FROM node:22-alpine AS base
+# syntax=docker/dockerfile:1
+# check=skip=SecretsUsedInArgOrEnv
+
+# Build stage
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+WORKDIR /src
+
+COPY . .
+RUN dotnet publish gatool-api.csproj -c Release -o /app/publish
+
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+
+# Install the Newrelic agent
+RUN apt-get update && apt-get install -y wget ca-certificates gnupg \
+&& echo 'deb [signed-by=/usr/share/keyrings/newrelic-apt.gpg] http://apt.newrelic.com/debian/ newrelic non-free' | tee /etc/apt/sources.list.d/newrelic.list \
+&& wget -O- https://download.newrelic.com/NEWRELIC_APT_2DAD550E.public | gpg --import --batch --no-default-keyring --keyring /usr/share/keyrings/newrelic-apt.gpg \
+&& apt-get update \
+&& apt-get install -y newrelic-dotnet-agent
+
+# Enable the agent
+ENV CORECLR_ENABLE_PROFILING=1 \
+CORECLR_PROFILER={36032161-FFC0-4B61-B559-F6C5D41BAE5A} \
+CORECLR_NEWRELIC_HOME=/usr/local/newrelic-dotnet-agent \
+CORECLR_PROFILER_PATH=/usr/local/newrelic-dotnet-agent/libNewRelicProfiler.so
+
+# Will be filled in by deployment
+ENV NEW_RELIC_LICENSE_KEY=""
+ENV NEW_RELIC_APP_NAME=""
 
 WORKDIR /app
 
-# Install dependencies only when needed
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+# Create non-root user for security
+RUN adduser --disabled-password --gecos '' appuser && chown -R appuser /app
+USER appuser
 
-# Copy the rest of the app
-COPY . .
+# Copy the published app from build stage
+COPY --from=build /app/publish .
 
-# Set environment variables for production
-ENV NODE_ENV=production
+# Environment variables for Redis configuration
+ENV Redis__Host=localhost
+ENV Redis__Port=6379
+ENV Redis__UseTls=false
+ENV Redis__Password=""
 
-# Expose the port
+# Expose port
 EXPOSE 3001
 
-# Start the application with tsx and preload New Relic
-CMD ["npx", "tsx", "-r", "newrelic", "src/app.ts"]
+# Health check
+
+# Set the entry point
+ENTRYPOINT ["dotnet", "gatool-api-v3.dll"]

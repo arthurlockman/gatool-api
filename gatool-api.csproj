@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+    <PropertyGroup>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <RootNamespace>GAToolAPI</RootNamespace>
+        <RepositoryUrl>https://github.com/arthurlockman/gatool-api-v3</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <Version>5.0.0</Version>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Auth0.AuthenticationApi" Version="7.39.0"/>
+        <PackageReference Include="Auth0.ManagementApi" Version="7.39.0"/>
+        <PackageReference Include="Azure.Extensions.AspNetCore.Configuration.Secrets" Version="1.4.0"/>
+        <PackageReference Include="Azure.Identity" Version="1.14.2"/>
+        <PackageReference Include="Azure.Storage.Blobs" Version="12.25.0"/>
+        <PackageReference Include="JetBrains.Annotations" Version="2025.2.0"/>
+        <PackageReference Include="MailChimp.Net.V3" Version="5.7.0"/>
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.7"/>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7"/>
+        <PackageReference Include="Microsoft.Azure.KeyVault" Version="3.0.5"/>
+        <PackageReference Include="Microsoft.Extensions.Azure" Version="1.12.0"/>
+        <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="9.0.7"/>
+        <PackageReference Include="NewRelic.Agent.Api" Version="10.43.0" />
+        <PackageReference Include="NSwag.AspNetCore" Version="14.5.0"/>
+        <PackageReference Include="StackExchange.Redis" Version="2.8.58"/>
+        <PackageReference Include="System.Threading.RateLimiting" Version="9.0.7"/>
+    </ItemGroup>
+
+</Project>
