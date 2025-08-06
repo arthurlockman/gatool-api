@@ -443,7 +443,7 @@ public class FrcApiController(
 
         try
         {
-            var result = await frcApiClient.Get<TeamAwardsResponse>($"{season - 1}/awards/team/{team}");
+            var result = await frcApiClient.Get<TeamAwardsResponse>($"{season}/awards/team/{team}");
             var cachePeriod = DateTime.Now.Year == season ? TimeSpan.FromHours(7) : TimeSpan.FromDays(14);
             await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), cachePeriod);
             return result;
