@@ -17,8 +17,8 @@ resource "azurerm_container_app_job" "update_high_scores" {
     container {
       name   = "update-high-scores"
       image  = var.image_name
-      cpu    = 1.0
-      memory = "2Gi"
+      cpu    = 0.25
+      memory = "0.5Gi"
 
       # Override the default command to run the high scores job
       command = ["dotnet", "gatool-api.dll", "--job", "UpdateGlobalHighScores"]
