@@ -12,7 +12,8 @@ public static class ScoreExtensions
         foreach (var highScore in highScores) await storage.StoreHighScore(year, highScore, typePrefix);
     }
 
-    public static List<HighScore> CalculateHighScores(this IEnumerable<HybridMatch> matches, int year)
+    public static List<HighScore> CalculateHighScores(this IEnumerable<HybridMatch> matches, int year,
+        string? prefix = null)
     {
         var matchList = matches.ToList();
 
@@ -72,49 +73,49 @@ public static class ScoreExtensions
         if (overallHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(overallHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "overall", "playoff", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "overall", "playoff", match, alliance, score, prefix));
         }
 
         if (overallHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(overallHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "overall", "qual", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "overall", "qual", match, alliance, score, prefix));
         }
 
         if (penaltyFreeHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(penaltyFreeHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "playoff", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "playoff", match, alliance, score, prefix));
         }
 
         if (penaltyFreeHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(penaltyFreeHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "qual", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "qual", match, alliance, score, prefix));
         }
 
         if (offsettingPenaltyHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(offsettingPenaltyHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "playoff", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "playoff", match, alliance, score, prefix));
         }
 
         if (offsettingPenaltyHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(offsettingPenaltyHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "qual", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "qual", match, alliance, score, prefix));
         }
 
         if (tbaPenaltyFreeHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(tbaPenaltyFreeHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "qual", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "qual", match, alliance, score, prefix));
         }
 
         if (tbaPenaltyFreeHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(tbaPenaltyFreeHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "playoff", match, alliance, score));
+            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "playoff", match, alliance, score, prefix));
         }
 
         return highScoresData;
@@ -142,7 +143,7 @@ public static class ScoreExtensions
     }
 
     private static HighScore BuildHighScoreJson(int year, string category, string tournamentLevel,
-        HybridMatch match, string alliance, int score)
+        HybridMatch match, string alliance, int score, string? prefix)
     {
         return new HighScore
         {
@@ -160,7 +161,7 @@ public static class ScoreExtensions
             },
             Type = category,
             Year = year,
-            YearType = $"{year}{category}{tournamentLevel}"
+            YearType = $"{year}{prefix}{category}{tournamentLevel}"
         };
     }
 }

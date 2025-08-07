@@ -1,16 +1,26 @@
 using System.Net;
 using System.Text.Json.Nodes;
+using System.Collections.Concurrent;
+using System.Text.Json;
 using GAToolAPI.Attributes;
+using GAToolAPI.Models;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using NSwag.Annotations;
+using StackExchange.Redis;
 
 namespace GAToolAPI.Controllers;
 
 [Route("ftc/v2/{year}")]
-public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDataService teamDataService)
+public class FtcApiController(
+    FTCApiService ftcApi,
+    TOAApiService toaApi,
+    TeamDataService teamDataService,
+    IConnectionMultiplexer connectionMultiplexer)
     : ControllerBase
 {
+    private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
+
     [HttpGet("teams")]
     [RedisCache("ftcapi:teams", RedisCacheTime.OneWeek)]
     [OpenApiTag("FTC Team Data")]
@@ -181,15 +191,63 @@ public class FtcApiController(FTCApiService ftcApi, TOAApiService toaApi, TeamDa
         return Ok(result);
     }
 
-    [HttpGet("awards/team/{teamNumber}")]
-    [RedisCache("ftcapi:team-awards", RedisCacheTime.FiveMinutes)]
+    [HttpPost("queryAwards")]
+    [RedisCache("ftcapi:batch-team-awards", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Team Data")]
-    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(Dictionary<int, Dictionary<string, TeamAwardsResponse?>>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
-    public async Task<IActionResult> GetTeamAwards(string year, string teamNumber)
+    public async Task<IActionResult> QueryAwards(int year, [FromBody] TeamQueryRequest request)
     {
-        var result = await ftcApi.GetGeneric($"{year}/awards/{teamNumber}");
-        if (result == null) return NoContent();
-        return Ok(result);
+        if (request.Teams.Count == 0) return BadRequest("Teams list is required");
+
+        var awards = new ConcurrentDictionary<int, object?>();
+
+        var tasks = request.Teams.Select(async team =>
+        {
+            var teamAwards = await GetLast3YearAwards(year, team);
+            awards[team] = teamAwards;
+        }).ToArray();
+
+        await Task.WhenAll(tasks);
+
+        return Ok(awards.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
     }
+
+    #region Private Methods
+
+    private async Task<TeamAwardsResponse?> GetTeamAwards(int season, int team)
+    {
+        var cacheKey = $"ftc:team:{team}:season:{season}:awards";
+
+        var cachedResult = await _redis.StringGetAsync(cacheKey);
+        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult!);
+
+        try
+        {
+            var result = await ftcApi.Get<TeamAwardsResponse>($"{season}/awards/{team}");
+            var cachePeriod = DateTime.Now.Year == season ? TimeSpan.FromHours(7) : TimeSpan.FromDays(14);
+            await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), cachePeriod);
+            return result;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<Dictionary<string, TeamAwardsResponse?>> GetLast3YearAwards(int year, int team)
+    {
+        var currentYearAwards = await GetTeamAwards(year, team);
+        var pastYearAwards = await GetTeamAwards(year - 1, team);
+        var secondYearAwards = await GetTeamAwards(year - 2, team);
+
+        return new Dictionary<string, TeamAwardsResponse?>
+        {
+            [year.ToString()] = currentYearAwards,
+            [(year - 1).ToString()] = pastYearAwards,
+            [(year - 2).ToString()] = secondYearAwards
+        };
+    }
+
+    #endregion
 }

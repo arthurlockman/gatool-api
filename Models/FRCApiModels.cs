@@ -126,18 +126,18 @@ public record FrcTeam(
 
 [UsedImplicitly]
 public record Award(
-    int AwardId,
-    int TeamId,
-    int EventId,
+    int? AwardId,
+    int? TeamId,
+    int? EventId,
     int? EventDivisionId,
-    string EventCode,
-    string Name,
-    int Series,
-    int TeamNumber,
+    string? EventCode,
+    string? Name,
+    int? Series,
+    int? TeamNumber,
     string? SchoolName,
     string? FullTeamName,
     string? Person,
-    bool CmpQualifying,
+    bool? CmpQualifying,
     string? CmpQualifyingReason);
 
 [UsedImplicitly]

@@ -61,7 +61,7 @@ public class UpdateGlobalHighScoresJob(
             var districts = await frcApiService.Get<DistrictListResponse>($"{year}/districts");
             await Task.WhenAll(districts?.Districts?.Select(district => allMatches
                 .Where(m => m.DistrictCode == district.Code)
-                .CalculateHighScores(year)
+                .CalculateHighScores(year, $"District{district.Code}")
                 .StoreHighScores(userStorageService, year, $"District{district.Code}")) ?? []);
 
             logger.LogInformation("UpdateGlobalHighScores job completed successfully");

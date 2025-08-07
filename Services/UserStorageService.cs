@@ -6,7 +6,7 @@ using GAToolAPI.Models;
 
 namespace GAToolAPI.Services;
 
-public class UserStorageService(BlobServiceClient blobServiceClient)
+public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<UserStorageService> logger)
 {
     private readonly JsonSerializerOptions _camelCaseIgnoreCaseOptions = new()
     {
@@ -205,9 +205,10 @@ public class UserStorageService(BlobServiceClient blobServiceClient)
                         results.Add(highScore);
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 // Skip corrupted or invalid blobs
+                logger.LogError(ex, ex.Message);
             }
 
         return results;
