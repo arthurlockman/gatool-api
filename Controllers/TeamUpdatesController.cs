@@ -63,10 +63,10 @@ public class TeamUpdatesController(UserStorageService userStorage, TeamDataServi
         {
             if (t == null) return null;
             var update = await userStorage.GetTeamUpdates((int)t);
-            return new
+            return string.IsNullOrWhiteSpace(update) ? null : new
             {
                 teamNumber = t,
-                updates = JsonSerializer.Deserialize<JsonObject>(update ?? string.Empty)
+                updates = JsonSerializer.Deserialize<JsonObject>(update)
             };
         });
         var data = await Task.WhenAll(tasks);
