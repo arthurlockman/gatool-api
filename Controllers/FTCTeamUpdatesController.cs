@@ -8,16 +8,16 @@ using NSwag.Annotations;
 
 namespace GAToolAPI.Controllers;
 
-[Route("v3/")]
+[Route("ftc/v2")]
 [OpenApiTag("Community Updates")]
-public class TeamUpdatesController(UserStorageService userStorage, TeamDataService teamData) : ControllerBase
+public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataService teamData): ControllerBase
 {
     [HttpGet("team/{teamNumber:int}/updates")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeamUpdatesForTeam(int teamNumber)
     {
-        var teamUpdate = await userStorage.GetTeamUpdates(teamNumber);
+        var teamUpdate = await userStorage.GetTeamUpdates(teamNumber, true);
         if (teamUpdate == null)
             return Ok(new
             {
@@ -36,7 +36,7 @@ public class TeamUpdatesController(UserStorageService userStorage, TeamDataServi
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeamUpdateHistory(int teamNumber)
     {
-        var updateHistory = await userStorage.GetTeamUpdateHistory(teamNumber);
+        var updateHistory = await userStorage.GetTeamUpdateHistory(teamNumber, true);
         return Ok(updateHistory);
     }
 
@@ -47,7 +47,7 @@ public class TeamUpdatesController(UserStorageService userStorage, TeamDataServi
     {
         var email = User.FindFirst("name")?.Value;
         if (email == null) return BadRequest("Missing user email address in token");
-        await userStorage.StoreTeamUpdates(teamNumber, updates, email);
+        await userStorage.StoreTeamUpdates(teamNumber, updates, email, true);
         return NoContent();
     }
 
@@ -56,7 +56,7 @@ public class TeamUpdatesController(UserStorageService userStorage, TeamDataServi
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeamUpdatesForEvent(string year, string eventCode)
     {
-        var teamList = await teamData.GetFrcTeamData(year, eventCode);
+        var teamList = await teamData.GetFtcTeamData(year, eventCode);
         var teamNumbers = teamList?["teams"]?.AsArray().Select(t => t?["teamNumber"]?.GetValue<int>());
         if (teamNumbers == null) return NoContent();
         var tasks = teamNumbers.Select(async t =>

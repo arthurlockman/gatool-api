@@ -94,11 +94,12 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         await writer.WriteAsync(prefString);
     }
 
-    public async Task<string?> GetTeamUpdates(int teamNumber)
+    public async Task<string?> GetTeamUpdates(int teamNumber, bool ftc = false)
     {
         try
         {
-            var blob = _teamUpdatesClient.GetBlobClient($"{teamNumber}.json");
+            var prefix = ftc ? "ftc/" : "";
+            var blob = _teamUpdatesClient.GetBlobClient($"{prefix}{teamNumber}.json");
             var content = await blob.DownloadAsync();
             if (!content.HasValue) return null;
             var reader = new StreamReader(content.Value.Content);
@@ -110,11 +111,13 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         }
     }
 
-    public async Task StoreTeamUpdates(int teamNumber, JsonObject data, string email)
+    public async Task StoreTeamUpdates(int teamNumber, JsonObject data, string email, bool ftc = false)
     {
+        var blobPrefix = ftc ? "ftc/" : "";
+        var updateBlobName = $"{blobPrefix}{teamNumber}.json";
         try
         {
-            var blob = _teamUpdatesClient.GetBlobClient($"{teamNumber}.json");
+            var blob = _teamUpdatesClient.GetBlobClient(updateBlobName);
             var properties = await blob.GetPropertiesAsync();
             var lastModifiedDate = properties.Value.LastModified;
 
@@ -124,7 +127,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
 
             var historyBlob =
                 _teamUpdatesHistoryClient.GetBlobClient(
-                    $"{teamNumber}/{lastModifiedDate:yyyy-MM-ddTHH:mm:ss.fffZ}.json");
+                    $"{blobPrefix}{teamNumber}/{lastModifiedDate:yyyy-MM-ddTHH:mm:ss.fffZ}.json");
             await using var historyStream = await historyBlob.OpenWriteAsync(true);
             await using var historyWriter = new StreamWriter(historyStream);
             await historyWriter.WriteAsync(content);
@@ -137,17 +140,18 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         data["source"] = JsonValue.Create(email);
         var dataString = data.ToJsonString();
 
-        var userBlob = _teamUpdatesClient.GetBlobClient($"{teamNumber}.json");
+        var userBlob = _teamUpdatesClient.GetBlobClient(updateBlobName);
         await using var stream = await userBlob.OpenWriteAsync(true);
         await using var writer = new StreamWriter(stream);
         await writer.WriteAsync(dataString);
     }
 
-    public async Task<IEnumerable<JsonObject>> GetTeamUpdateHistory(int teamNumber)
+    public async Task<IEnumerable<JsonObject>> GetTeamUpdateHistory(int teamNumber, bool ftc = false)
     {
         var results = new List<JsonObject>();
 
-        var blobs = _teamUpdatesHistoryClient.GetBlobsAsync(prefix: $"{teamNumber}/");
+        var blobPrefix = ftc ? "ftc/" : "";
+        var blobs = _teamUpdatesHistoryClient.GetBlobsAsync(prefix: $"{blobPrefix}{teamNumber}/");
 
         await foreach (var blob in blobs)
             try
@@ -160,7 +164,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
                 // Extract the modification date from the blob name
                 // Format: {teamNumber}/{timestamp}.json -> timestamp
                 var modifiedDate = blob.Name
-                    .Replace($"{teamNumber}/", "")
+                    .Replace($"{blobPrefix}{teamNumber}/", "")
                     .Replace(".json", "");
 
                 updateData["modifiedDate"] = JsonValue.Create(modifiedDate);
