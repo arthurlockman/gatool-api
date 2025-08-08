@@ -64,7 +64,7 @@ public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
         var tasks = teamNumbers.Select(async t =>
         {
             if (t == null) return null;
-            var update = await userStorage.GetTeamUpdates((int)t);
+            var update = await userStorage.GetTeamUpdates((int)t, true);
             return string.IsNullOrWhiteSpace(update) ? null : new
             {
                 teamNumber = t,
