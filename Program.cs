@@ -2,6 +2,7 @@ using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.AuthExtensions;
 using GAToolAPI.Jobs;
+using GAToolAPI.Middleware;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
@@ -140,6 +141,7 @@ try
     }
 
     app.UseSerilogRequestLogging();
+    app.UseMiddleware<NewRelicRequestFilter>();
     app.UseOpenApi();
     app.UseSwaggerUi(config =>
     {
