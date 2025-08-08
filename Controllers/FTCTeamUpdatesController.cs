@@ -57,6 +57,8 @@ public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
     public async Task<IActionResult> GetTeamUpdatesForEvent(string year, string eventCode)
     {
         var teamList = await teamData.GetFtcTeamData(year, eventCode);
+        if (teamList == null) return NoContent();
+
         var teamNumbers = teamList?["teams"]?.AsArray().Select(t => t?["teamNumber"]?.GetValue<int>());
         if (teamNumbers == null) return NoContent();
         var tasks = teamNumbers.Select(async t =>

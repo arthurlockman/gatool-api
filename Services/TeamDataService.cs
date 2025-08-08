@@ -3,7 +3,7 @@ using GAToolAPI.Extensions;
 
 namespace GAToolAPI.Services;
 
-public class TeamDataService(FRCApiService frcApiClient, FTCApiService ftcApiClient)
+public class TeamDataService(FRCApiService frcApiClient, FTCApiService ftcApiClient, ILogger<TeamDataService> logger)
 {
     public async Task<JsonObject?> GetFrcTeamData(string year, string? eventCode = null, string? districtCode = null,
         string? teamNumber = null)
@@ -16,7 +16,15 @@ public class TeamDataService(FRCApiService frcApiClient, FTCApiService ftcApiCli
         string? state = null)
     {
         var parameters = new { eventCode, state, teamNumber }.ToParameterDictionary();
-        return await DepaginateTeamData($"{year}/teams", ftcApiClient, parameters);
+        try
+        {
+            return await DepaginateTeamData($"{year}/teams", ftcApiClient, parameters);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, ex.Message);
+            return null;
+        }
     }
 
     private static async Task<JsonObject?> DepaginateTeamData(string path, IApiService client,
