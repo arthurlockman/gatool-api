@@ -27,6 +27,13 @@ public class HighScoresController(FRCApiService frcApi, ScheduleService schedule
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForEvent(int year, string eventCode)
     {
+        if (eventCode.Equals("offline", StringComparison.CurrentCultureIgnoreCase))
+        {
+            // If using an offline event, sometimes they do have internet, and we make a request for high
+            // scores anyway. In the case that gets through return an empty list instead of 404.
+            return Ok(new List<HighScore>());
+        }
+
         var events = await frcApi.Get<EventListResponse>($"{year}/events?eventCode={eventCode}");
         if (events?.EventCount < 1) return NotFound("Event not found");
         var qualMatches = await schedule.BuildHybridSchedule($"{year}", eventCode, "qual");

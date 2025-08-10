@@ -4,7 +4,7 @@ using JetBrains.Annotations;
 namespace GAToolAPI.Models;
 
 [UsedImplicitly]
-public record ScheduleTeam(int TeamNumber, string? Station, bool Surrogate);
+public record ScheduleTeam(int? TeamNumber, string? Station, bool Surrogate);
 
 [UsedImplicitly]
 public record ScheduleMatch(
