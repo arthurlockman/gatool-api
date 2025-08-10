@@ -52,7 +52,7 @@ public class ScheduleService(FRCApiService frcApiClient)
             Description = s.Description,
             Teams = s.Teams?.Select(t => new HybridTeam
             {
-                TeamNumber = t.TeamNumber,
+                TeamNumber = t.TeamNumber ?? 0,
                 Station = t.Station ?? string.Empty,
                 Surrogate = t.Surrogate,
                 Dq = false // Default for schedule-only data
@@ -76,7 +76,7 @@ public class ScheduleService(FRCApiService frcApiClient)
                 Description = scheduleMatch.Description,
                 Teams = scheduleMatch.Teams?.Select(t => new HybridTeam
                 {
-                    TeamNumber = t.TeamNumber,
+                    TeamNumber = t.TeamNumber ?? 0,
                     Station = t.Station ?? string.Empty,
                     Surrogate = t.Surrogate,
                     Dq = false // Default, will be overwritten if match data exists
