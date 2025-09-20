@@ -34,6 +34,7 @@ public class FrcApiController(
     {
         var result = await teamDataService.GetFrcTeamData(year, eventCode, districtCode, teamNumber);
         if (result == null) return NoContent();
+        if (result.Teams?.Count == 0) RedisCache.IgnoreCurrentRequest();
         return Ok(result);
     }
 

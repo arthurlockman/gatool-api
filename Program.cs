@@ -1,5 +1,6 @@
 using Azure.Identity;
 using Azure.Security.KeyVault.Secrets;
+using GAToolAPI.Attributes;
 using GAToolAPI.AuthExtensions;
 using GAToolAPI.Jobs;
 using GAToolAPI.Middleware;
@@ -71,6 +72,9 @@ try
 
     builder.Services.AddControllers();
 
+    // Add HttpContextAccessor for RedisCache.IgnoreCurrentRequest() functionality
+    builder.Services.AddHttpContextAccessor();
+
     builder.Services.AddOpenApiDocument(config =>
     {
         config.Title = "GATool API";
@@ -120,6 +124,9 @@ try
     builder.Services.AddScoped<SyncUsersJob>();
 
     var app = builder.Build();
+
+    // Initialize the ServiceLocator for RedisCache functionality
+    ServiceLocator.ServiceProvider = app.Services;
 
     // Check if we're running a job instead of the web API
     if (args.Length > 0 && args[0] == "--job")

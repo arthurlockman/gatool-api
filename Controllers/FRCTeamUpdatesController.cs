@@ -57,11 +57,10 @@ public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
     public async Task<IActionResult> GetTeamUpdatesForEvent(string year, string eventCode)
     {
         var teamList = await teamData.GetFrcTeamData(year, eventCode);
-        var teamNumbers = teamList?["teams"]?.AsArray().Select(t => t?["teamNumber"]?.GetValue<int>());
+        var teamNumbers = teamList?.Teams?.Select(t => t.TeamNumber);
         if (teamNumbers == null) return NoContent();
         var tasks = teamNumbers.Select(async t =>
         {
-            if (t == null) return null;
             var update = await userStorage.GetTeamUpdates((int)t);
             return string.IsNullOrWhiteSpace(update) ? null : new
             {

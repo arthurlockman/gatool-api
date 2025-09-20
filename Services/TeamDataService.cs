@@ -1,15 +1,16 @@
 using System.Text.Json.Nodes;
 using GAToolAPI.Extensions;
+using GAToolAPI.Models;
 
 namespace GAToolAPI.Services;
 
 public class TeamDataService(FRCApiService frcApiClient, FTCApiService ftcApiClient, ILogger<TeamDataService> logger)
 {
-    public async Task<JsonObject?> GetFrcTeamData(string year, string? eventCode = null, string? districtCode = null,
+    public async Task<TeamsResponse?> GetFrcTeamData(string year, string? eventCode = null, string? districtCode = null,
         string? teamNumber = null)
     {
         var parameters = new { eventCode, districtCode, teamNumber }.ToParameterDictionary();
-        return await DepaginateTeamData($"{year}/teams", frcApiClient, parameters);
+        return await DepaginateTeamDataTyped($"{year}/teams", frcApiClient, parameters);
     }
 
     public async Task<JsonObject?> GetFtcTeamData(string year, string? eventCode = null, int? teamNumber = null,
@@ -68,5 +69,39 @@ public class TeamDataService(FRCApiService frcApiClient, FTCApiService ftcApiCli
         result["pageTotal"] = 1;
 
         return result;
+    }
+
+    private static async Task<TeamsResponse?> DepaginateTeamDataTyped(string path, IApiService client,
+        Dictionary<string, string?> query)
+    {
+        var result = await client.Get<TeamsResponse>(path, query);
+        if (result == null) return null;
+
+        if (result.PageTotal == 1) return result;
+
+        var allTeams = new List<FrcTeam>();
+        if (result.Teams != null) allTeams.AddRange(result.Teams);
+
+        var pageTasks = new List<Task<List<FrcTeam>?>>();
+        for (var page = 2; page <= result.PageTotal; page++)
+        {
+            var pageParameters = new Dictionary<string, string?>(query)
+            {
+                ["page"] = page.ToString()
+            };
+
+            pageTasks.Add(Task.Run(async () =>
+            {
+                var pageResult = await client.Get<TeamsResponse>(path, pageParameters);
+                return pageResult?.Teams;
+            }));
+        }
+
+        var pageResults = await Task.WhenAll(pageTasks);
+        allTeams.AddRange(pageResults.SelectMany(x => x));
+
+        return new TeamsResponse(Teams: allTeams,
+            TeamCountPage: allTeams.Count, TeamCountTotal: allTeams.Count,
+            PageCurrent: 1, PageTotal: 1);
     }
 }
