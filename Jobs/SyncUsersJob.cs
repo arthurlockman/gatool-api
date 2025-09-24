@@ -194,7 +194,7 @@ public class SyncUsersJob(
     {
         await rateLimiter.AcquireAsync(cancellationToken: cancellationToken);
         var emailUser =
-            (await managementApiClient.Users.GetUsersByEmailAsync(email, cancellationToken: cancellationToken))
+            (await managementApiClient.Users.GetUsersByEmailAsync(email.ToLowerInvariant(), cancellationToken: cancellationToken))
             .Where(u => u.Identities.Any(i => i.Provider == "email")).ToList();
         switch (emailUser.Count)
         {
