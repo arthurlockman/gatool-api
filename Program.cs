@@ -112,7 +112,9 @@ try
 
     builder.Services.AddSingleton<FRCApiService>();
     builder.Services.AddSingleton<TBAApiService>();
+    builder.Services.AddSingleton<StatboticsApiService>();
     builder.Services.AddSingleton<FTCApiService>();
+    builder.Services.AddSingleton<FTCScoutApiService>();
     builder.Services.AddSingleton<TOAApiService>();
     builder.Services.AddSingleton<UserStorageService>();
     builder.Services.AddSingleton<TeamDataService>();

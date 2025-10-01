@@ -14,6 +14,7 @@ namespace GAToolAPI.Controllers;
 [Route("ftc/v2/{year}")]
 public class FtcApiController(
     FTCApiService ftcApi,
+    FTCScoutApiService ftcScoutApi,
     TOAApiService toaApi,
     TeamDataService teamDataService,
     IConnectionMultiplexer connectionMultiplexer)
@@ -211,6 +212,28 @@ public class FtcApiController(
         await Task.WhenAll(tasks);
 
         return Ok(awards.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+    }
+
+    [HttpGet("ftcscout/quick-stats/{teamNumber}")]
+    [OpenApiTag("FTC Scout Team Data")]
+    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetFtcScoutQuickStats(string year, string teamNumber)
+    {
+        var result = await ftcScoutApi.GetGeneric($"teams/{teamNumber}/quick-stats?season={year}");
+        if (result == null) return NoContent();
+        return Ok(result);
+    }
+
+    [HttpGet("ftcscout/events/{team}")]
+    [OpenApiTag("FTC Scout Team Data")]
+    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetFtcScoutEvents(string year, string team)
+    {
+        var result = await ftcScoutApi.GetGeneric($"teams/{team}/events/{year}");
+        if (result == null) return NoContent();
+        return Ok(result);
     }
 
     #region Private Methods

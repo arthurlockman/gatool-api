@@ -17,6 +17,7 @@ public class FrcApiController(
     ILogger<FrcApiController> logger,
     FRCApiService frcApiClient,
     TBAApiService tbaApiClient,
+    StatboticsApiService statboticsApiClient,
     IConnectionMultiplexer connectionMultiplexer,
     TeamDataService teamDataService,
     ScheduleService scheduleService)
@@ -431,6 +432,17 @@ public class FrcApiController(
             logger.LogError(ex, "Error fetching offseason events for year {Year}", year);
             return NoContent();
         }
+    }
+
+    [HttpGet("statbotics/{teamNumber}")]
+    [OpenApiTag("FRC Team Data")]
+    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetStatboticsData(int year, string teamNumber)
+    {
+        var result = await statboticsApiClient.GetGeneric($"team_year/{teamNumber}/{year}");
+        if (result == null) return NoContent();
+        return Ok(result);
     }
 
     #region Private Methods
