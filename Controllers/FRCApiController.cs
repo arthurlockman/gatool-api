@@ -443,6 +443,7 @@ public class FrcApiController(
     /// <response code="200">Returns the team's statistics and data</response>
     /// <response code="204">No data found for the specified team and year</response>
     [HttpGet("statbotics/{teamNumber}")]
+    [RedisCache("statbotics:team-data", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
