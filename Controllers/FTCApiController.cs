@@ -223,7 +223,6 @@ public class FtcApiController(
     /// <response code="200">Returns the team's quick statistics</response>
     /// <response code="204">No data found for the specified team and year</response>
     [HttpGet("ftcscout/quick-stats/{teamNumber}")]
-    [RedisCache("ftcscout:quick-stats", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Scout Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -243,7 +242,6 @@ public class FtcApiController(
     /// <response code="200">Returns the team's events data</response>
     /// <response code="204">No data found for the specified team and year</response>
     [HttpGet("ftcscout/events/{team}")]
-    [RedisCache("ftcscout:events", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Scout Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
