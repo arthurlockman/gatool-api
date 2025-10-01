@@ -434,6 +434,14 @@ public class FrcApiController(
         }
     }
 
+    /// <summary>
+    /// Gets team statistics and data for a specific FRC team from Statbotics
+    /// </summary>
+    /// <param name="year">The competition year/season</param>
+    /// <param name="teamNumber">The FRC team number</param>
+    /// <returns>Team statistics and data from Statbotics API</returns>
+    /// <response code="200">Returns the team's statistics and data</response>
+    /// <response code="204">No data found for the specified team and year</response>
     [HttpGet("statbotics/{teamNumber}")]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
