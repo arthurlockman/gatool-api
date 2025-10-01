@@ -223,6 +223,7 @@ public class FtcApiController(
     /// <response code="200">Returns the team's quick statistics</response>
     /// <response code="204">No data found for the specified team and year</response>
     [HttpGet("ftcscout/quick-stats/{teamNumber}")]
+    [RedisCache("ftcscout:quick-stats", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Scout Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -237,17 +238,18 @@ public class FtcApiController(
     /// Gets events data for a specific FTC team from FTC Scout
     /// </summary>
     /// <param name="year">The competition year/season</param>
-    /// <param name="team">The FTC team number</param>
+    /// <param name="teamNumber">The FTC team number</param>
     /// <returns>Events data from FTC Scout API</returns>
     /// <response code="200">Returns the team's events data</response>
     /// <response code="204">No data found for the specified team and year</response>
-    [HttpGet("ftcscout/events/{team}")]
+    [HttpGet("ftcscout/events/{teamNumber}")]
+    [RedisCache("ftcscout:events", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Scout Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
-    public async Task<IActionResult> GetFtcScoutEvents(string year, string team)
+    public async Task<IActionResult> GetFtcScoutEvents(string year, string teamNumber)
     {
-        var result = await ftcScoutApi.GetGeneric($"teams/{team}/events/{year}");
+        var result = await ftcScoutApi.GetGeneric($"teams/{teamNumber}/events/{year}");
         if (result == null) return NoContent();
         return Ok(result);
     }
