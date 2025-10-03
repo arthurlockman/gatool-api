@@ -17,6 +17,7 @@ public class FrcApiController(
     ILogger<FrcApiController> logger,
     FRCApiService frcApiClient,
     TBAApiService tbaApiClient,
+    StatboticsApiService statboticsApiClient,
     IConnectionMultiplexer connectionMultiplexer,
     TeamDataService teamDataService,
     ScheduleService scheduleService)
@@ -431,6 +432,26 @@ public class FrcApiController(
             logger.LogError(ex, "Error fetching offseason events for year {Year}", year);
             return NoContent();
         }
+    }
+
+    /// <summary>
+    /// Gets team statistics and data for a specific FRC team from Statbotics
+    /// </summary>
+    /// <param name="year">The competition year/season</param>
+    /// <param name="teamNumber">The FRC team number</param>
+    /// <returns>Team statistics and data from Statbotics API</returns>
+    /// <response code="200">Returns the team's statistics and data</response>
+    /// <response code="204">No data found for the specified team and year</response>
+    [HttpGet("statbotics/{teamNumber}")]
+    [RedisCache("statbotics:team-data", RedisCacheTime.FiveMinutes)]
+    [OpenApiTag("FRC Team Data")]
+    [ProducesResponseType(typeof(StatboticsTeamData), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetStatboticsData(int year, string teamNumber)
+    {
+        var result = await statboticsApiClient.GetGeneric($"team_year/{teamNumber}/{year}");
+        if (result == null) return NoContent();
+        return Ok(result);
     }
 
     #region Private Methods

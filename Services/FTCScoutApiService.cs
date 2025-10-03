@@ -1,26 +1,19 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Exceptions;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Net.Http.Headers;
 
 namespace GAToolAPI.Services;
 
-// ReSharper disable once InconsistentNaming
-public class FTCApiService : IApiService
+public class FTCScoutApiService : IApiService
 {
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public FTCApiService(HttpClient httpClient, SecretClient keyVaultClient)
+    public FTCScoutApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _httpClient.BaseAddress = new Uri("https://ftc-api.firstinspires.org/v2.0/");
-        _httpClient.DefaultRequestHeaders.Add(
-            HeaderNames.Accept, "application/json");
-        _httpClient.DefaultRequestHeaders.Add(
-            HeaderNames.Authorization, keyVaultClient.GetSecret("FTCApiKey").Value.Value);
+        _httpClient.BaseAddress = new Uri("https://api.ftcscout.org/rest/v1/");
 
         // Configure case-insensitive JSON options
         _jsonOptions = new JsonSerializerOptions
@@ -37,7 +30,7 @@ public class FTCApiService : IApiService
 
         if (response.IsSuccessStatusCode) return await response.Content.ReadFromJsonAsync<JsonObject>(_jsonOptions);
         var errorContent = await response.Content.ReadAsStringAsync();
-        throw new ExternalApiException("FTC API", response.StatusCode, errorContent);
+        throw new ExternalApiException("FTC Scout", response.StatusCode, errorContent);
     }
 
     public async Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null)
@@ -47,6 +40,6 @@ public class FTCApiService : IApiService
 
         if (response.IsSuccessStatusCode) return await response.Content.ReadFromJsonAsync<T>(_jsonOptions);
         var errorContent = await response.Content.ReadAsStringAsync();
-        throw new ExternalApiException("FTC API", response.StatusCode, errorContent);
+        throw new ExternalApiException("FTC Scout", response.StatusCode, errorContent);
     }
 }
