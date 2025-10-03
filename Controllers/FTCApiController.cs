@@ -225,7 +225,7 @@ public class FtcApiController(
     [HttpGet("ftcscout/quick-stats/{teamNumber}")]
     [RedisCache("ftcscout:quick-stats", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Scout Team Data")]
-    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(FtcScoutQuickStats), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetFtcScoutQuickStats(string year, string teamNumber)
     {
@@ -245,7 +245,7 @@ public class FtcApiController(
     [HttpGet("ftcscout/events/{teamNumber}")]
     [RedisCache("ftcscout:events", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Scout Team Data")]
-    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(List<FtcScoutEventData>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetFtcScoutEvents(string year, string teamNumber)
     {

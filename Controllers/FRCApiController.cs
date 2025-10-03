@@ -446,7 +446,7 @@ public class FrcApiController(
     [HttpGet("statbotics/{teamNumber}")]
     [RedisCache("statbotics:team-data", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Team Data")]
-    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(StatboticsTeamData), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetStatboticsData(int year, string teamNumber)
     {
