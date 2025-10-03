@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using GAToolAPI.Attributes;
+using GAToolAPI.Exceptions;
 using GAToolAPI.Extensions;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
@@ -449,7 +450,7 @@ public class FrcApiController(
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetStatboticsData(int year, string teamNumber)
     {
-        var result = await statboticsApiClient.GetGeneric($"team_year/{teamNumber}/{year}");
+        var result = await statboticsApiClient.Get<StatboticsTeamData>($"team_year/{teamNumber}/{year}");
         if (result == null) return NoContent();
         return Ok(result);
     }

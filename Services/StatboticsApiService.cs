@@ -13,7 +13,7 @@ public class StatboticsApiService : IApiService
     public StatboticsApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _httpClient.BaseAddress = new Uri("https://statbotics.io/v3/");
+        _httpClient.BaseAddress = new Uri("https://api.statbotics.io/v3/");
 
         // Configure case-insensitive JSON options
         _jsonOptions = new JsonSerializerOptions
