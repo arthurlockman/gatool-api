@@ -15,7 +15,6 @@ namespace GAToolAPI.Controllers;
 public class FtcApiController(
     FTCApiService ftcApi,
     FTCScoutApiService ftcScoutApi,
-    TOAApiService toaApi,
     TeamDataService teamDataService,
     IConnectionMultiplexer connectionMultiplexer)
     : ControllerBase

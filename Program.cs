@@ -149,6 +149,7 @@ try
         return;
     }
 
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseMiddleware<NewRelicRequestFilter>();
     app.UseOpenApi();
