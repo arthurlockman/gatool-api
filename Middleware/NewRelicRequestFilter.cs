@@ -1,5 +1,3 @@
-using NewRelic.Api.Agent;
-
 namespace GAToolAPI.Middleware;
 
 public class NewRelicRequestFilter(RequestDelegate next)

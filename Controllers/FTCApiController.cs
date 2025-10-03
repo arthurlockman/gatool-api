@@ -229,7 +229,7 @@ public class FtcApiController(
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetFtcScoutQuickStats(string year, string teamNumber)
     {
-        var result = await ftcScoutApi.GetGeneric($"teams/{teamNumber}/quick-stats?season={year}");
+        var result = await ftcScoutApi.Get<FtcScoutQuickStats>($"teams/{teamNumber}/quick-stats?season={year}");
         if (result == null) return NoContent();
         return Ok(result);
     }
@@ -249,7 +249,7 @@ public class FtcApiController(
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetFtcScoutEvents(string year, string teamNumber)
     {
-        var result = await ftcScoutApi.GetGeneric($"teams/{teamNumber}/events/{year}");
+        var result = await ftcScoutApi.Get<List<FtcScoutEventData>>($"teams/{teamNumber}/events/{year}");
         if (result == null) return NoContent();
         return Ok(result);
     }
