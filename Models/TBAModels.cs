@@ -108,3 +108,41 @@ public record RawTbaEvent(
     [property: JsonPropertyName("week")] int? Week,
     [property: JsonPropertyName("year")] int? Year
 );
+
+// Models for matches and alliances returned by The Blue Alliance API
+public class TBAVideo
+{
+    public string Type { get; set; } = string.Empty;
+    public string Key { get; set; } = string.Empty;
+}
+
+public class TBAMatchAlliance
+{
+    [JsonPropertyName("team_keys")] public List<string> TeamKeys { get; set; } = new();
+    [JsonPropertyName("score")] public int? Score { get; set; }
+    [JsonPropertyName("surrogate_team_keys")] public List<string>? SurrogateTeamKeys { get; set; }
+}
+
+public class TBAMatch
+{
+    public string Key { get; set; } = string.Empty;
+    [JsonPropertyName("comp_level")] public string? CompLevel { get; set; }
+    [JsonPropertyName("set_number")] public int? SetNumber { get; set; }
+    [JsonPropertyName("match_number")] public int? MatchNumber { get; set; }
+    [JsonPropertyName("time")] public long? Time { get; set; }
+    [JsonPropertyName("actual_time")] public long? ActualTime { get; set; }
+    [JsonPropertyName("post_result_time")] public long? PostResultTime { get; set; }
+    [JsonPropertyName("event_key")] public string? EventKey { get; set; }
+    [JsonPropertyName("alliances")] public Dictionary<string, TBAMatchAlliance>? Alliances { get; set; }
+    [JsonPropertyName("score_breakdown")] public object? ScoreBreakdown { get; set; }
+    [JsonPropertyName("videos")] public List<TBAVideo>? Videos { get; set; }
+}
+
+public class TBAAlliance
+{
+    public string Name { get; set; } = string.Empty;
+    [JsonPropertyName("picks")] public List<string>? Picks { get; set; }
+    public string? Backup { get; set; }
+    public int? Declines { get; set; }
+    public int? Number { get; set; }
+}

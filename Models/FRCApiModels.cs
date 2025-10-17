@@ -344,7 +344,9 @@ public record OffseasonEvent(
     string? Website,
     string Timezone,
     string DateStart,
-    string DateEnd);
+    string DateEnd,
+    string? FirstEventCode // Added property for first_event_code
+);
 
 [UsedImplicitly]
 public record OffseasonEventsResponse(List<OffseasonEvent>? Events, int EventCount);
