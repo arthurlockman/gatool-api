@@ -2,7 +2,6 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using GAToolAPI.Attributes;
-using GAToolAPI.Exceptions;
 using GAToolAPI.Extensions;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
@@ -480,36 +479,36 @@ public class FrcApiController(
                         TournamentLevel = m.CompLevel != null && m.CompLevel.Equals("qm", StringComparison.OrdinalIgnoreCase) ? "Qual" : "Playoff",
                         PostResultTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
                         Description = m.CompLevel,
-                        ScoreRedFinal = m.Alliances != null && m.Alliances.ContainsKey("red") ? m.Alliances["red"].Score : null,
-                        ScoreBlueFinal = m.Alliances != null && m.Alliances.ContainsKey("blue") ? m.Alliances["blue"].Score : null,
+                        ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1) ? v1.Score : null,
+                        ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? v2.Score : null,
                         ScoreBreakdown = m.ScoreBreakdown,
                         Fouls = m.ScoreBreakdown,
                         Tiebreakers = m.ScoreBreakdown,
-                        Teams = new List<HybridTeam>(),
+                        Teams = [],
                         EventCode = m.EventKey
                     };
 
                     // Map teams: red then blue, assign station names Red 1..3 and Blue 1..3
                     if (m.Alliances != null)
                     {
-                        if (m.Alliances.ContainsKey("red") && m.Alliances["red"].TeamKeys != null)
+                        if (m.Alliances.TryGetValue("red", out var red))
                         {
-                            for (var idx = 0; idx < m.Alliances["red"].TeamKeys.Count; idx++)
+                            for (var idx = 0; idx < red.TeamKeys.Count; idx++)
                             {
-                                var teamKey = m.Alliances["red"].TeamKeys[idx];
+                                var teamKey = red.TeamKeys[idx];
                                 var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
-                                var surrogate = m.Alliances["red"].SurrogateTeamKeys != null && m.Alliances["red"].SurrogateTeamKeys.Contains(teamKey);
+                                var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
                                 hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red {idx + 1}", Surrogate = surrogate });
                             }
                         }
 
-                        if (m.Alliances.ContainsKey("blue") && m.Alliances["blue"].TeamKeys != null)
+                        if (m.Alliances.TryGetValue("blue", out var blue))
                         {
-                            for (var idx = 0; idx < m.Alliances["blue"].TeamKeys.Count; idx++)
+                            for (var idx = 0; idx < blue.TeamKeys.Count; idx++)
                             {
-                                var teamKey = m.Alliances["blue"].TeamKeys[idx];
+                                var teamKey = blue.TeamKeys[idx];
                                 var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
-                                var surrogate = m.Alliances["blue"].SurrogateTeamKeys != null && m.Alliances["blue"].SurrogateTeamKeys.Contains(teamKey);
+                                var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
                                 hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue {idx + 1}", Surrogate = surrogate });
                             }
                         }
