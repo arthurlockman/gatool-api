@@ -458,7 +458,7 @@ public class FrcApiController(
         try
         {
             // Call TBA: /event/{eventCode}/matches
-            var tbaResponse = await tbaApiClient.Get<List<TBAMatch>>($"event/{eventCode}/matches");
+            var tbaResponse = await tbaApiClient.Get<List<TBAMatch>>($"event/{year}{eventCode}/matches");
             if (tbaResponse == null || tbaResponse.Count == 0) return NoContent();
 
             // Convert TBAMatch -> HybridMatch
@@ -544,7 +544,7 @@ public class FrcApiController(
         try
         {
             // Call TBA: /event/{eventCode}/alliances
-            var tbaResponse = await tbaApiClient.Get<List<TBAAlliance>>($"event/{eventCode}/alliances");
+            var tbaResponse = await tbaApiClient.Get<List<TBAAlliance>>($"event/{year}{eventCode}/alliances");
             if (tbaResponse == null || tbaResponse.Count == 0) return NoContent();
             return Ok(tbaResponse);
         }
