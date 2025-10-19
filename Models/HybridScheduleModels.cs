@@ -31,6 +31,11 @@ public class HybridMatch
     public List<HybridTeam> Teams { get; set; } = new();
     public string? EventCode { get; set; }
     public string? DistrictCode { get; set; }
+    // Raw score breakdown from TBA (contains fouls and tiebreakers)
+    public object? ScoreBreakdown { get; set; }
+    // Extracted convenience fields
+    public object? Fouls { get; set; }
+    public object? Tiebreakers { get; set; }
 }
 
 public class HybridSchedule
