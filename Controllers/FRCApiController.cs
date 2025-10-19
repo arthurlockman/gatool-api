@@ -355,7 +355,7 @@ public class FrcApiController(
 
         try
         {
-            var tbaResponse = await tbaApiClient.Get<List<TBATeam>>($"event/{eventCode}/teams");
+            var tbaResponse = await tbaApiClient.Get<List<TBATeam>>($"event/{year}{eventCode}/teams");
             if (tbaResponse == null || tbaResponse.Count == 0) return NoContent();
 
             // Sort teams by team number
