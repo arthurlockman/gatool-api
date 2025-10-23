@@ -270,7 +270,7 @@ public record Alliance(
     int Number,
     int Captain,
     int Round1,
-    int Round2,
+    int? Round2,
     int? Round3,
     int? Backup,
     int? BackupReplaced,
