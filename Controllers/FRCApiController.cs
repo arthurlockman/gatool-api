@@ -475,65 +475,80 @@ public class FrcApiController(
             var tbaResponse = await tbaApiClient.Get<List<TBAMatch>>($"event/{year}{eventCode}/matches");
             if (tbaResponse == null || tbaResponse.Count == 0) return NoContent();
 
+            // Separate qualification and playoff matches
+            var qualMatches = tbaResponse.Where(m => m.CompLevel == "qm").ToList();
+            var playoffMatches = tbaResponse.Where(m => m.CompLevel != "qm").ToList();
+
+            // Filter playoff matches to keep only the last match in each series (remove replays)
+            // Key format: {eventKey}_{compLevel}{setNumber}m{matchInSet}
+            var playoffGroups = playoffMatches
+                .GroupBy(m => {
+                    // Extract the bracket pattern from key, e.g., "2025melew_sf12m1" -> "2025melew_sf12"
+                    var lastMIndex = m.Key.LastIndexOf('m');
+                    return lastMIndex > 0 ? m.Key.Substring(0, lastMIndex) : m.Key;
+                })
+                .Select(g => g.OrderBy(m => m.MatchNumber ?? 0).Last()) // Keep the highest match number (last in series)
+                .ToList();
+
+            // Sort playoffs: by comp_level priority (ef, qf, sf, f), then by set_number, then by match_number
+            var compLevelOrder = new Dictionary<string, int> { ["ef"] = 0, ["qf"] = 1, ["sf"] = 2, ["f"] = 3 };
+            var sortedPlayoffs = playoffGroups
+                .OrderBy(m => compLevelOrder.TryGetValue(m.CompLevel ?? "", out var order) ? order : 99)
+                .ThenBy(m => m.SetNumber ?? 0)
+                .ThenBy(m => m.MatchNumber ?? 0)
+                .ToList();
+
             // Convert TBAMatch -> HybridMatch
             var hybridMatches = new List<HybridMatch>();
-            foreach (var m in tbaResponse)
+            
+            // Process qualification matches
+            foreach (var m in qualMatches)
             {
                 try
                 {
-                    var hm = new HybridMatch
-                    {
-                        Field = null,
-                        StartTime = m.Time.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.Time.Value).ToString("o") : null,
-                        AutoStartTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
-                        MatchVideoLink = m.Videos != null && m.Videos.Count > 0 ? m.Videos[0].Key : null,
-                        MatchNumber = m.MatchNumber ?? 0,
-                        IsReplay = false,
-                        ActualStartTime = m.ActualTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.ActualTime.Value).ToString("o") : null,
-                        TournamentLevel = m.CompLevel != null && m.CompLevel.Equals("qm", StringComparison.OrdinalIgnoreCase) ? "Qual" : "Playoff",
-                        PostResultTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
-                        Description = m.CompLevel,
-                        ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1) ? v1.Score : null,
-                        ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? v2.Score : null,
-                        ScoreBreakdown = m.ScoreBreakdown,
-                        Fouls = m.ScoreBreakdown,
-                        Tiebreakers = m.ScoreBreakdown,
-                        Teams = [],
-                        EventCode = m.EventKey
-                    };
-
-                    // Map teams: red then blue, assign station names Red 1..3 and Blue 1..3
-                    if (m.Alliances != null)
-                    {
-                        if (m.Alliances.TryGetValue("red", out var red))
-                        {
-                            for (var idx = 0; idx < red.TeamKeys.Count; idx++)
-                            {
-                                var teamKey = red.TeamKeys[idx];
-                                var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
-                                var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
-                                hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red {idx + 1}", Surrogate = surrogate });
-                            }
-                        }
-
-                        if (m.Alliances.TryGetValue("blue", out var blue))
-                        {
-                            for (var idx = 0; idx < blue.TeamKeys.Count; idx++)
-                            {
-                                var teamKey = blue.TeamKeys[idx];
-                                var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
-                                var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
-                                hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue {idx + 1}", Surrogate = surrogate });
-                            }
-                        }
-                    }
-
+                    var hm = CreateHybridMatch(m, m.MatchNumber ?? 0, $"Qualification {m.MatchNumber ?? 0}", "Qual");
                     hybridMatches.Add(hm);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error mapping TBAMatch to HybridMatch: {Match}", JsonSerializer.Serialize(m));
+                    logger.LogError(ex, "Error mapping qual TBAMatch to HybridMatch: {Match}", JsonSerializer.Serialize(m));
                 }
+            }
+
+            // Process playoff matches with sequential match numbers and proper round calculation
+            var playoffMatchNumber = 1;
+            var currentRound = 1;
+            
+            // Group playoffs by comp_level and match_number to determine rounds
+            var playoffsByStage = sortedPlayoffs
+                .GroupBy(m => new { m.CompLevel, m.MatchNumber })
+                .OrderBy(g => compLevelOrder.TryGetValue(g.Key.CompLevel ?? "", out var order) ? order : 99)
+                .ThenBy(g => g.Key.MatchNumber)
+                .ToList();
+
+            foreach (var stage in playoffsByStage)
+            {
+                var compLevel = stage.Key.CompLevel;
+                var matchInSeries = stage.Key.MatchNumber ?? 1;
+                var matchesInStage = stage.ToList();
+
+                foreach (var m in matchesInStage.OrderBy(m => m.SetNumber))
+                {
+                    try
+                    {
+                        var description = $"Match {playoffMatchNumber} (R{currentRound})";
+                        var hm = CreateHybridMatch(m, playoffMatchNumber, description, "Playoff");
+                        hybridMatches.Add(hm);
+                        playoffMatchNumber++;
+                    }
+                    catch (Exception ex)
+                    {
+                        logger.LogError(ex, "Error mapping playoff TBAMatch to HybridMatch: {Match}", JsonSerializer.Serialize(m));
+                    }
+                }
+
+                // Increment round after processing each stage
+                currentRound++;
             }
 
             var response = new HybridScheduleResponse { Schedule = new HybridSchedule { Schedule = hybridMatches } };
@@ -544,6 +559,58 @@ public class FrcApiController(
             logger.LogError(ex, "Error fetching offseason hybrid schedule for event {EventCode}", eventCode);
             return NoContent();
         }
+    }
+
+    private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel)
+    {
+        var hm = new HybridMatch
+        {
+            Field = null,
+            StartTime = m.Time.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.Time.Value).ToString("o") : null,
+            AutoStartTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
+            MatchVideoLink = m.Videos != null && m.Videos.Count > 0 ? m.Videos[0].Key : null,
+            MatchNumber = matchNumber,
+            IsReplay = false,
+            ActualStartTime = m.ActualTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.ActualTime.Value).ToString("o") : null,
+            TournamentLevel = tournamentLevel,
+            PostResultTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
+            Description = description,
+            ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1) ? v1.Score : null,
+            ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? v2.Score : null,
+            ScoreBreakdown = m.ScoreBreakdown,
+            Fouls = m.ScoreBreakdown,
+            Tiebreakers = m.ScoreBreakdown,
+            Teams = [],
+            EventCode = m.EventKey
+        };
+
+        // Map teams: red then blue, assign station names Red 1..3 and Blue 1..3
+        if (m.Alliances != null)
+        {
+            if (m.Alliances.TryGetValue("red", out var red))
+            {
+                for (var idx = 0; idx < red.TeamKeys.Count; idx++)
+                {
+                    var teamKey = red.TeamKeys[idx];
+                    var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
+                    var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
+                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red {idx + 1}", Surrogate = surrogate });
+                }
+            }
+
+            if (m.Alliances.TryGetValue("blue", out var blue))
+            {
+                for (var idx = 0; idx < blue.TeamKeys.Count; idx++)
+                {
+                    var teamKey = blue.TeamKeys[idx];
+                    var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
+                    var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
+                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue {idx + 1}", Surrogate = surrogate });
+                }
+            }
+        }
+
+        return hm;
     }
 
     [HttpGet("offseason/alliances/{eventCode}")]
