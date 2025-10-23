@@ -479,20 +479,9 @@ public class FrcApiController(
             var qualMatches = tbaResponse.Where(m => m.CompLevel == "qm").ToList();
             var playoffMatches = tbaResponse.Where(m => m.CompLevel != "qm").ToList();
 
-            // Filter playoff matches to keep only the last match in each series (remove replays)
-            // Key format: {eventKey}_{compLevel}{setNumber}m{matchInSet}
-            var playoffGroups = playoffMatches
-                .GroupBy(m => {
-                    // Extract the bracket pattern from key, e.g., "2025melew_sf12m1" -> "2025melew_sf12"
-                    var lastMIndex = m.Key.LastIndexOf('m');
-                    return lastMIndex > 0 ? m.Key.Substring(0, lastMIndex) : m.Key;
-                })
-                .Select(g => g.OrderBy(m => m.MatchNumber ?? 0).Last()) // Keep the highest match number (last in series)
-                .ToList();
-
             // Sort playoffs: by comp_level priority (ef, qf, sf, f), then by set_number, then by match_number
             var compLevelOrder = new Dictionary<string, int> { ["ef"] = 0, ["qf"] = 1, ["sf"] = 2, ["f"] = 3 };
-            var sortedPlayoffs = playoffGroups
+            var sortedPlayoffs = playoffMatches
                 .OrderBy(m => compLevelOrder.TryGetValue(m.CompLevel ?? "", out var order) ? order : 99)
                 .ThenBy(m => m.SetNumber ?? 0)
                 .ThenBy(m => m.MatchNumber ?? 0)
@@ -521,8 +510,8 @@ public class FrcApiController(
             
             // Determine tournament structure
             int tournamentSize;
-            if (qfSets >= 4) tournamentSize = 8;  // 8 alliances (has quarterfinals)
-            else if (sfSets >= 2) tournamentSize = 4;  // 4 alliances (has semifinals)
+            if (qfSets >= 4 || sfSets >= 8) tournamentSize = 8;  // 8 alliances (has quarterfinals OR many semifinals)
+            else if (sfSets >= 2) tournamentSize = 4;  // 4 alliances (has 2-7 semifinals)
             else tournamentSize = 2;  // 2 alliances (finals only)
 
             // Process playoff matches with sequential match numbers
