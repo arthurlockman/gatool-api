@@ -363,11 +363,11 @@ public class FrcApiController(
 
             var result = new List<OffseasonTeam>();
 
-            // Transform TBA format to FIRST API format (skip index 0 like TypeScript)
-            for (var i = 1; i < sortedTeams.Count; i++)
+            // Transform TBA format to FIRST API format
+            foreach (var team in sortedTeams)
+            {
                 try
                 {
-                    var team = sortedTeams[i];
                     var transformedTeam = new OffseasonTeam(team.TeamNumber, team.Name, team.Nickname, null, team.City,
                         team.StateProv, team.Country, team.Website, team.RookieYear, null, null, null);
                     result.Add(transformedTeam);
@@ -375,8 +375,9 @@ public class FrcApiController(
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error parsing team data: {TeamData}",
-                        JsonSerializer.Serialize(sortedTeams[i]));
+                        JsonSerializer.Serialize(team));
                 }
+            }
 
             return Ok(new OffseasonTeamsResponse(result, result.Count, result.Count, 1, 1));
         }
@@ -403,39 +404,52 @@ public class FrcApiController(
 
             var result = new List<OffseasonEvent>();
 
-            // Transform TBA format to FIRST API format, filter for offseason events (skip index 0 like TypeScript)
-            for (var i = 1; i < tbaResponse.Count; i++)
+            // Transform TBA format to FIRST API format, filter for offseason events
+            // Include: Offseason (99), Preseason (100), and Unlabeled (-1) events
+            foreach (var evt in tbaResponse)
+            {
                 try
                 {
-                    var evt = tbaResponse[i];
-                    if (evt.EventTypeString != "Offseason") continue;
-                    var address = evt.Address ?? "no address, no city, no state, no country";
+                    // Filter for non-official events: Offseason, Preseason, Unlabeled
+                    if (evt.EventTypeString != "Offseason" && 
+                        evt.EventTypeString != "Preseason" && 
+                        evt.EventTypeString != "Unlabeled") continue;
+                    
+                    var address = evt.Address ?? "";
                     var addressParts = address.Split(", ");
+                    
+                    // Parse address components properly
+                    // Example: "960 W Hedding St, San Jose, CA 95126, USA"
+                    var streetAddress = addressParts.Length > 0 ? addressParts[0] : "";
+                    var city = addressParts.Length > 1 ? addressParts[1] : "";
+                    var stateAndZip = addressParts.Length > 2 ? addressParts[2] : "";
+                    var country = addressParts.Length > 3 ? addressParts[3] : "";
 
                     var transformedEvent = new OffseasonEvent(
                         evt.Key,
                         evt.EventCode,
-                        evt.ShortName,
+                        evt.Name, // Use Name instead of ShortName
                         evt.EventTypeString,
                         evt.District?.Abbreviation,
                         evt.LocationName ?? "",
-                        addressParts.Length > 0 ? addressParts[0] : "",
-                        addressParts.Length > 1 ? addressParts[1] : "",
-                        addressParts.Length > 2 ? addressParts[2] : "",
-                        addressParts.Length > 3 ? addressParts[3] : "",
+                        streetAddress,
+                        city,
+                        stateAndZip, // Keep as-is since it may contain "CA 95126" format
+                        country,
                         evt.Website,
                         evt.Timezone ?? "",
                         evt.StartDate,
                         evt.EndDate,
-                        evt.FirstEventCode // Map TBAEvent.FirstEventCode to OffseasonEvent.FirstEventCode
+                        evt.FirstEventCode
                     );
                     result.Add(transformedEvent);
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "Error parsing event data: {EventData}",
-                        JsonSerializer.Serialize(tbaResponse[i]));
+                        JsonSerializer.Serialize(evt));
                 }
+            }
 
             return Ok(new OffseasonEventsResponse(result, result.Count));
         }
