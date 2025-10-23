@@ -146,3 +146,36 @@ public class TBAAlliance
     public int? Declines { get; set; }
     public int? Number { get; set; }
 }
+
+public class TBARankingSortOrder
+{
+    public double? SortOrder1 { get; set; }
+    public double? SortOrder2 { get; set; }
+    public double? SortOrder3 { get; set; }
+    public double? SortOrder4 { get; set; }
+    public double? SortOrder5 { get; set; }
+    public double? SortOrder6 { get; set; }
+}
+
+public class TBARanking
+{
+    public int Rank { get; set; }
+    [JsonPropertyName("team_key")] public string TeamKey { get; set; } = string.Empty;
+    [JsonPropertyName("sort_orders")] public List<double>? SortOrders { get; set; }
+    public TBARankingSortOrder? Record { get; set; }
+    [JsonPropertyName("matches_played")] public int? MatchesPlayed { get; set; }
+    public int? Dq { get; set; }
+    [JsonPropertyName("qual_average")] public double? QualAverage { get; set; }
+}
+
+public class TBASortOrderInfo
+{
+    public string Name { get; set; } = string.Empty;
+    public int Precision { get; set; }
+}
+
+public class TBAEventRankings
+{
+    public List<TBARanking>? Rankings { get; set; }
+    [JsonPropertyName("sort_order_info")] public List<TBASortOrderInfo>? SortOrderInfo { get; set; }
+}

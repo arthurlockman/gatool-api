@@ -556,6 +556,37 @@ public class FrcApiController(
     }
 
     /// <summary>
+    /// Gets qualification rankings for an offseason FRC event from The Blue Alliance
+    /// </summary>
+    /// <param name="year">The competition year/season</param>
+    /// <param name="eventCode">The event code (e.g., "iri" for Indiana Robotics Invitational)</param>
+    /// <returns>Event rankings data including team rankings and sort order information</returns>
+    /// <response code="200">Returns the event rankings with team standings and sort order details</response>
+    /// <response code="204">No rankings data found for the specified event</response>
+    [HttpGet("offseason/rankings/{eventCode}")]
+    [RedisCache("tbaapi:offseason:rankings", RedisCacheTime.FiveMinutes)]
+    [OpenApiTag("FRC Offseason")]
+    [ProducesResponseType(typeof(TBAEventRankings), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetOffseasonRankings(int year, string eventCode)
+    {
+        Response.Headers.CacheControl = "s-maxage=600"; // 10 minutes
+
+        try
+        {
+            // Call TBA: /event/{eventCode}/rankings
+            var tbaResponse = await tbaApiClient.Get<TBAEventRankings>($"event/{year}{eventCode}/rankings");
+            if (tbaResponse == null || tbaResponse.Rankings == null || tbaResponse.Rankings.Count == 0) return NoContent();
+            return Ok(tbaResponse);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching offseason rankings for event {EventCode}", eventCode);
+            return NoContent();
+        }
+    }
+
+    /// <summary>
     /// Gets team statistics and data for a specific FRC team from Statbotics
     /// </summary>
     /// <param name="year">The competition year/season</param>
