@@ -138,13 +138,21 @@ public class TBAMatch
     [JsonPropertyName("videos")] public List<TBAVideo>? Videos { get; set; }
 }
 
+public class TBAAllianceStatus
+{
+    [JsonPropertyName("current_level_record")] public TBAWinLossRecord? CurrentLevelRecord { get; set; }
+    [JsonPropertyName("double_elim_round")] public string? DoubleElimRound { get; set; }
+    public string? Level { get; set; }
+    [JsonPropertyName("playoff_type")] public int? PlayoffType { get; set; }
+    public TBAWinLossRecord? Record { get; set; }
+    public string? Status { get; set; }
+}
+
 public class TBAAlliance
 {
-    public string Name { get; set; } = string.Empty;
-    [JsonPropertyName("picks")] public List<string>? Picks { get; set; }
-    public string? Backup { get; set; }
-    public int? Declines { get; set; }
-    public int? Number { get; set; }
+    public List<string>? Picks { get; set; }
+    public List<string>? Declines { get; set; }
+    public TBAAllianceStatus? Status { get; set; }
 }
 
 public class TBAWinLossRecord

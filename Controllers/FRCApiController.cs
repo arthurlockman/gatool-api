@@ -581,6 +581,9 @@ public class FrcApiController(
 
     private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel)
     {
+        // Detect if match has been played by checking if score breakdown exists
+        var matchHasBeenPlayed = m.ScoreBreakdown != null;
+        
         var hm = new HybridMatch
         {
             Field = null,
@@ -601,6 +604,30 @@ public class FrcApiController(
             Teams = [],
             EventCode = m.EventKey
         };
+
+        // If match has been played but time fields are missing, populate them
+        if (matchHasBeenPlayed && m.Time.HasValue)
+        {
+            var startTime = DateTimeOffset.FromUnixTimeSeconds(m.Time.Value);
+            
+            // Use startTime for actualStartTime if not provided
+            if (hm.ActualStartTime == null)
+            {
+                hm.ActualStartTime = startTime.ToString("o");
+            }
+            
+            // Use startTime for autoStartTime if not provided
+            if (hm.AutoStartTime == null)
+            {
+                hm.AutoStartTime = startTime.ToString("o");
+            }
+            
+            // Use startTime + 3 minutes for postResultTime if not provided
+            if (hm.PostResultTime == null)
+            {
+                hm.PostResultTime = startTime.AddMinutes(3).ToString("o");
+            }
+        }
 
         // Map teams: red then blue, assign station names Red 1..3 and Blue 1..3
         if (m.Alliances != null)
@@ -631,10 +658,18 @@ public class FrcApiController(
         return hm;
     }
 
+    /// <summary>
+    /// Gets playoff alliance selections for an offseason FRC event from The Blue Alliance
+    /// </summary>
+    /// <param name="year">The competition year/season</param>
+    /// <param name="eventCode">The event code (e.g., "cc" for Chezy Champs)</param>
+    /// <returns>Alliance selections with team picks for each alliance</returns>
+    /// <response code="200">Returns the alliance selections with captain and team picks</response>
+    /// <response code="204">No alliances found for the specified event</response>
     [HttpGet("offseason/alliances/{eventCode}")]
     [RedisCache("tbaapi:offseason:alliances", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Offseason")]
-    [ProducesResponseType(typeof(List<TBAAlliance>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(AlliancesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetOffseasonAlliances(int year, string eventCode)
     {
@@ -645,7 +680,39 @@ public class FrcApiController(
             // Call TBA: /event/{eventCode}/alliances
             var tbaResponse = await tbaApiClient.Get<List<TBAAlliance>>($"event/{year}{eventCode}/alliances");
             if (tbaResponse == null || tbaResponse.Count == 0) return NoContent();
-            return Ok(tbaResponse);
+
+            // Transform TBA format to FIRST API format
+            var alliances = new List<Alliance>();
+            for (var i = 0; i < tbaResponse.Count; i++)
+            {
+                var tbaAlliance = tbaResponse[i];
+                if (tbaAlliance.Picks == null || tbaAlliance.Picks.Count == 0) continue;
+
+                // Parse team numbers from "frcXXXX" format
+                var teamNumbers = tbaAlliance.Picks
+                    .Select(pick => int.TryParse(pick.Replace("frc", ""), out var num) ? num : (int?)null)
+                    .Where(num => num.HasValue)
+                    .Select(num => num!.Value)
+                    .ToList();
+
+                if (teamNumbers.Count < 2) continue; // Need at least captain and round1
+
+                var alliance = new Alliance(
+                    Number: i + 1,
+                    Captain: teamNumbers[0],
+                    Round1: teamNumbers[1],
+                    Round2: teamNumbers.Count > 2 ? teamNumbers[2] : null,
+                    Round3: teamNumbers.Count > 3 ? teamNumbers[3] : null,
+                    Backup: null, // TBA doesn't provide backup in this format
+                    BackupReplaced: null, // TBA doesn't provide backup replaced in this format
+                    Name: $"Alliance {i + 1}"
+                );
+
+                alliances.Add(alliance);
+            }
+
+            var response = new AlliancesResponse(alliances, alliances.Count);
+            return Ok(response);
         }
         catch (Exception ex)
         {
