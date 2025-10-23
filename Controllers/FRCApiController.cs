@@ -515,40 +515,32 @@ public class FrcApiController(
                 }
             }
 
-            // Process playoff matches with sequential match numbers and proper round calculation
-            var playoffMatchNumber = 1;
-            var currentRound = 1;
+            // Determine tournament size by counting unique sets in quarterfinals and semifinals
+            var qfSets = sortedPlayoffs.Where(m => m.CompLevel == "qf").Select(m => m.SetNumber).Distinct().Count();
+            var sfSets = sortedPlayoffs.Where(m => m.CompLevel == "sf").Select(m => m.SetNumber).Distinct().Count();
             
-            // Group playoffs by comp_level and match_number to determine rounds
-            var playoffsByStage = sortedPlayoffs
-                .GroupBy(m => new { m.CompLevel, m.MatchNumber })
-                .OrderBy(g => compLevelOrder.TryGetValue(g.Key.CompLevel ?? "", out var order) ? order : 99)
-                .ThenBy(g => g.Key.MatchNumber)
-                .ToList();
+            // Determine tournament structure
+            int tournamentSize;
+            if (qfSets >= 4) tournamentSize = 8;  // 8 alliances (has quarterfinals)
+            else if (sfSets >= 2) tournamentSize = 4;  // 4 alliances (has semifinals)
+            else tournamentSize = 2;  // 2 alliances (finals only)
 
-            foreach (var stage in playoffsByStage)
+            // Process playoff matches with sequential match numbers
+            var playoffMatchNumber = 1;
+            foreach (var m in sortedPlayoffs)
             {
-                var compLevel = stage.Key.CompLevel;
-                var matchInSeries = stage.Key.MatchNumber ?? 1;
-                var matchesInStage = stage.ToList();
-
-                foreach (var m in matchesInStage.OrderBy(m => m.SetNumber))
+                try
                 {
-                    try
-                    {
-                        var description = $"Match {playoffMatchNumber} (R{currentRound})";
-                        var hm = CreateHybridMatch(m, playoffMatchNumber, description, "Playoff");
-                        hybridMatches.Add(hm);
-                        playoffMatchNumber++;
-                    }
-                    catch (Exception ex)
-                    {
-                        logger.LogError(ex, "Error mapping playoff TBAMatch to HybridMatch: {Match}", JsonSerializer.Serialize(m));
-                    }
+                    var round = GetRoundNumber(playoffMatchNumber, tournamentSize);
+                    var description = $"Match {playoffMatchNumber} (R{round})";
+                    var hm = CreateHybridMatch(m, playoffMatchNumber, description, "Playoff");
+                    hybridMatches.Add(hm);
+                    playoffMatchNumber++;
                 }
-
-                // Increment round after processing each stage
-                currentRound++;
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error mapping playoff TBAMatch to HybridMatch: {Match}", JsonSerializer.Serialize(m));
+                }
             }
 
             var response = new HybridScheduleResponse { Schedule = new HybridSchedule { Schedule = hybridMatches } };
@@ -559,6 +551,39 @@ public class FrcApiController(
             logger.LogError(ex, "Error fetching offseason hybrid schedule for event {EventCode}", eventCode);
             return NoContent();
         }
+    }
+
+    private int GetRoundNumber(int playoffMatchNumber, int tournamentSize)
+    {
+        // Map sequential playoff match number to round based on tournament size
+        return tournamentSize switch
+        {
+            8 => playoffMatchNumber switch
+            {
+                // 8 alliances: QF R1 (4 matches), QF R2 (4 matches), SF R3 (2 matches), SF R4 (2 matches), Finals R5 (1 match), Finals (2+ matches)
+                >= 1 and <= 4 => 1,   // QF Round 1
+                >= 5 and <= 8 => 2,   // QF Round 2
+                >= 9 and <= 10 => 3,  // SF Round 1
+                >= 11 and <= 12 => 4, // SF Round 2
+                13 => 5,              // Finals Round 1
+                _ => 6                // Finals Round 2+ (Finals)
+            },
+            4 => playoffMatchNumber switch
+            {
+                // 4 alliances: SF R1 (2 matches), SF R2 (2 matches), Finals R3 (1 match), Finals (2+ matches)
+                >= 1 and <= 2 => 1,  // SF Round 1
+                >= 3 and <= 4 => 2,  // SF Round 2
+                5 => 3,              // Finals Round 1
+                _ => 4               // Finals Round 2+ (Finals)
+            },
+            2 => playoffMatchNumber switch
+            {
+                // 2 alliances: Finals R1 (1 match), Finals (2+ matches)
+                1 => 1,              // Finals Round 1
+                _ => 2               // Finals Round 2+ (Finals)
+            },
+            _ => 1 // Default fallback
+        };
     }
 
     private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel)
