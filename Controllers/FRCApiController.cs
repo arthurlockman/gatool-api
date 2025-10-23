@@ -531,8 +531,7 @@ public class FrcApiController(
             {
                 try
                 {
-                    var round = GetRoundNumber(playoffMatchNumber, tournamentSize);
-                    var description = $"Match {playoffMatchNumber} (R{round})";
+                    var (description, round) = GetMatchDescription(playoffMatchNumber, tournamentSize);
                     var hm = CreateHybridMatch(m, playoffMatchNumber, description, "Playoff");
                     hybridMatches.Add(hm);
                     playoffMatchNumber++;
@@ -553,36 +552,41 @@ public class FrcApiController(
         }
     }
 
-    private int GetRoundNumber(int playoffMatchNumber, int tournamentSize)
+    private (string description, int round) GetMatchDescription(int playoffMatchNumber, int tournamentSize)
     {
-        // Map sequential playoff match number to round based on tournament size
+        // Generate match description based on tournament size and sequential match number
         return tournamentSize switch
         {
             8 => playoffMatchNumber switch
             {
-                // 8 alliances: QF R1 (4 matches), QF R2 (4 matches), SF R3 (2 matches), SF R4 (2 matches), Finals R5 (1 match), Finals (2+ matches)
-                >= 1 and <= 4 => 1,   // QF Round 1
-                >= 5 and <= 8 => 2,   // QF Round 2
-                >= 9 and <= 10 => 3,  // SF Round 1
-                >= 11 and <= 12 => 4, // SF Round 2
-                13 => 5,              // Finals Round 1
-                _ => 6                // Finals Round 2+ (Finals)
+                // 8 alliances
+                >= 1 and <= 4 => ($"Match {playoffMatchNumber} (R1)", 1),
+                >= 5 and <= 8 => ($"Match {playoffMatchNumber} (R2)", 2),
+                >= 9 and <= 10 => ($"Match {playoffMatchNumber} (R3)", 3),
+                >= 11 and <= 12 => ($"Match {playoffMatchNumber} (R4)", 4),
+                13 => ($"Match {playoffMatchNumber} (R5)", 5),
+                14 => ("Final 1", 6),
+                15 => ("Final 2", 6),
+                _ => ($"Final Tiebreaker {playoffMatchNumber - 15}", 6)  // 16+ => Tiebreaker 1, 2, 3...
             },
             4 => playoffMatchNumber switch
             {
-                // 4 alliances: SF R1 (2 matches), SF R2 (2 matches), Finals R3 (1 match), Finals (2+ matches)
-                >= 1 and <= 2 => 1,  // SF Round 1
-                >= 3 and <= 4 => 2,  // SF Round 2
-                5 => 3,              // Finals Round 1
-                _ => 4               // Finals Round 2+ (Finals)
+                // 4 alliances
+                >= 1 and <= 2 => ($"Match {playoffMatchNumber} (R1)", 1),
+                >= 3 and <= 4 => ($"Match {playoffMatchNumber} (R2)", 2),
+                5 => ($"Match {playoffMatchNumber} (R3)", 3),
+                6 => ("Final 1", 4),
+                7 => ("Final 2", 4),
+                _ => ($"Final Tiebreaker {playoffMatchNumber - 7}", 4)  // 8+ => Tiebreaker 1, 2, 3...
             },
             2 => playoffMatchNumber switch
             {
-                // 2 alliances: Finals R1 (1 match), Finals (2+ matches)
-                1 => 1,              // Finals Round 1
-                _ => 2               // Finals Round 2+ (Finals)
+                // 2 alliances - all matches are finals
+                1 => ("Final 1", 1),
+                2 => ("Final 2", 1),
+                _ => ($"Final Tiebreaker {playoffMatchNumber - 2}", 1)  // 3+ => Tiebreaker 1, 2, 3...
             },
-            _ => 1 // Default fallback
+            _ => ($"Match {playoffMatchNumber}", 1) // Default fallback
         };
     }
 
