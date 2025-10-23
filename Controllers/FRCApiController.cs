@@ -580,7 +580,7 @@ public class FrcApiController(
     [HttpGet("offseason/rankings/{eventCode}")]
     [RedisCache("tbaapi:offseason:rankings", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Offseason")]
-    [ProducesResponseType(typeof(TBAEventRankings), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetOffseasonRankings(int year, string eventCode)
     {
@@ -591,7 +591,42 @@ public class FrcApiController(
             // Call TBA: /event/{eventCode}/rankings
             var tbaResponse = await tbaApiClient.Get<TBAEventRankings>($"event/{year}{eventCode}/rankings");
             if (tbaResponse == null || tbaResponse.Rankings == null || tbaResponse.Rankings.Count == 0) return NoContent();
-            return Ok(tbaResponse);
+            
+            // Transform TBA format to FIRST API format
+            var rankings = new List<TeamRanking>();
+            foreach (var tbaRanking in tbaResponse.Rankings)
+            {
+                // Extract team number from team_key (e.g., "frc254" -> 254)
+                var teamNumberStr = tbaRanking.TeamKey.Replace("frc", "");
+                if (!int.TryParse(teamNumberStr, out var teamNumber))
+                {
+                    logger.LogWarning("Could not parse team number from team_key: {TeamKey}", tbaRanking.TeamKey);
+                    continue;
+                }
+
+                // Map sort_orders array to individual sortOrder properties (pad with 0 if not enough values)
+                var sortOrders = tbaRanking.SortOrders ?? new List<double>();
+                var ranking = new TeamRanking(
+                    tbaRanking.Rank,
+                    teamNumber,
+                    sortOrders.Count > 0 ? sortOrders[0] : 0,
+                    sortOrders.Count > 1 ? sortOrders[1] : 0,
+                    sortOrders.Count > 2 ? sortOrders[2] : 0,
+                    sortOrders.Count > 3 ? sortOrders[3] : 0,
+                    sortOrders.Count > 4 ? sortOrders[4] : 0,
+                    sortOrders.Count > 5 ? sortOrders[5] : 0,
+                    tbaRanking.Record?.Wins ?? 0,
+                    tbaRanking.Record?.Losses ?? 0,
+                    tbaRanking.Record?.Ties ?? 0,
+                    tbaRanking.QualAverage ?? 0,
+                    tbaRanking.Dq ?? 0,
+                    tbaRanking.MatchesPlayed ?? 0
+                );
+                rankings.Add(ranking);
+            }
+
+            // Return in FIRST API format
+            return Ok(new RankingsResponse(new RankingsData(rankings), null));
         }
         catch (Exception ex)
         {
