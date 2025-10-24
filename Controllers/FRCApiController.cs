@@ -865,7 +865,7 @@ public class FrcApiController(
             }
         }
 
-        // Map teams: red then blue, assign station names Red 1..3 and Blue 1..3
+        // Map teams: red then blue, assign station names Red1..3 and Blue1..3
         if (m.Alliances != null)
         {
             if (m.Alliances.TryGetValue("red", out var red))
@@ -875,7 +875,7 @@ public class FrcApiController(
                     var teamKey = red.TeamKeys[idx];
                     var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
                     var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
-                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red {idx + 1}", Surrogate = surrogate });
+                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red{idx + 1}", Surrogate = surrogate });
                 }
             }
 
@@ -886,7 +886,7 @@ public class FrcApiController(
                     var teamKey = blue.TeamKeys[idx];
                     var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
                     var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
-                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue {idx + 1}", Surrogate = surrogate });
+                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue{idx + 1}", Surrogate = surrogate });
                 }
             }
         }
