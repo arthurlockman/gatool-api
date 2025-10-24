@@ -94,7 +94,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         await writer.WriteAsync(prefString);
     }
 
-    public async Task<string?> GetTeamUpdates(int teamNumber, bool ftc = false)
+    public async Task<string?> GetTeamUpdates(string teamNumber, bool ftc = false)
     {
         try
         {
@@ -111,7 +111,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         }
     }
 
-    public async Task StoreTeamUpdates(int teamNumber, JsonObject data, string email, bool ftc = false)
+    public async Task StoreTeamUpdates(string teamNumber, JsonObject data, string email, bool ftc = false)
     {
         var blobPrefix = ftc ? "ftc/" : "";
         var updateBlobName = $"{blobPrefix}{teamNumber}.json";
@@ -146,7 +146,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         await writer.WriteAsync(dataString);
     }
 
-    public async Task<IEnumerable<JsonObject>> GetTeamUpdateHistory(int teamNumber, bool ftc = false)
+    public async Task<IEnumerable<JsonObject>> GetTeamUpdateHistory(string teamNumber, bool ftc = false)
     {
         var results = new List<JsonObject>();
 
