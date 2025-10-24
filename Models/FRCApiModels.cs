@@ -208,12 +208,12 @@ public record MatchScore(
     int? WinningAlliance,
     Tiebreaker? Tiebreaker,
     bool CoopertitionBonusAchieved,
-    int? CoralBonusLevelsThresholdCoop,
-    int? CoralBonusLevelsThresholdNonCoop,
-    int? CoralBonusLevelsThreshold,
-    int? BargeBonusThreshold,
-    int? AutoBonusCoralThreshold,
-    List<AllianceScore>? Alliances);
+    List<AllianceScore>? Alliances)
+{
+    // Dynamic properties for game-specific bonuses (extracted from alliance details)
+    [JsonExtensionData]
+    public Dictionary<string, object>? AdditionalProperties { get; init; }
+};
 
 [UsedImplicitly]
 public record MatchScoresResponse(
