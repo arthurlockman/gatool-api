@@ -2,6 +2,7 @@
 
 # GATool API - Local Development Runner
 # This script helps you quickly start the API for local testing
+# NOTE: It has only been tested on macOS.
 
 set -e
 
