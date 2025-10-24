@@ -579,6 +579,252 @@ public class FrcApiController(
         };
     }
 
+    private MatchScore? TransformScoreBreakdown(TBAMatch m, int matchNumber, string tournamentLevel)
+    {
+        if (m.ScoreBreakdown == null) return null;
+
+        try
+        {
+            // Parse the score breakdown JSON
+            var breakdown = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                JsonSerializer.Serialize(m.ScoreBreakdown));
+            
+            if (breakdown == null) return null;
+
+            var matchScore = new MatchScore
+            {
+                MatchLevel = tournamentLevel == "Qual" ? "Qualification" : "Playoff",
+                MatchNumber = matchNumber,
+                WinningAlliance = DetermineWinningAlliance(m),
+                Tiebreaker = new Tiebreaker { Item1 = -1, Item2 = "" },
+                CoopertitionBonusAchieved = false,
+                Alliances = new List<MatchScoreAlliance>(),
+                AdditionalProperties = new Dictionary<string, object>()
+            };
+
+            // Transform Blue alliance
+            if (breakdown.TryGetValue("blue", out var blueElement))
+            {
+                var blueAlliance = TransformAllianceScore(blueElement, "Blue");
+                if (blueAlliance != null) matchScore.Alliances.Add(blueAlliance);
+            }
+
+            // Transform Red alliance
+            if (breakdown.TryGetValue("red", out var redElement))
+            {
+                var redAlliance = TransformAllianceScore(redElement, "Red");
+                if (redAlliance != null) matchScore.Alliances.Add(redAlliance);
+            }
+
+            // Extract and surface bonus properties from alliance details
+            ExtractBonusProperties(matchScore);
+
+            return matchScore;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error transforming score breakdown for match {MatchNumber}", matchNumber);
+            return null;
+        }
+    }
+
+    private void ExtractBonusProperties(MatchScore matchScore)
+    {
+        if (matchScore.Alliances.Count == 0) return;
+
+        // Get all properties from the first alliance that contain "bonus" in their name
+        var allianceType = typeof(MatchScoreAlliance);
+        var bonusProperties = allianceType.GetProperties()
+            .Where(p => p.Name.Contains("Bonus", StringComparison.OrdinalIgnoreCase) &&
+                       p.Name != "CoopertitionCriteriaMet") // Exclude this, it's not a top-level property
+            .ToList();
+
+        // Extract bonus values and add to AdditionalProperties
+        foreach (var property in bonusProperties)
+        {
+            // Get the JsonPropertyName attribute to use the correct casing
+            var jsonAttr = property.GetCustomAttributes(typeof(JsonPropertyNameAttribute), false)
+                .FirstOrDefault() as JsonPropertyNameAttribute;
+            
+            var jsonPropertyName = jsonAttr?.Name ?? ToCamelCase(property.Name);
+
+            // Check if any alliance has this bonus achieved (OR logic for boolean bonuses)
+            if (property.PropertyType == typeof(bool))
+            {
+                var anyAchieved = matchScore.Alliances
+                    .Select(a => (bool?)property.GetValue(a))
+                    .Any(v => v == true);
+                
+                matchScore.AdditionalProperties![jsonPropertyName] = anyAchieved;
+            }
+            else
+            {
+                // For non-boolean bonus properties, take the value from the first alliance
+                var value = property.GetValue(matchScore.Alliances[0]);
+                if (value != null)
+                {
+                    matchScore.AdditionalProperties![jsonPropertyName] = value;
+                }
+            }
+        }
+    }
+
+    private string ToCamelCase(string str)
+    {
+        if (string.IsNullOrEmpty(str) || char.IsLower(str[0]))
+            return str;
+        return char.ToLower(str[0]) + str.Substring(1);
+    }
+
+    private int? DetermineWinningAlliance(TBAMatch m)
+    {
+        if (m.Alliances == null) return null;
+        
+        var blueScore = m.Alliances.TryGetValue("blue", out var blue) ? blue.Score : 0;
+        var redScore = m.Alliances.TryGetValue("red", out var red) ? red.Score : 0;
+
+        if (blueScore > redScore) return 0; // Blue wins
+        if (redScore > blueScore) return 1; // Red wins
+        return -1; // Tie
+    }
+
+    private MatchScoreAlliance? TransformAllianceScore(JsonElement allianceElement, string allianceName)
+    {
+        try
+        {
+            var alliance = new MatchScoreAlliance { Alliance = allianceName };
+
+            // Robot positions
+            alliance.AutoLineRobot1 = GetStringValue(allianceElement, "autoLineRobot1");
+            alliance.AutoLineRobot2 = GetStringValue(allianceElement, "autoLineRobot2");
+            alliance.AutoLineRobot3 = GetStringValue(allianceElement, "autoLineRobot3");
+            alliance.EndGameRobot1 = GetStringValue(allianceElement, "endGameRobot1");
+            alliance.EndGameRobot2 = GetStringValue(allianceElement, "endGameRobot2");
+            alliance.EndGameRobot3 = GetStringValue(allianceElement, "endGameRobot3");
+
+            // Auto reef
+            if (allianceElement.TryGetProperty("autoReef", out var autoReef))
+            {
+                alliance.AutoReef = ParseReefGrid(autoReef);
+            }
+
+            // Auto scoring
+            alliance.AutoCoralCount = GetIntValue(allianceElement, "autoCoralCount");
+            alliance.AutoMobilityPoints = GetIntValue(allianceElement, "autoMobilityPoints");
+            alliance.AutoPoints = GetIntValue(allianceElement, "autoPoints");
+            alliance.AutoCoralPoints = GetIntValue(allianceElement, "autoCoralPoints");
+
+            // Teleop reef
+            if (allianceElement.TryGetProperty("teleopReef", out var teleopReef))
+            {
+                alliance.TeleopReef = ParseReefGrid(teleopReef);
+            }
+
+            // Teleop scoring
+            alliance.TeleopCoralCount = GetIntValue(allianceElement, "teleopCoralCount");
+            alliance.TeleopPoints = GetIntValue(allianceElement, "teleopPoints");
+            alliance.TeleopCoralPoints = GetIntValue(allianceElement, "teleopCoralPoints");
+
+            // Algae and endgame
+            alliance.AlgaePoints = GetIntValue(allianceElement, "algaePoints");
+            alliance.NetAlgaeCount = GetIntValue(allianceElement, "netAlgaeCount");
+            alliance.WallAlgaeCount = GetIntValue(allianceElement, "wallAlgaeCount");
+            alliance.EndGameBargePoints = GetIntValue(allianceElement, "endGameBargePoints");
+
+            // Bonuses
+            alliance.AutoBonusAchieved = GetBoolValue(allianceElement, "autoBonusAchieved");
+            alliance.CoralBonusAchieved = GetBoolValue(allianceElement, "coralBonusAchieved");
+            alliance.BargeBonusAchieved = GetBoolValue(allianceElement, "bargeBonusAchieved");
+            alliance.CoopertitionCriteriaMet = false; // TBA doesn't provide this
+
+            // Fouls and penalties
+            alliance.FoulCount = GetIntValue(allianceElement, "foulCount");
+            alliance.TechFoulCount = GetIntValue(allianceElement, "techFoulCount");
+            alliance.G206Penalty = GetBoolValue(allianceElement, "g206Penalty");
+            alliance.G410Penalty = GetBoolValue(allianceElement, "g410Penalty");
+            alliance.G418Penalty = GetBoolValue(allianceElement, "g418Penalty");
+            alliance.G428Penalty = GetBoolValue(allianceElement, "g428Penalty");
+
+            // Points
+            alliance.AdjustPoints = 0; // TBA doesn't provide this
+            alliance.FoulPoints = GetIntValue(allianceElement, "foulPoints");
+            alliance.Rp = GetIntValue(allianceElement, "rp");
+            alliance.TotalPoints = GetIntValue(allianceElement, "totalPoints");
+
+            return alliance;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error transforming alliance score for {AllianceName}", allianceName);
+            return null;
+        }
+    }
+
+    private ReefGrid ParseReefGrid(JsonElement reefElement)
+    {
+        var grid = new ReefGrid();
+        
+        if (reefElement.TryGetProperty("topRow", out var topRow))
+        {
+            grid.TopRow = ParseReefRow(topRow);
+        }
+        
+        if (reefElement.TryGetProperty("midRow", out var midRow))
+        {
+            grid.MidRow = ParseReefRow(midRow);
+        }
+        
+        if (reefElement.TryGetProperty("botRow", out var botRow))
+        {
+            grid.BotRow = ParseReefRow(botRow);
+        }
+        
+        grid.Trough = GetIntValue(reefElement, "trough");
+        
+        return grid;
+    }
+
+    private ReefRow ParseReefRow(JsonElement rowElement)
+    {
+        return new ReefRow
+        {
+            NodeA = GetBoolValue(rowElement, "nodeA"),
+            NodeB = GetBoolValue(rowElement, "nodeB"),
+            NodeC = GetBoolValue(rowElement, "nodeC"),
+            NodeD = GetBoolValue(rowElement, "nodeD"),
+            NodeE = GetBoolValue(rowElement, "nodeE"),
+            NodeF = GetBoolValue(rowElement, "nodeF"),
+            NodeG = GetBoolValue(rowElement, "nodeG"),
+            NodeH = GetBoolValue(rowElement, "nodeH"),
+            NodeI = GetBoolValue(rowElement, "nodeI"),
+            NodeJ = GetBoolValue(rowElement, "nodeJ"),
+            NodeK = GetBoolValue(rowElement, "nodeK"),
+            NodeL = GetBoolValue(rowElement, "nodeL")
+        };
+    }
+
+    private string? GetStringValue(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String 
+            ? prop.GetString() 
+            : null;
+    }
+
+    private int GetIntValue(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number 
+            ? prop.GetInt32() 
+            : 0;
+    }
+
+    private bool GetBoolValue(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && 
+               (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False) 
+            ? prop.GetBoolean() 
+            : false;
+    }
+
     private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel)
     {
         // Detect if match has been played by checking if score breakdown exists
@@ -598,11 +844,9 @@ public class FrcApiController(
             Description = description,
             ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1) ? v1.Score : null,
             ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? v2.Score : null,
-            ScoreBreakdown = m.ScoreBreakdown,
-            Fouls = m.ScoreBreakdown,
-            Tiebreakers = m.ScoreBreakdown,
             Teams = [],
-            EventCode = m.EventKey
+            EventCode = m.EventKey,
+            MatchScores = matchHasBeenPlayed ? TransformScoreBreakdown(m, matchNumber, tournamentLevel) : null
         };
 
         // If match has been played but time fields are missing, populate them
