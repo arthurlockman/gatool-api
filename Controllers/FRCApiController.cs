@@ -822,6 +822,9 @@ public class FrcApiController(
         // Detect if match has been played by checking if score breakdown exists
         var matchHasBeenPlayed = m.ScoreBreakdown != null;
         
+        // Helper function to convert -1 scores to null (TBA uses -1 for unplayed matches)
+        int? NormalizeScore(int? score) => score.HasValue && score.Value == -1 ? null : score;
+        
         var hm = new HybridMatch
         {
             Field = null,
@@ -834,8 +837,8 @@ public class FrcApiController(
             TournamentLevel = tournamentLevel,
             PostResultTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
             Description = description,
-            ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1) ? v1.Score : null,
-            ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? v2.Score : null,
+            ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1) ? NormalizeScore(v1.Score) : null,
+            ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? NormalizeScore(v2.Score) : null,
             Teams = [],
             EventCode = m.EventKey,
             MatchScores = matchHasBeenPlayed ? TransformScoreBreakdown(m, matchNumber, tournamentLevel) : null
