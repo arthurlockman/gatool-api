@@ -736,7 +736,7 @@ public class FrcApiController(
                 AutoBonusAchieved: GetBoolValue(allianceElement, "autoBonusAchieved"),
                 CoralBonusAchieved: GetBoolValue(allianceElement, "coralBonusAchieved"),
                 BargeBonusAchieved: GetBoolValue(allianceElement, "bargeBonusAchieved"),
-                CoopertitionCriteriaMet: GetBoolValue(allianceElement, "coopertitionBonusAchieved"),
+                CoopertitionCriteriaMet: GetBoolValue(allianceElement, "coopertitionCriteriaMet"),
                 FoulCount: GetIntValue(allianceElement, "foulCount"),
                 TechFoulCount: GetIntValue(allianceElement, "techFoulCount"),
                 G206Penalty: GetBoolValue(allianceElement, "g206Penalty"),
