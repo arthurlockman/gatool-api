@@ -607,13 +607,17 @@ public class FrcApiController(
                 if (redAlliance != null) alliances.Add(redAlliance);
             }
 
+            // Determine if coopertition bonus was achieved (both alliances must meet criteria)
+            var coopertitionAchieved = alliances.Count == 2 && 
+                                      alliances.All(a => a.CoopertitionCriteriaMet);
+            
             // Create MatchScore record
             var matchScore = new MatchScore(
                 MatchLevel: tournamentLevel == "Qual" ? "Qualification" : "Playoff",
                 MatchNumber: matchNumber,
                 WinningAlliance: DetermineWinningAlliance(m),
                 Tiebreaker: new Tiebreaker(-1, ""),
-                CoopertitionBonusAchieved: false,
+                CoopertitionBonusAchieved: coopertitionAchieved,
                 Alliances: alliances
             )
             {
@@ -732,7 +736,7 @@ public class FrcApiController(
                 AutoBonusAchieved: GetBoolValue(allianceElement, "autoBonusAchieved"),
                 CoralBonusAchieved: GetBoolValue(allianceElement, "coralBonusAchieved"),
                 BargeBonusAchieved: GetBoolValue(allianceElement, "bargeBonusAchieved"),
-                CoopertitionCriteriaMet: false, // TBA doesn't provide this
+                CoopertitionCriteriaMet: GetBoolValue(allianceElement, "coopertitionBonusAchieved"),
                 FoulCount: GetIntValue(allianceElement, "foulCount"),
                 TechFoulCount: GetIntValue(allianceElement, "techFoulCount"),
                 G206Penalty: GetBoolValue(allianceElement, "g206Penalty"),
