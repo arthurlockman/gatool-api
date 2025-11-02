@@ -184,3 +184,24 @@ public class TBAEventRankings
     public List<TBARanking>? Rankings { get; set; }
     [JsonPropertyName("sort_order_info")] public List<TBASortOrderInfo>? SortOrderInfo { get; set; }
 }
+
+[UsedImplicitly]
+public record RawTbaAwardRecipient(
+    [property: JsonPropertyName("awardee")] string? Awardee,
+    [property: JsonPropertyName("team_key")] string? TeamKey
+);
+
+[UsedImplicitly]
+public record RawTbaAward(
+    [property: JsonPropertyName("award_type")] int? AwardType,
+    [property: JsonPropertyName("event_key")] string? EventKey,
+    [property: JsonPropertyName("name")] string? Name,
+    [property: JsonPropertyName("recipient_list")] List<RawTbaAwardRecipient>? RecipientList,
+    [property: JsonPropertyName("year")] int? Year
+);
+
+[UsedImplicitly]
+public record TBATeamHistory(
+    [property: JsonPropertyName("awards")] List<RawTbaAward>? Awards,
+    [property: JsonPropertyName("events")] List<RawTbaEvent>? Events
+);
