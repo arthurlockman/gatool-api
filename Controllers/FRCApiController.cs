@@ -221,6 +221,28 @@ public class FrcApiController(
         return Ok(media.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
     }
 
+    [HttpGet("team/{teamNumber:int}/history")]
+    [RedisCache("tbaapi:teamhistory", RedisCacheTime.OneWeek)]
+    [OpenApiTag("FRC Team Data")]
+    [ProducesResponseType(typeof(TBATeamHistory), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetTeamHistory(int year, int teamNumber)
+    {
+        Response.Headers.CacheControl = "s-maxage=604800"; // 1 week
+
+        try
+        {
+            var history = await tbaApiClient.Get<TBATeamHistory>($"team/frc{teamNumber}/history");
+            if (history == null) return NoContent();
+            return Ok(history);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching team history for team {TeamNumber}", teamNumber);
+            return NoContent();
+        }
+    }
+
     [HttpGet("avatars/team/{teamNumber:int}/avatar.png")]
     [RedisCache("frc:teamavatar", RedisCacheTime.OneMonth)]
     [OpenApiTag("FRC Team Data")]
