@@ -4,7 +4,7 @@ namespace GAToolAPI.Models;
 
 public class HybridTeam
 {
-    public int TeamNumber { get; set; }
+    public object TeamNumber { get; set; } = 0;
     public string Station { get; set; } = null!;
     public bool Surrogate { get; set; }
     public bool Dq { get; set; }
