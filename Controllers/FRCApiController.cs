@@ -1040,13 +1040,10 @@ public class FrcApiController(
             var rankings = new List<TeamRanking>();
             foreach (var tbaRanking in tbaResponse.Rankings)
             {
-                // Extract team number from team_key (e.g., "frc254" -> 254)
-                var teamNumberStr = tbaRanking.TeamKey.Replace("frc", "");
-                if (!int.TryParse(teamNumberStr, out var teamNumber))
-                {
-                    logger.LogWarning("Could not parse team number from team_key: {TeamKey}", tbaRanking.TeamKey);
-                    continue;
-                }
+                // Extract team identifier from team_key (e.g., "frc254" -> 254, "frc971B" -> "971B")
+                var teamIdentifier = tbaRanking.TeamKey.Replace("frc", "");
+                // Try to parse as int first, if it fails keep it as string for teams like "971B"
+                object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
 
                 // Map sort_orders array to individual sortOrder properties (pad with 0 if not enough values)
                 var sortOrders = tbaRanking.SortOrders ?? new List<double>();

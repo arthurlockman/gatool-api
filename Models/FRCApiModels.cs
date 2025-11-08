@@ -245,7 +245,7 @@ public record TeamMedia(
 [UsedImplicitly]
 public record TeamRanking(
     int Rank,
-    int TeamNumber,
+    object TeamNumber,
     double SortOrder1,
     double SortOrder2,
     double SortOrder3,
