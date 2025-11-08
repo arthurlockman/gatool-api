@@ -410,6 +410,29 @@ public class FrcApiController(
         }
     }
 
+    [HttpGet("offseason/event/{eventCode}")]
+    [RedisCache("tbaapi:offseason:event", RedisCacheTime.OneDay)]
+    [OpenApiTag("FRC Offseason")]
+    [ProducesResponseType(typeof(TBAEvent), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetOffseasonEvent(int year, string eventCode)
+    {
+        Response.Headers.CacheControl = "s-maxage=86400"; // 24 hours
+
+        try
+        {
+            var tbaResponse = await tbaApiClient.Get<TBAEvent>($"event/{year}{eventCode}");
+            if (tbaResponse == null) return NoContent();
+
+            return Ok(tbaResponse);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching offseason event {EventCode}", eventCode);
+            return NoContent();
+        }
+    }
+
     [HttpGet("offseason/events")]
     [RedisCache("tbaapi:offseason:events", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Offseason")]
