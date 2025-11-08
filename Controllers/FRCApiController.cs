@@ -1059,7 +1059,7 @@ public class FrcApiController(
                     tbaRanking.Record?.Wins ?? 0,
                     tbaRanking.Record?.Losses ?? 0,
                     tbaRanking.Record?.Ties ?? 0,
-                    tbaRanking.QualAverage ?? 0,
+                    tbaRanking.QualAverage ?? (sortOrders.Count > 2 ? sortOrders[2] : 0),
                     tbaRanking.Dq ?? 0,
                     tbaRanking.MatchesPlayed ?? 0
                 );
