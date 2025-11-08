@@ -72,6 +72,7 @@ public class TBAEvent
     public string? ParentEventKey { get; set; }
     public int? PlayoffType { get; set; }
     public string? PlayoffTypeString { get; set; }
+    public Dictionary<string, string>? RemapTeams { get; set; }
 }
 
 [UsedImplicitly]
@@ -98,7 +99,7 @@ public record RawTbaEvent(
     [property: JsonPropertyName("playoff_type")] int? PlayoffType,
     [property: JsonPropertyName("playoff_type_string")] string? PlayoffTypeString,
     [property: JsonPropertyName("postal_code")] string? PostalCode,
-    [property: JsonPropertyName("remap_teams")] object? RemapTeams,
+    [property: JsonPropertyName("remap_teams")] Dictionary<string, string>? RemapTeams,
     [property: JsonPropertyName("short_name")] string? ShortName,
     [property: JsonPropertyName("start_date")] string? StartDate,
     [property: JsonPropertyName("state_prov")] string? StateProv,

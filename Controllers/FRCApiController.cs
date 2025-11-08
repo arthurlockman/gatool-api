@@ -410,6 +410,29 @@ public class FrcApiController(
         }
     }
 
+    [HttpGet("offseason/event/{eventCode}")]
+    [RedisCache("tbaapi:offseason:event", RedisCacheTime.OneDay)]
+    [OpenApiTag("FRC Offseason")]
+    [ProducesResponseType(typeof(TBAEvent), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetOffseasonEvent(int year, string eventCode)
+    {
+        Response.Headers.CacheControl = "s-maxage=86400"; // 24 hours
+
+        try
+        {
+            var tbaResponse = await tbaApiClient.Get<TBAEvent>($"event/{year}{eventCode}");
+            if (tbaResponse == null) return NoContent();
+
+            return Ok(tbaResponse);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching offseason event {EventCode}", eventCode);
+            return NoContent();
+        }
+    }
+
     [HttpGet("offseason/events")]
     [RedisCache("tbaapi:offseason:events", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Offseason")]
@@ -902,7 +925,9 @@ public class FrcApiController(
                 for (var idx = 0; idx < red.TeamKeys.Count; idx++)
                 {
                     var teamKey = red.TeamKeys[idx];
-                    var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
+                    var teamIdentifier = teamKey.Replace("frc", "");
+                    // Try to parse as int first, if it fails keep it as string for teams like "971B"
+                    object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
                     var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
                     hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red{idx + 1}", Surrogate = surrogate });
                 }
@@ -913,7 +938,9 @@ public class FrcApiController(
                 for (var idx = 0; idx < blue.TeamKeys.Count; idx++)
                 {
                     var teamKey = blue.TeamKeys[idx];
-                    var teamNumber = int.TryParse(teamKey.Replace("frc", ""), out var tn) ? tn : 0;
+                    var teamIdentifier = teamKey.Replace("frc", "");
+                    // Try to parse as int first, if it fails keep it as string for teams like "971B"
+                    object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
                     var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
                     hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue{idx + 1}", Surrogate = surrogate });
                 }
