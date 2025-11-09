@@ -268,12 +268,12 @@ public record RankingsResponse(RankingsData Rankings, object? Headers);
 [UsedImplicitly]
 public record Alliance(
     int Number,
-    int Captain,
-    int Round1,
-    int? Round2,
-    int? Round3,
-    int? Backup,
-    int? BackupReplaced,
+    object Captain,
+    object Round1,
+    object? Round2,
+    object? Round3,
+    object? Backup,
+    object? BackupReplaced,
     string? Name);
 
 [UsedImplicitly]
