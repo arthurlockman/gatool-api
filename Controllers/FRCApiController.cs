@@ -980,25 +980,21 @@ public class FrcApiController(
                 var tbaAlliance = tbaResponse[i];
                 if (tbaAlliance.Picks == null || tbaAlliance.Picks.Count == 0) continue;
 
-                // Parse team identifiers from "frcXXXX" format (e.g., "frc254" -> 254, "frc971B" -> "971B")
-                var teamIdentifiers = tbaAlliance.Picks
-                    .Select(pick =>
-                    {
-                        var identifier = pick.Replace("frc", "");
-                        // Try to parse as int first, if it fails keep it as string for teams like "971B"
-                        object teamId = int.TryParse(identifier, out var num) ? num : identifier;
-                        return teamId;
-                    })
+                // Parse team numbers from "frcXXXX" format
+                var teamNumbers = tbaAlliance.Picks
+                    .Select(pick => int.TryParse(pick.Replace("frc", ""), out var num) ? num : (int?)null)
+                    .Where(num => num.HasValue)
+                    .Select(num => num!.Value)
                     .ToList();
 
-                if (teamIdentifiers.Count < 2) continue; // Need at least captain and round1
+                if (teamNumbers.Count < 2) continue; // Need at least captain and round1
 
                 var alliance = new Alliance(
                     Number: i + 1,
-                    Captain: teamIdentifiers[0],
-                    Round1: teamIdentifiers[1],
-                    Round2: teamIdentifiers.Count > 2 ? teamIdentifiers[2] : null,
-                    Round3: teamIdentifiers.Count > 3 ? teamIdentifiers[3] : null,
+                    Captain: teamNumbers[0],
+                    Round1: teamNumbers[1],
+                    Round2: teamNumbers.Count > 2 ? teamNumbers[2] : null,
+                    Round3: teamNumbers.Count > 3 ? teamNumbers[3] : null,
                     Backup: null, // TBA doesn't provide backup in this format
                     BackupReplaced: null, // TBA doesn't provide backup replaced in this format
                     Name: $"Alliance {i + 1}"
