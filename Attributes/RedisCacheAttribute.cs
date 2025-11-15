@@ -104,7 +104,6 @@ public static class RedisCacheTime
 {
     public const int OneMinute = 1;
     public const int FiveMinutes = OneMinute * 5;
-    public const int ThirtyMinutes = OneMinute * 30;
     public const int OneHour = OneMinute * 60;
     public const int OneDay = OneHour * 24;
     public const int ThreeDays = OneDay * 3;

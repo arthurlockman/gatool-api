@@ -22,7 +22,7 @@ public class FtcApiController(
     private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
 
     [HttpGet("teams")]
-    [RedisCache("ftcapi:teams", RedisCacheTime.FiveMinutesMinutes)]
+    [RedisCache("ftcapi:teams", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Team Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
