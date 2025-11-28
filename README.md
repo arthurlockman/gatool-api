@@ -22,7 +22,32 @@ development. [Issues can be filed in the GitHub issue tracker](https://github.co
 
 ## Development
 
-TODO: rewrite new development section
+### Quick Start
+
+The fastest way to run the API locally:
+
+```bash
+./run-local.sh
+```
+
+This script will automatically:
+- Start Redis in Docker
+- Check Azure authentication
+- Build and run the API
+
+The API will be available at http://localhost:5000/swagger
+
+### Detailed Setup
+
+For detailed local development instructions, see:
+- **[QUICKSTART.md](QUICKSTART.md)** - Get up and running in minutes
+- **[LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)** - Complete development guide with troubleshooting
+
+### Prerequisites
+
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (for Redis)
+- Azure CLI: `brew install azure-cli` (macOS)
 
 ## API Documentation
 
