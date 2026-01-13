@@ -85,13 +85,12 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         }
     }
 
-    public async Task StoreEventAnnouncements(string eventCode, JsonObject announcements)
+    public async Task StoreEventAnnouncements(string eventCode, string announcements)
     {
         var blob = _userPrefsClient.GetBlobClient($"{eventCode}.announce.json");
-        var prefString = announcements.ToJsonString();
         await using var stream = await blob.OpenWriteAsync(true);
         await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(prefString);
+        await writer.WriteAsync(announcements);
     }
 
     public async Task<string?> GetTeamUpdates(string teamNumber, bool ftc = false)
