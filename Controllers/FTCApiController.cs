@@ -265,7 +265,7 @@ public class FtcApiController(
         try
         {
             var result = await ftcApi.Get<TeamAwardsResponse>($"{season}/awards/{team}");
-            var cachePeriod = DateTime.Now.Year == season ? TimeSpan.FromHours(7) : TimeSpan.FromDays(14);
+            var cachePeriod = DateTime.Now.Year == season ? TimeSpan.FromMinutes(5) : TimeSpan.FromDays(14);
             await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), cachePeriod);
             return result;
         }
