@@ -1,6 +1,9 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using StackExchange.Redis;
 
 namespace GAToolAPI.Attributes;
@@ -96,7 +99,36 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
         keyParts.AddRange(from queryParam in context.HttpContext.Request.Query
             where !string.IsNullOrEmpty(queryParam.Value)
             select $"{queryParam.Key}:{queryParam.Value}");
+        
+        // Include POST body data in cache key for POST/PUT/PATCH requests
+        if (context.HttpContext.Request.Method is "POST" or "PUT" or "PATCH")
+        {
+            // Find parameters marked with [FromBody] attribute
+            var fromBodyParams = context.ActionDescriptor.Parameters
+                .Where(p => p.BindingInfo?.BindingSource?.CanAcceptDataFrom(BindingSource.Body) == true)
+                .Select(p => p.Name)
+                .Where(name => context.ActionArguments.ContainsKey(name) && context.ActionArguments[name] != null)
+                .Select(name => context.ActionArguments[name]!)
+                .ToList();
+            
+            if (fromBodyParams.Count > 0)
+            {
+                // Serialize body parameters and create a hash for the cache key
+                // Sort lists within objects to ensure consistent hashing regardless of order
+                var bodyJson = JsonSerializer.Serialize(fromBodyParams, _jsonOptions);
+                var bodyHash = ComputeHash(bodyJson);
+                keyParts.Add($"body:{bodyHash}");
+            }
+        }
+        
         return string.Join(":", keyParts);
+    }
+
+    private static string ComputeHash(string input)
+    {
+        var bytes = Encoding.UTF8.GetBytes(input);
+        var hashBytes = SHA256.HashData(bytes);
+        return Convert.ToHexString(hashBytes).ToLowerInvariant()[..16]; // Use first 16 chars of hash
     }
 }
 
