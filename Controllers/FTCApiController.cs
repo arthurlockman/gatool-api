@@ -191,6 +191,16 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    [HttpGet("team/{teamNumber:int}/awards")]
+    [OpenApiTag("FTC Team Data")]
+    [ProducesResponseType(typeof(Dictionary<string, TeamAwardsResponse?>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetTeamAwardsData(int year, int teamNumber)
+    {
+        var result = await GetLast3YearAwards(year, teamNumber);
+        return Ok(result);
+    }
+
     [HttpPost("queryAwards")]
     [RedisCache("ftcapi:batch-team-awards", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Team Data")]
