@@ -456,13 +456,13 @@ public class FrcApiController(
                 try
                 {
                     // Filter for non-official events: Offseason, Preseason, Unlabeled
-                    if (evt.EventTypeString != "Offseason" && 
-                        evt.EventTypeString != "Preseason" && 
+                    if (evt.EventTypeString != "Offseason" &&
+                        evt.EventTypeString != "Preseason" &&
                         evt.EventTypeString != "Unlabeled") continue;
-                    
+
                     var address = evt.Address ?? "";
                     var addressParts = address.Split(", ");
-                    
+
                     // Parse address components properly
                     // Example: "960 W Hedding St, San Jose, CA 95126, USA"
                     var streetAddress = addressParts.Length > 0 ? addressParts[0] : "";
@@ -534,7 +534,7 @@ public class FrcApiController(
 
             // Convert TBAMatch -> HybridMatch
             var hybridMatches = new List<HybridMatch>();
-            
+
             // Process qualification matches
             foreach (var m in qualMatches)
             {
@@ -552,7 +552,7 @@ public class FrcApiController(
             // Determine tournament size by counting unique sets in quarterfinals and semifinals
             var qfSets = sortedPlayoffs.Where(m => m.CompLevel == "qf").Select(m => m.SetNumber).Distinct().Count();
             var sfSets = sortedPlayoffs.Where(m => m.CompLevel == "sf").Select(m => m.SetNumber).Distinct().Count();
-            
+
             // Determine tournament structure
             int tournamentSize;
             if (qfSets >= 4 || sfSets >= 8) tournamentSize = 8;  // 8 alliances (has quarterfinals OR many semifinals)
@@ -633,11 +633,11 @@ public class FrcApiController(
             // Parse the score breakdown JSON
             var breakdown = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
                 JsonSerializer.Serialize(m.ScoreBreakdown));
-            
+
             if (breakdown == null) return null;
 
             var alliances = new List<AllianceScore>();
-            
+
             // Transform Blue alliance
             if (breakdown.TryGetValue("blue", out var blueElement))
             {
@@ -653,9 +653,9 @@ public class FrcApiController(
             }
 
             // Determine if coopertition bonus was achieved (both alliances must meet criteria)
-            var coopertitionAchieved = alliances.Count == 2 && 
+            var coopertitionAchieved = alliances.Count == 2 &&
                                       alliances.All(a => a.CoopertitionCriteriaMet);
-            
+
             // Create MatchScore record
             var matchScore = new MatchScore(
                 MatchLevel: tournamentLevel == "Qual" ? "Qualification" : "Playoff",
@@ -705,7 +705,7 @@ public class FrcApiController(
                 var anyAchieved = matchScore.Alliances
                     .Select(a => (bool?)property.GetValue(a))
                     .Any(v => v == true);
-                
+
                 matchScore.AdditionalProperties[jsonPropertyName] = anyAchieved;
             }
             else
@@ -730,7 +730,7 @@ public class FrcApiController(
     private int? DetermineWinningAlliance(TBAMatch m)
     {
         if (m.Alliances == null) return null;
-        
+
         var blueScore = m.Alliances.TryGetValue("blue", out var blue) ? blue.Score : 0;
         var redScore = m.Alliances.TryGetValue("red", out var red) ? red.Score : 0;
 
@@ -808,21 +808,21 @@ public class FrcApiController(
         {
             topRow = ParseReefRow(topRowElement);
         }
-        
+
         ReefRow? midRow = null;
         if (reefElement.TryGetProperty("midRow", out var midRowElement))
         {
             midRow = ParseReefRow(midRowElement);
         }
-        
+
         ReefRow? botRow = null;
         if (reefElement.TryGetProperty("botRow", out var botRowElement))
         {
             botRow = ParseReefRow(botRowElement);
         }
-        
+
         var trough = GetIntValue(reefElement, "trough");
-        
+
         return new Reef(topRow, midRow, botRow, trough);
     }
 
@@ -846,23 +846,23 @@ public class FrcApiController(
 
     private string? GetStringValue(JsonElement element, string propertyName)
     {
-        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String 
-            ? prop.GetString() 
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
+            ? prop.GetString()
             : null;
     }
 
     private int GetIntValue(JsonElement element, string propertyName)
     {
-        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number 
-            ? prop.GetInt32() 
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number
+            ? prop.GetInt32()
             : 0;
     }
 
     private bool GetBoolValue(JsonElement element, string propertyName)
     {
-        return element.TryGetProperty(propertyName, out var prop) && 
-               (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False) 
-            ? prop.GetBoolean() 
+        return element.TryGetProperty(propertyName, out var prop) &&
+               (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False)
+            ? prop.GetBoolean()
             : false;
     }
 
@@ -870,10 +870,10 @@ public class FrcApiController(
     {
         // Detect if match has been played by checking if score breakdown exists
         var matchHasBeenPlayed = m.ScoreBreakdown != null;
-        
+
         // Helper function to convert -1 scores to null (TBA uses -1 for unplayed matches)
         int? NormalizeScore(int? score) => score.HasValue && score.Value == -1 ? null : score;
-        
+
         var hm = new HybridMatch
         {
             Field = null,
@@ -897,19 +897,19 @@ public class FrcApiController(
         if (matchHasBeenPlayed && m.Time.HasValue)
         {
             var startTime = DateTimeOffset.FromUnixTimeSeconds(m.Time.Value);
-            
+
             // Use startTime for actualStartTime if not provided
             if (hm.ActualStartTime == null)
             {
                 hm.ActualStartTime = startTime.ToString("o");
             }
-            
+
             // Use startTime for autoStartTime if not provided
             if (hm.AutoStartTime == null)
             {
                 hm.AutoStartTime = startTime.ToString("o");
             }
-            
+
             // Use startTime + 3 minutes for postResultTime if not provided
             if (hm.PostResultTime == null)
             {
@@ -1039,7 +1039,7 @@ public class FrcApiController(
             // Call TBA: /event/{eventCode}/rankings
             var tbaResponse = await tbaApiClient.Get<TBAEventRankings>($"event/{year}{eventCode}/rankings");
             if (tbaResponse == null || tbaResponse.Rankings == null || tbaResponse.Rankings.Count == 0) return NoContent();
-            
+
             // Transform TBA format to FIRST API format
             var rankings = new List<TeamRanking>();
             foreach (var tbaRanking in tbaResponse.Rankings)
@@ -1107,7 +1107,7 @@ public class FrcApiController(
         var cacheKey = $"frc:team:{team}:season:{season}:awards";
 
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult!);
+        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult!.ToString());
 
         try
         {
@@ -1142,7 +1142,7 @@ public class FrcApiController(
 
         // Check Redis cache first
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<List<TeamMedia>?>(cachedResult!);
+        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<List<TeamMedia>?>(cachedResult!.ToString());
 
         try
         {
