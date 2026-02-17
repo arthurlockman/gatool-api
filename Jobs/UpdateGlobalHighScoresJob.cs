@@ -29,7 +29,7 @@ public class UpdateGlobalHighScoresJob(
         var lookbackDays = configuration.GetValue("HighScoresLookbackDays", 7);
         var logPrefix = isDryRun ? "[DRY RUN] " : "";
 
-        logger.LogInformation("{Prefix}Starting UpdateGlobalHighScores job (Lookback: {LookbackDays} days)...",
+        logger.LogInformation("{Prefix}Starting UpdateGlobalHighScores job (Time window: ±{Days} days)...",
             logPrefix, lookbackDays);
 
         try
@@ -44,7 +44,7 @@ public class UpdateGlobalHighScoresJob(
                 logPrefix, events?.EventCount, year);
 
             // Log first few events for debugging
-            if (events?.Events != null && events.Events.Count > 0)
+            if (events?.Events is { Count: > 0 })
             {
                 foreach (var evt in events.Events.Take(3))
                 {
@@ -53,10 +53,12 @@ public class UpdateGlobalHighScoresJob(
                 }
             }
 
-            // Filter events to only those within lookback window or in the future
+            // Filter events to only those within the time window (past or future)
             var now = DateTime.UtcNow;
-            var cutoffDate = now.AddDays(-lookbackDays);
-            logger.LogInformation("{Prefix}Cutoff date for filtering: {CutoffDate} (UTC)", logPrefix, cutoffDate);
+            var windowStart = now.AddDays(-lookbackDays);
+            var windowEnd = now.AddDays(lookbackDays);
+            logger.LogInformation("{Prefix}Time window: {WindowStart} to {WindowEnd} (UTC, ±{Days} days)",
+                logPrefix, windowStart, windowEnd, lookbackDays);
 
             var filteredEvents = events?.Events?.Where(e =>
             {
@@ -68,10 +70,6 @@ public class UpdateGlobalHighScoresJob(
                     return true; // Include events with bad dates
                 }
 
-                // Check if event ended within lookback window
-                if (dateEnd.UtcDateTime >= cutoffDate)
-                    return true;
-
                 // Try to parse DateStart
                 if (!DateTimeOffset.TryParse(e.DateStart, out var dateStart))
                 {
@@ -80,22 +78,20 @@ public class UpdateGlobalHighScoresJob(
                     return true; // Include events with bad dates
                 }
 
-                // Check if event is in the future
-                if (dateStart.UtcDateTime > now)
-                    return true;
-
-                return false;
+                // Include event if it overlaps with our time window
+                // Event overlaps if: event_start <= window_end AND event_end >= window_start
+                return dateStart.UtcDateTime <= windowEnd && dateEnd.UtcDateTime >= windowStart;
             }).ToList() ?? [];
 
-            logger.LogInformation("{Prefix}Filtered to {FilteredCount} events within lookback window or upcoming.",
-                logPrefix, filteredEvents.Count);
+            logger.LogInformation("{Prefix}Filtered to {FilteredCount} events within ±{Days} day window.",
+                logPrefix, filteredEvents.Count, lookbackDays);
 
             if (filteredEvents.Count == 0)
             {
-                logger.LogWarning("{Prefix}No events found within lookback window. " +
-                    "This may be expected if the season has ended. " +
-                    "Cutoff date: {CutoffDate}, Current date: {Now}, Season: {Year}",
-                    logPrefix, cutoffDate, now, year);
+                logger.LogWarning("{Prefix}No events found within time window. " +
+                    "This may be expected if the season has ended or hasn't started yet. " +
+                    "Time window: {WindowStart} to {WindowEnd} (±{Days} days), Season: {Year}",
+                    logPrefix, windowStart, windowEnd, lookbackDays, year);
             }
 
             // Retrieve existing high scores to extract historical matches
