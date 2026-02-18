@@ -98,7 +98,7 @@ public class TeamDataService(FRCApiService frcApiClient, FTCApiService ftcApiCli
         }
 
         var pageResults = await Task.WhenAll(pageTasks);
-        allTeams.AddRange(pageResults.SelectMany(x => x));
+        allTeams.AddRange(pageResults.SelectMany(x => x ?? []));
 
         return new TeamsResponse(Teams: allTeams,
             TeamCountPage: allTeams.Count, TeamCountTotal: allTeams.Count,

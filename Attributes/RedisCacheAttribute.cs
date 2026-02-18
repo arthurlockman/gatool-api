@@ -75,7 +75,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
             var cachedResult = await redis.StringGetAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedResult))
             {
-                var cachedObject = JsonSerializer.Deserialize<object>(cachedResult!);
+                var cachedObject = JsonSerializer.Deserialize<object>(cachedResult!.ToString());
                 context.Result = new OkObjectResult(cachedObject);
                 return;
             }
@@ -99,7 +99,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
         keyParts.AddRange(from queryParam in context.HttpContext.Request.Query
             where !string.IsNullOrEmpty(queryParam.Value)
             select $"{queryParam.Key}:{queryParam.Value}");
-        
+
         // Include POST body data in cache key for POST/PUT/PATCH requests
         if (context.HttpContext.Request.Method is "POST" or "PUT" or "PATCH")
         {
@@ -110,7 +110,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
                 .Where(name => context.ActionArguments.ContainsKey(name) && context.ActionArguments[name] != null)
                 .Select(name => context.ActionArguments[name]!)
                 .ToList();
-            
+
             if (fromBodyParams.Count > 0)
             {
                 // Serialize body parameters and create a hash for the cache key
@@ -120,7 +120,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
                 keyParts.Add($"body:{bodyHash}");
             }
         }
-        
+
         return string.Join(":", keyParts);
     }
 

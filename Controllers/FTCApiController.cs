@@ -270,7 +270,7 @@ public class FtcApiController(
         var cacheKey = $"ftc:team:{team}:season:{season}:awards";
 
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult!);
+        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult!.ToString());
 
         try
         {
