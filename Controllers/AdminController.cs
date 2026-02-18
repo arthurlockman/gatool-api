@@ -25,8 +25,9 @@ public class AdminController(UserStorageService userStorage, IConnectionMultiple
     [HttpPut("announcements/{eventCode}")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     [Authorize("admin")]
-    public async Task<IActionResult> StoreEventAnnouncements([FromBody] string json, string eventCode)
+    public async Task<IActionResult> StoreEventAnnouncements([FromBody] JsonNode body, string eventCode)
     {
+        var json = body?.ToJsonString() ?? "[]";
         await userStorage.StoreEventAnnouncements(eventCode, json);
         return NoContent();
     }
