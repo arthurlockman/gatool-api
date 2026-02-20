@@ -47,10 +47,8 @@ try
         });
     builder.Services.AddAuthorizationBuilder()
         .AddPolicy("user", policy => policy.Requirements.Add(new HasRoleRequirement("user")))
-        .AddPolicy("admin", policy => policy.Requirements.Add(new HasRoleRequirement("admin")))
-        .AddPolicy("adminOrUser", policy => policy.Requirements.Add(new HasAnyRoleRequirement("admin", "user")));
+        .AddPolicy("admin", policy => policy.Requirements.Add(new HasRoleRequirement("admin")));
     builder.Services.AddSingleton<IAuthorizationHandler, HasRoleHandler>();
-    builder.Services.AddSingleton<IAuthorizationHandler, HasAnyRoleHandler>();
 
     var storageConnectionString = keyVaultClient.GetSecret("UserStorageConnectionString").Value.Value;
     builder.Services.AddAzureClients(clientBuilder =>
