@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Collections.Concurrent;
 using System.Text.Json;
 using GAToolAPI.Attributes;
+using GAToolAPI.Helpers;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -275,7 +276,8 @@ public class FtcApiController(
         try
         {
             var result = await ftcApi.Get<TeamAwardsResponse>($"{season}/awards/{team}");
-            var cachePeriod = DateTime.Now.Year == season ? TimeSpan.FromMinutes(5) : TimeSpan.FromDays(14);
+            var currentFtcSeason = FtcSeasonHelper.GetCurrentSeasonYear();
+            var cachePeriod = season == currentFtcSeason ? TimeSpan.FromMinutes(5) : TimeSpan.FromDays(14);
             await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), cachePeriod);
             return result;
         }
