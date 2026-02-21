@@ -34,6 +34,15 @@ public class FTCHighScoresController(
         return Ok(scores);
     }
 
+    [HttpGet("region/{regionCode}")]
+    [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
+    public async Task<IActionResult> GetHighScoresForRegion(int year, string regionCode)
+    {
+        var regionPrefix = $"FTCRegion{regionCode}";
+        var scores = await storageService.GetHighScores(year, regionPrefix);
+        return Ok(scores);
+    }
+
     [HttpGet("{eventCode}")]
     [RedisCache("ftc:highscores", 5)]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]

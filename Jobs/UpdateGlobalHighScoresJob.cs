@@ -370,6 +370,30 @@ public class UpdateGlobalHighScoresJob(
                 }));
             }
 
+            // Calculate high scores per region (aggregate all matches in a region)
+            var regions = allMatches
+                .Where(m => m.DistrictCode != null)
+                .Select(m => m.DistrictCode!.Split('-')[0])
+                .Distinct()
+                .ToList();
+
+            foreach (var region in regions)
+            {
+                var regionMatches = allMatches
+                    .Where(m => m.DistrictCode != null && m.DistrictCode.StartsWith($"{region}-"))
+                    .ToList();
+                var regionPrefix = $"FTCRegion{region}";
+                var regionHighScores = regionMatches.CalculateHighScores(year, regionPrefix);
+
+                logger.LogInformation("{Prefix}[FTC] Region {Region}: {MatchCount} matches, {ScoreCount} high scores.",
+                    logPrefix, region, regionMatches.Count, regionHighScores.Count);
+
+                if (!isDryRun)
+                {
+                    await regionHighScores.StoreHighScores(userStorageService, year, regionPrefix);
+                }
+            }
+
             logger.LogInformation("{Prefix}[FTC] UpdateGlobalHighScores completed successfully", logPrefix);
     }
 }
