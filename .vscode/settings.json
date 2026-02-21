@@ -1,4 +1,7 @@
 {
     "appService.defaultWebAppToDeploy": "/subscriptions/148841df-8844-4c30-bcb8-63f572fcc23a/microsoft.web/sites/subscriptions/148841df-8844-4c30-bcb8-63f572fcc23a/resourceGroups/GATool/providers/Microsoft.Web/sites/GATool-API",
-    "appService.deploySubpath": "."
+    "appService.deploySubpath": ".",
+    "chat.tools.terminal.autoApprove": {
+        "dotnet run": true
+    }
 }

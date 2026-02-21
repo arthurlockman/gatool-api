@@ -177,12 +177,13 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         return results;
     }
 
-    public async Task<List<HighScore>> GetHighScores(int year)
+    public async Task<List<HighScore>> GetHighScores(int year, string? typePrefix = null)
     {
         var results = new List<HighScore>();
 
         // List all blobs with the year prefix
-        var blobs = _highScoresClient.GetBlobsAsync(prefix: year.ToString());
+        var blobPrefix = typePrefix != null ? $"{year}-{typePrefix}" : year.ToString();
+        var blobs = _highScoresClient.GetBlobsAsync(prefix: blobPrefix);
 
         await foreach (var blob in blobs)
             try

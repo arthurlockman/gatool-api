@@ -18,8 +18,10 @@ public class HighScoresController(FRCApiService frcApi, ScheduleService schedule
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScores(int year)
     {
-        var scores = await storageService.GetHighScores(year);
-        return Ok(scores);
+        var allScores = await storageService.GetHighScores(year);
+        // Exclude FTC high scores from the FRC endpoint
+        var frcScores = allScores.Where(s => !s.YearType.Contains("FTC")).ToList();
+        return Ok(frcScores);
     }
 
     [HttpGet("{eventCode}")]

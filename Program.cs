@@ -119,6 +119,7 @@ try
     builder.Services.AddSingleton<UserStorageService>();
     builder.Services.AddSingleton<TeamDataService>();
     builder.Services.AddSingleton<ScheduleService>();
+    builder.Services.AddSingleton<FTCScheduleService>();
 
     // Register job services
     builder.Services.AddScoped<JobRunnerService>();
