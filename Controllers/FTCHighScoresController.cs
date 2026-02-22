@@ -63,8 +63,10 @@ public class FTCHighScoresController(
 
         var matches = allMatches.Select(m =>
         {
-            m.DistrictCode = events.Events[0].LeagueCode != null && events.Events[0].RegionCode != null
-                ? $"{events.Events[0].RegionCode}-{events.Events[0].LeagueCode}"
+            m.DistrictCode = events.Events[0].RegionCode != null
+                ? events.Events[0].LeagueCode != null
+                    ? $"{events.Events[0].RegionCode}-{events.Events[0].LeagueCode}"
+                    : events.Events[0].RegionCode
                 : null;
             m.EventCode = eventCode;
             return m;
