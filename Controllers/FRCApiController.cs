@@ -118,28 +118,42 @@ public class FrcApiController(
 
     [HttpGet("scores/{eventCode}/{tournamentLevel}/{start}/{end}")]
     [OpenApiTag("FRC Schedules and Results")]
-    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)]        // 2025 and earlier
+    [ProducesResponseType(typeof(GenericMatchScoresResponse), (int)HttpStatusCode.OK)] // 2026 and later
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetScores(string year, string eventCode, string tournamentLevel,
         string start, string end)
     {
         Response.Headers.CacheControl = "no-cache";
 
-        MatchScoresResponse? result;
+        // 2026+: deserialize into the year-agnostic envelope — no custom parsing needed for new seasons.
+        if (int.TryParse(year, out var yearInt) && yearInt >= 2026)
+        {
+            var queryParams = start == end
+                ? new Dictionary<string, string?> { ["matchNumber"] = start }
+                : new { start, end }.ToParameterDictionary();
+            var result = await frcApiClient.Get<GenericMatchScoresResponse>($"{year}/scores/{eventCode}/{tournamentLevel}", queryParams);
+            if (result == null) return NoContent();
+            return Ok(result);
+        }
+
+        // 2025 and earlier: use the fully-typed season-specific model.
+        MatchScoresResponse? legacyResult;
         if (start == end)
-            result = await frcApiClient.Get<MatchScoresResponse>($"{year}/scores/{eventCode}/{tournamentLevel}",
+            legacyResult = await frcApiClient.Get<MatchScoresResponse>($"{year}/scores/{eventCode}/{tournamentLevel}",
                 new Dictionary<string, string?> { ["matchNumber"] = start });
         else
-            result = await frcApiClient.Get<MatchScoresResponse>($"{year}/scores/{eventCode}/{tournamentLevel}",
+            legacyResult = await frcApiClient.Get<MatchScoresResponse>($"{year}/scores/{eventCode}/{tournamentLevel}",
                 new { start, end }.ToParameterDictionary());
 
-        if (result == null) return NoContent();
-        return Ok(result);
+        if (legacyResult == null) return NoContent();
+        return Ok(legacyResult);
     }
 
     [HttpGet("scores/{eventCode}/{tournamentLevel}")]
     [OpenApiTag("FRC Schedules and Results")]
-    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)]        // 2025 and earlier
+    [ProducesResponseType(typeof(GenericMatchScoresResponse), (int)HttpStatusCode.OK)] // 2026 and later
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetScores(string year, string eventCode, string tournamentLevel)
     {
@@ -151,9 +165,19 @@ public class FrcApiController(
             _ => ""
         };
         if (string.IsNullOrEmpty(level)) return BadRequest($"Unknown tournament level {tournamentLevel}");
-        var result = await frcApiClient.Get<MatchScoresResponse>($"{year}/scores/{eventCode}/{level}");
-        if (result == null) return NoContent();
-        return Ok(result);
+
+        // 2026+: deserialize into the year-agnostic envelope — no custom parsing needed for new seasons.
+        if (int.TryParse(year, out var yearInt) && yearInt >= 2026)
+        {
+            var result = await frcApiClient.Get<GenericMatchScoresResponse>($"{year}/scores/{eventCode}/{level}");
+            if (result == null) return NoContent();
+            return Ok(result);
+        }
+
+        // 2025 and earlier: use the fully-typed season-specific model.
+        var legacyResult = await frcApiClient.Get<MatchScoresResponse>($"{year}/scores/{eventCode}/{level}");
+        if (legacyResult == null) return NoContent();
+        return Ok(legacyResult);
     }
 
     [HttpGet("team/{teamNumber:int}/awards")]
@@ -540,7 +564,7 @@ public class FrcApiController(
             {
                 try
                 {
-                    var hm = CreateHybridMatch(m, m.MatchNumber ?? 0, $"Qualification {m.MatchNumber ?? 0}", "Qual");
+                    var hm = CreateHybridMatch(m, m.MatchNumber ?? 0, $"Qualification {m.MatchNumber ?? 0}", "Qual", year);
                     hybridMatches.Add(hm);
                 }
                 catch (Exception ex)
@@ -565,8 +589,8 @@ public class FrcApiController(
             {
                 try
                 {
-                    var (description, round) = GetMatchDescription(playoffMatchNumber, tournamentSize);
-                    var hm = CreateHybridMatch(m, playoffMatchNumber, description, "Playoff");
+                    var description = GetMatchDescription(playoffMatchNumber, tournamentSize);
+                    var hm = CreateHybridMatch(m, playoffMatchNumber, description, "Playoff", year);
                     hybridMatches.Add(hm);
                     playoffMatchNumber++;
                 }
@@ -586,7 +610,7 @@ public class FrcApiController(
         }
     }
 
-    private (string description, int round) GetMatchDescription(int playoffMatchNumber, int tournamentSize)
+    private static string GetMatchDescription(int playoffMatchNumber, int tournamentSize)
     {
         // Generate match description based on tournament size and sequential match number
         return tournamentSize switch
@@ -594,292 +618,68 @@ public class FrcApiController(
             8 => playoffMatchNumber switch
             {
                 // 8 alliances
-                >= 1 and <= 4 => ($"Match {playoffMatchNumber} (R1)", 1),
-                >= 5 and <= 8 => ($"Match {playoffMatchNumber} (R2)", 2),
-                >= 9 and <= 10 => ($"Match {playoffMatchNumber} (R3)", 3),
-                >= 11 and <= 12 => ($"Match {playoffMatchNumber} (R4)", 4),
-                13 => ($"Match {playoffMatchNumber} (R5)", 5),
-                14 => ("Final 1", 6),
-                15 => ("Final 2", 6),
-                _ => ($"Final Tiebreaker {playoffMatchNumber - 15}", 6)  // 16+ => Tiebreaker 1, 2, 3...
+                >= 1 and <= 4 => $"Match {playoffMatchNumber} (R1)",
+                >= 5 and <= 8 => $"Match {playoffMatchNumber} (R2)",
+                >= 9 and <= 10 => $"Match {playoffMatchNumber} (R3)",
+                >= 11 and <= 12 => $"Match {playoffMatchNumber} (R4)",
+                13 => $"Match {playoffMatchNumber} (R5)",
+                14 => "Final 1",
+                15 => "Final 2",
+                _ => $"Final Tiebreaker {playoffMatchNumber - 15}"  // 16+ => Tiebreaker 1, 2, 3...
             },
             4 => playoffMatchNumber switch
             {
                 // 4 alliances
-                >= 1 and <= 2 => ($"Match {playoffMatchNumber} (R1)", 1),
-                >= 3 and <= 4 => ($"Match {playoffMatchNumber} (R2)", 2),
-                5 => ($"Match {playoffMatchNumber} (R3)", 3),
-                6 => ("Final 1", 4),
-                7 => ("Final 2", 4),
-                _ => ($"Final Tiebreaker {playoffMatchNumber - 7}", 4)  // 8+ => Tiebreaker 1, 2, 3...
+                >= 1 and <= 2 => $"Match {playoffMatchNumber} (R1)",
+                >= 3 and <= 4 => $"Match {playoffMatchNumber} (R2)",
+                5 => $"Match {playoffMatchNumber} (R3)",
+                6 => "Final 1",
+                7 => "Final 2",
+                _ => $"Final Tiebreaker {playoffMatchNumber - 7}"  // 8+ => Tiebreaker 1, 2, 3...
             },
             2 => playoffMatchNumber switch
             {
                 // 2 alliances - all matches are finals
-                1 => ("Final 1", 1),
-                2 => ("Final 2", 1),
-                _ => ($"Final Tiebreaker {playoffMatchNumber - 2}", 1)  // 3+ => Tiebreaker 1, 2, 3...
+                1 => "Final 1",
+                2 => "Final 2",
+                _ => $"Final Tiebreaker {playoffMatchNumber - 2}"  // 3+ => Tiebreaker 1, 2, 3...
             },
-            _ => ($"Match {playoffMatchNumber}", 1) // Default fallback
+            _ => $"Match {playoffMatchNumber}" // Default fallback
         };
     }
 
-    private MatchScore? TransformScoreBreakdown(TBAMatch m, int matchNumber, string tournamentLevel)
-    {
-        if (m.ScoreBreakdown == null) return null;
-
-        try
-        {
-            // Parse the score breakdown JSON
-            var breakdown = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-                JsonSerializer.Serialize(m.ScoreBreakdown));
-
-            if (breakdown == null) return null;
-
-            var alliances = new List<AllianceScore>();
-
-            // Transform Blue alliance
-            if (breakdown.TryGetValue("blue", out var blueElement))
-            {
-                var blueAlliance = TransformAllianceScore(blueElement, "Blue");
-                if (blueAlliance != null) alliances.Add(blueAlliance);
-            }
-
-            // Transform Red alliance
-            if (breakdown.TryGetValue("red", out var redElement))
-            {
-                var redAlliance = TransformAllianceScore(redElement, "Red");
-                if (redAlliance != null) alliances.Add(redAlliance);
-            }
-
-            // Determine if coopertition bonus was achieved (both alliances must meet criteria)
-            var coopertitionAchieved = alliances.Count == 2 &&
-                                      alliances.All(a => a.CoopertitionCriteriaMet);
-
-            // Create MatchScore record
-            var matchScore = new MatchScore(
-                MatchLevel: tournamentLevel == "Qual" ? "Qualification" : "Playoff",
-                MatchNumber: matchNumber,
-                WinningAlliance: DetermineWinningAlliance(m),
-                Tiebreaker: new Tiebreaker(-1, ""),
-                CoopertitionBonusAchieved: coopertitionAchieved,
-                Alliances: alliances
-            )
-            {
-                AdditionalProperties = new Dictionary<string, object>()
-            };
-
-            // Extract and surface bonus properties from alliance details
-            ExtractBonusProperties(matchScore);
-
-            return matchScore;
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error transforming score breakdown for match {MatchNumber}", matchNumber);
-            return null;
-        }
-    }
-
-    private void ExtractBonusProperties(MatchScore matchScore)
-    {
-        if (matchScore.Alliances == null || matchScore.Alliances.Count == 0) return;
-        if (matchScore.AdditionalProperties == null) return;
-
-        // Get all properties from the first alliance that contain "bonus" in their name
-        var allianceType = typeof(AllianceScore);
-        var bonusProperties = allianceType.GetProperties()
-            .Where(p => p.Name.Contains("Bonus", StringComparison.OrdinalIgnoreCase) &&
-                       p.Name != "CoopertitionCriteriaMet") // Exclude this, it's not a top-level property
-            .ToList();
-
-        // Extract bonus values and add to AdditionalProperties
-        foreach (var property in bonusProperties)
-        {
-            // Convert property name to camelCase for JSON
-            var jsonPropertyName = ToCamelCase(property.Name);
-
-            // Check if any alliance has this bonus achieved (OR logic for boolean bonuses)
-            if (property.PropertyType == typeof(bool))
-            {
-                var anyAchieved = matchScore.Alliances
-                    .Select(a => (bool?)property.GetValue(a))
-                    .Any(v => v == true);
-
-                matchScore.AdditionalProperties[jsonPropertyName] = anyAchieved;
-            }
-            else
-            {
-                // For non-boolean bonus properties, take the value from the first alliance
-                var value = property.GetValue(matchScore.Alliances[0]);
-                if (value != null)
-                {
-                    matchScore.AdditionalProperties[jsonPropertyName] = value;
-                }
-            }
-        }
-    }
-
-    private string ToCamelCase(string str)
-    {
-        if (string.IsNullOrEmpty(str) || char.IsLower(str[0]))
-            return str;
-        return char.ToLower(str[0]) + str.Substring(1);
-    }
-
-    private int? DetermineWinningAlliance(TBAMatch m)
-    {
-        if (m.Alliances == null) return null;
-
-        var blueScore = m.Alliances.TryGetValue("blue", out var blue) ? blue.Score : 0;
-        var redScore = m.Alliances.TryGetValue("red", out var red) ? red.Score : 0;
-
-        if (blueScore > redScore) return 0; // Blue wins
-        if (redScore > blueScore) return 1; // Red wins
-        return -1; // Tie
-    }
-
-    private AllianceScore? TransformAllianceScore(JsonElement allianceElement, string allianceName)
-    {
-        try
-        {
-            // Parse reefs
-            Reef? autoReef = null;
-            if (allianceElement.TryGetProperty("autoReef", out var autoReefElement))
-            {
-                autoReef = ParseReef(autoReefElement);
-            }
-
-            Reef? teleopReef = null;
-            if (allianceElement.TryGetProperty("teleopReef", out var teleopReefElement))
-            {
-                teleopReef = ParseReef(teleopReefElement);
-            }
-
-            // Create AllianceScore record
-            return new AllianceScore(
-                Alliance: allianceName,
-                AutoLineRobot1: GetStringValue(allianceElement, "autoLineRobot1"),
-                EndGameRobot1: GetStringValue(allianceElement, "endGameRobot1"),
-                AutoLineRobot2: GetStringValue(allianceElement, "autoLineRobot2"),
-                EndGameRobot2: GetStringValue(allianceElement, "endGameRobot2"),
-                AutoLineRobot3: GetStringValue(allianceElement, "autoLineRobot3"),
-                EndGameRobot3: GetStringValue(allianceElement, "endGameRobot3"),
-                AutoReef: autoReef,
-                AutoCoralCount: GetIntValue(allianceElement, "autoCoralCount"),
-                AutoMobilityPoints: GetIntValue(allianceElement, "autoMobilityPoints"),
-                AutoPoints: GetIntValue(allianceElement, "autoPoints"),
-                AutoCoralPoints: GetIntValue(allianceElement, "autoCoralPoints"),
-                TeleopReef: teleopReef,
-                TeleopCoralCount: GetIntValue(allianceElement, "teleopCoralCount"),
-                TeleopPoints: GetIntValue(allianceElement, "teleopPoints"),
-                TeleopCoralPoints: GetIntValue(allianceElement, "teleopCoralPoints"),
-                AlgaePoints: GetIntValue(allianceElement, "algaePoints"),
-                NetAlgaeCount: GetIntValue(allianceElement, "netAlgaeCount"),
-                WallAlgaeCount: GetIntValue(allianceElement, "wallAlgaeCount"),
-                EndGameBargePoints: GetIntValue(allianceElement, "endGameBargePoints"),
-                AutoBonusAchieved: GetBoolValue(allianceElement, "autoBonusAchieved"),
-                CoralBonusAchieved: GetBoolValue(allianceElement, "coralBonusAchieved"),
-                BargeBonusAchieved: GetBoolValue(allianceElement, "bargeBonusAchieved"),
-                CoopertitionCriteriaMet: GetBoolValue(allianceElement, "coopertitionCriteriaMet"),
-                FoulCount: GetIntValue(allianceElement, "foulCount"),
-                TechFoulCount: GetIntValue(allianceElement, "techFoulCount"),
-                G206Penalty: GetBoolValue(allianceElement, "g206Penalty"),
-                G410Penalty: GetBoolValue(allianceElement, "g410Penalty"),
-                G418Penalty: GetBoolValue(allianceElement, "g418Penalty"),
-                G428Penalty: GetBoolValue(allianceElement, "g428Penalty"),
-                AdjustPoints: 0, // TBA doesn't provide this
-                FoulPoints: GetIntValue(allianceElement, "foulPoints"),
-                Rp: GetIntValue(allianceElement, "rp"),
-                TotalPoints: GetIntValue(allianceElement, "totalPoints")
-            );
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error transforming alliance score for {AllianceName}", allianceName);
-            return null;
-        }
-    }
-
-    private Reef ParseReef(JsonElement reefElement)
-    {
-        ReefRow? topRow = null;
-        if (reefElement.TryGetProperty("topRow", out var topRowElement))
-        {
-            topRow = ParseReefRow(topRowElement);
-        }
-
-        ReefRow? midRow = null;
-        if (reefElement.TryGetProperty("midRow", out var midRowElement))
-        {
-            midRow = ParseReefRow(midRowElement);
-        }
-
-        ReefRow? botRow = null;
-        if (reefElement.TryGetProperty("botRow", out var botRowElement))
-        {
-            botRow = ParseReefRow(botRowElement);
-        }
-
-        var trough = GetIntValue(reefElement, "trough");
-
-        return new Reef(topRow, midRow, botRow, trough);
-    }
-
-    private ReefRow ParseReefRow(JsonElement rowElement)
-    {
-        return new ReefRow(
-            NodeA: GetBoolValue(rowElement, "nodeA"),
-            NodeB: GetBoolValue(rowElement, "nodeB"),
-            NodeC: GetBoolValue(rowElement, "nodeC"),
-            NodeD: GetBoolValue(rowElement, "nodeD"),
-            NodeE: GetBoolValue(rowElement, "nodeE"),
-            NodeF: GetBoolValue(rowElement, "nodeF"),
-            NodeG: GetBoolValue(rowElement, "nodeG"),
-            NodeH: GetBoolValue(rowElement, "nodeH"),
-            NodeI: GetBoolValue(rowElement, "nodeI"),
-            NodeJ: GetBoolValue(rowElement, "nodeJ"),
-            NodeK: GetBoolValue(rowElement, "nodeK"),
-            NodeL: GetBoolValue(rowElement, "nodeL")
-        );
-    }
-
-    private string? GetStringValue(JsonElement element, string propertyName)
-    {
-        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
-            ? prop.GetString()
-            : null;
-    }
-
-    private int GetIntValue(JsonElement element, string propertyName)
-    {
-        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number
-            ? prop.GetInt32()
-            : 0;
-    }
-
-    private bool GetBoolValue(JsonElement element, string propertyName)
-    {
-        return element.TryGetProperty(propertyName, out var prop) &&
-               (prop.ValueKind == JsonValueKind.True || prop.ValueKind == JsonValueKind.False)
-            ? prop.GetBoolean()
-            : false;
-    }
-
-    private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel)
+    private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel, int year)
     {
         // Detect if match has been played by checking if score breakdown exists
         var matchHasBeenPlayed = m.ScoreBreakdown != null;
 
         // Helper function to convert -1 scores to null (TBA uses -1 for unplayed matches)
-        int? NormalizeScore(int? score) => score.HasValue && score.Value == -1 ? null : score;
+        int? NormalizeScore(int? score) => score is -1 ? null : score;
+
+        JsonElement? matchScores = null;
+        if (matchHasBeenPlayed)
+        {
+            if (year <= 2025)
+            {
+                // Use the 2025-specific typed transform, then round-trip through JSON to get a JsonElement.
+                var typed = Frc2025ScoreExtensions.Transform2025ScoreBreakdown(
+                    m.ScoreBreakdown, m.Alliances, matchNumber, tournamentLevel, logger);
+                if (typed != null)
+                    matchScores = JsonSerializer.SerializeToElement(typed);
+            }
+            else
+            {
+                // 2026+: forward the raw TBA score_breakdown as-is.
+                matchScores = JsonSerializer.SerializeToElement(m.ScoreBreakdown);
+            }
+        }
 
         var hm = new HybridMatch
         {
             Field = null,
             StartTime = m.Time.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.Time.Value).ToString("o") : null,
             AutoStartTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
-            MatchVideoLink = m.Videos != null && m.Videos.Count > 0 ? m.Videos[0].Key : null,
+            MatchVideoLink = m.Videos is { Count: > 0 } ? m.Videos[0].Key : null,
             MatchNumber = matchNumber,
             IsReplay = false,
             ActualStartTime = m.ActualTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.ActualTime.Value).ToString("o") : null,
@@ -890,7 +690,7 @@ public class FrcApiController(
             ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? NormalizeScore(v2.Score) : null,
             Teams = [],
             EventCode = m.EventKey,
-            MatchScores = matchHasBeenPlayed ? TransformScoreBreakdown(m, matchNumber, tournamentLevel) : null
+            MatchScores = matchScores
         };
 
         // If match has been played but time fields are missing, populate them
@@ -899,51 +699,40 @@ public class FrcApiController(
             var startTime = DateTimeOffset.FromUnixTimeSeconds(m.Time.Value);
 
             // Use startTime for actualStartTime if not provided
-            if (hm.ActualStartTime == null)
-            {
-                hm.ActualStartTime = startTime.ToString("o");
-            }
+            hm.ActualStartTime ??= startTime.ToString("o");
 
             // Use startTime for autoStartTime if not provided
-            if (hm.AutoStartTime == null)
-            {
-                hm.AutoStartTime = startTime.ToString("o");
-            }
+            hm.AutoStartTime ??= startTime.ToString("o");
 
             // Use startTime + 3 minutes for postResultTime if not provided
-            if (hm.PostResultTime == null)
-            {
-                hm.PostResultTime = startTime.AddMinutes(3).ToString("o");
-            }
+            hm.PostResultTime ??= startTime.AddMinutes(3).ToString("o");
         }
 
         // Map teams: red then blue, assign station names Red1..3 and Blue1..3
-        if (m.Alliances != null)
+        if (m.Alliances == null) return hm;
+        if (m.Alliances.TryGetValue("red", out var red))
         {
-            if (m.Alliances.TryGetValue("red", out var red))
+            for (var idx = 0; idx < red.TeamKeys.Count; idx++)
             {
-                for (var idx = 0; idx < red.TeamKeys.Count; idx++)
-                {
-                    var teamKey = red.TeamKeys[idx];
-                    var teamIdentifier = teamKey.Replace("frc", "");
-                    // Try to parse as int first, if it fails keep it as string for teams like "971B"
-                    object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
-                    var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
-                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red{idx + 1}", Surrogate = surrogate });
-                }
+                var teamKey = red.TeamKeys[idx];
+                var teamIdentifier = teamKey.Replace("frc", "");
+                // Try to parse as int first, if it fails keep it as string for teams like "971B"
+                object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
+                var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
+                hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red{idx + 1}", Surrogate = surrogate });
             }
+        }
 
-            if (m.Alliances.TryGetValue("blue", out var blue))
+        if (m.Alliances.TryGetValue("blue", out var blue))
+        {
+            for (var idx = 0; idx < blue.TeamKeys.Count; idx++)
             {
-                for (var idx = 0; idx < blue.TeamKeys.Count; idx++)
-                {
-                    var teamKey = blue.TeamKeys[idx];
-                    var teamIdentifier = teamKey.Replace("frc", "");
-                    // Try to parse as int first, if it fails keep it as string for teams like "971B"
-                    object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
-                    var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
-                    hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue{idx + 1}", Surrogate = surrogate });
-                }
+                var teamKey = blue.TeamKeys[idx];
+                var teamIdentifier = teamKey.Replace("frc", "");
+                // Try to parse as int first, if it fails keep it as string for teams like "971B"
+                object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
+                var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
+                hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue{idx + 1}", Surrogate = surrogate });
             }
         }
 
@@ -1107,7 +896,7 @@ public class FrcApiController(
         var cacheKey = $"frc:team:{team}:season:{season}:awards";
 
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult!.ToString());
+        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult.ToString());
 
         try
         {
@@ -1142,7 +931,7 @@ public class FrcApiController(
 
         // Check Redis cache first
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<List<TeamMedia>?>(cachedResult!.ToString());
+        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<List<TeamMedia>?>(cachedResult.ToString());
 
         try
         {

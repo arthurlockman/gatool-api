@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace GAToolAPI.Models;
@@ -31,8 +32,10 @@ public class HybridMatch
     public List<HybridTeam> Teams { get; set; } = new();
     public string? EventCode { get; set; }
     public string? DistrictCode { get; set; }
-    // Transformed score breakdown in FIRST API format
-    public MatchScore? MatchScores { get; set; }
+    // For 2025 and earlier: typed MatchScore serialised as a JsonElement.
+    // For 2026 and later: GenericMatchScoresResponse envelope serialised as a JsonElement,
+    // forwarded directly from the FIRST API response.
+    public JsonElement? MatchScores { get; set; }
 }
 
 public class HybridSchedule

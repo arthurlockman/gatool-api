@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using JetBrains.Annotations;
 
@@ -122,6 +123,7 @@ public record FrcTeam(
     string? DistrictCode,
     string? SchoolName,
     string? Website,
+    // ReSharper disable once InconsistentNaming
     string? HomeCMP);
 
 [UsedImplicitly]
@@ -215,10 +217,64 @@ public record MatchScore(
     public Dictionary<string, object>? AdditionalProperties { get; init; }
 };
 
+/// <summary>Response wrapper used for 2025 and earlier score endpoints.</summary>
 [UsedImplicitly]
 public record MatchScoresResponse(
     [property: JsonPropertyName("MatchScores")]
     List<MatchScore>? MatchScores);
+
+// ---------------------------------------------------------------------------
+// Year-agnostic score models (2026 and later)
+//
+// Every FRC season's score response shares a stable outer envelope and a
+// minimal common per-alliance shape.  Season-specific fields (e.g. reef
+// geometry in 2025, hub scores in 2026) are captured transparently by the
+// [JsonExtensionData] bags so they round-trip through serialization without
+// requiring a new typed model each year.
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// The minimal per-alliance data that has been present in every FRC season's
+/// score response.  Season-specific fields are preserved in
+/// <see cref="AdditionalProperties"/>.
+/// </summary>
+[UsedImplicitly]
+public record MatchScoreAllianceSummary(
+    string? Alliance,
+    int FoulPoints,
+    int AdjustPoints,
+    int Rp,
+    int TotalPoints)
+{
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+}
+
+/// <summary>
+/// Year-agnostic wrapper for a single match's score breakdown.  Fields common
+/// to all seasons are typed; everything else is surfaced via
+/// <see cref="AdditionalProperties"/> so no model changes are needed for future
+/// seasons.
+/// </summary>
+[UsedImplicitly]
+public record MatchScoreEnvelope(
+    string MatchLevel,
+    int? MatchNumber,
+    int? WinningAlliance,
+    Tiebreaker? Tiebreaker,
+    List<MatchScoreAllianceSummary>? Alliances)
+{
+    [JsonExtensionData]
+    public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+}
+
+/// <summary>Response wrapper used for 2026+ score endpoints.</summary>
+[UsedImplicitly]
+public record GenericMatchScoresResponse(
+    [property: JsonPropertyName("MatchScores")]
+    List<MatchScoreEnvelope>? MatchScores);
+
+// ...existing code...
 
 [UsedImplicitly]
 public record TeamAwardsResponse(List<Award>? Awards);
@@ -294,6 +350,7 @@ public record OffseasonTeam(
     int RookieYear,
     string? RobotName,
     string? DistrictCode,
+    // ReSharper disable once InconsistentNaming
     string? HomeCMP);
 
 [UsedImplicitly]
