@@ -20,7 +20,7 @@ public class UpdateGlobalHighScoresJob(
 
     private static string GetMatchKey(HybridMatch match)
     {
-        return $"{match.EventCode}|{match.MatchNumber}|{match.TournamentLevel}|{match.Field ?? ""}";
+        return $"{match.EventCode}|{match.MatchNumber}|{match.TournamentLevel}|{match.Description ?? ""}|{match.Field ?? ""}";
     }
 
     [Transaction]
