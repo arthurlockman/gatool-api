@@ -1,21 +1,20 @@
 using System.Text.Json;
 using GAToolAPI.Models;
-using Microsoft.Extensions.Logging;
 
 namespace GAToolAPI.Extensions;
 
 /// <summary>
-/// Score breakdown transformation logic specific to the 2025 FRC season (Reefscape).
-/// TBA returns a per-alliance score_breakdown object for this season which must be
-/// mapped onto the typed <see cref="MatchScore"/> / <see cref="AllianceScore"/> models.
-/// For 2026 and beyond the raw JSON from FIRST/TBA is forwarded directly, so no
-/// equivalent class is needed for future seasons.
+///     Score breakdown transformation logic specific to the 2025 FRC season (Reefscape).
+///     TBA returns a per-alliance score_breakdown object for this season which must be
+///     mapped onto the typed <see cref="MatchScore" /> / <see cref="AllianceScore" /> models.
+///     For 2026 and beyond the raw JSON from FIRST/TBA is forwarded directly, so no
+///     equivalent class is needed for future seasons.
 /// </summary>
 public static class Frc2025ScoreExtensions
 {
     /// <summary>
-    /// Transforms a TBA score_breakdown object into the 2025-season typed <see cref="MatchScore"/>.
-    /// Returns <c>null</c> if <paramref name="scoreBreakdown"/> is null or cannot be parsed.
+    ///     Transforms a TBA score_breakdown object into the 2025-season typed <see cref="MatchScore" />.
+    ///     Returns <c>null</c> if <paramref name="scoreBreakdown" /> is null or cannot be parsed.
     /// </summary>
     public static MatchScore? Transform2025ScoreBreakdown(
         object? scoreBreakdown,
@@ -50,12 +49,12 @@ public static class Frc2025ScoreExtensions
             var coopertitionAchieved = alliances.Count == 2 && alliances.All(a => a.CoopertitionCriteriaMet);
 
             var matchScore = new MatchScore(
-                MatchLevel: tournamentLevel == "Qual" ? "Qualification" : "Playoff",
-                MatchNumber: matchNumber,
-                WinningAlliance: DetermineWinningAlliance(tbaAlliances),
-                Tiebreaker: new Tiebreaker(-1, ""),
-                CoopertitionBonusAchieved: coopertitionAchieved,
-                Alliances: alliances
+                tournamentLevel == "Qual" ? "Qualification" : "Playoff",
+                matchNumber,
+                DetermineWinningAlliance(tbaAlliances),
+                new Tiebreaker(-1, ""),
+                coopertitionAchieved,
+                alliances
             )
             {
                 AdditionalProperties = new Dictionary<string, object>()
@@ -72,7 +71,8 @@ public static class Frc2025ScoreExtensions
         }
     }
 
-    private static AllianceScore? TransformAllianceScore(JsonElement allianceElement, string allianceName, ILogger? logger)
+    private static AllianceScore? TransformAllianceScore(JsonElement allianceElement, string allianceName,
+        ILogger? logger)
     {
         try
         {
@@ -85,40 +85,40 @@ public static class Frc2025ScoreExtensions
                 teleopReef = ParseReef(teleopReefElement);
 
             return new AllianceScore(
-                Alliance: allianceName,
-                AutoLineRobot1: GetStringValue(allianceElement, "autoLineRobot1"),
-                EndGameRobot1: GetStringValue(allianceElement, "endGameRobot1"),
-                AutoLineRobot2: GetStringValue(allianceElement, "autoLineRobot2"),
-                EndGameRobot2: GetStringValue(allianceElement, "endGameRobot2"),
-                AutoLineRobot3: GetStringValue(allianceElement, "autoLineRobot3"),
-                EndGameRobot3: GetStringValue(allianceElement, "endGameRobot3"),
-                AutoReef: autoReef,
-                AutoCoralCount: GetIntValue(allianceElement, "autoCoralCount"),
-                AutoMobilityPoints: GetIntValue(allianceElement, "autoMobilityPoints"),
-                AutoPoints: GetIntValue(allianceElement, "autoPoints"),
-                AutoCoralPoints: GetIntValue(allianceElement, "autoCoralPoints"),
-                TeleopReef: teleopReef,
-                TeleopCoralCount: GetIntValue(allianceElement, "teleopCoralCount"),
-                TeleopPoints: GetIntValue(allianceElement, "teleopPoints"),
-                TeleopCoralPoints: GetIntValue(allianceElement, "teleopCoralPoints"),
-                AlgaePoints: GetIntValue(allianceElement, "algaePoints"),
-                NetAlgaeCount: GetIntValue(allianceElement, "netAlgaeCount"),
-                WallAlgaeCount: GetIntValue(allianceElement, "wallAlgaeCount"),
-                EndGameBargePoints: GetIntValue(allianceElement, "endGameBargePoints"),
-                AutoBonusAchieved: GetBoolValue(allianceElement, "autoBonusAchieved"),
-                CoralBonusAchieved: GetBoolValue(allianceElement, "coralBonusAchieved"),
-                BargeBonusAchieved: GetBoolValue(allianceElement, "bargeBonusAchieved"),
-                CoopertitionCriteriaMet: GetBoolValue(allianceElement, "coopertitionCriteriaMet"),
-                FoulCount: GetIntValue(allianceElement, "foulCount"),
-                TechFoulCount: GetIntValue(allianceElement, "techFoulCount"),
-                G206Penalty: GetBoolValue(allianceElement, "g206Penalty"),
-                G410Penalty: GetBoolValue(allianceElement, "g410Penalty"),
-                G418Penalty: GetBoolValue(allianceElement, "g418Penalty"),
-                G428Penalty: GetBoolValue(allianceElement, "g428Penalty"),
-                AdjustPoints: 0, // TBA doesn't provide this
-                FoulPoints: GetIntValue(allianceElement, "foulPoints"),
-                Rp: GetIntValue(allianceElement, "rp"),
-                TotalPoints: GetIntValue(allianceElement, "totalPoints")
+                allianceName,
+                GetStringValue(allianceElement, "autoLineRobot1"),
+                GetStringValue(allianceElement, "endGameRobot1"),
+                GetStringValue(allianceElement, "autoLineRobot2"),
+                GetStringValue(allianceElement, "endGameRobot2"),
+                GetStringValue(allianceElement, "autoLineRobot3"),
+                GetStringValue(allianceElement, "endGameRobot3"),
+                autoReef,
+                GetIntValue(allianceElement, "autoCoralCount"),
+                GetIntValue(allianceElement, "autoMobilityPoints"),
+                GetIntValue(allianceElement, "autoPoints"),
+                GetIntValue(allianceElement, "autoCoralPoints"),
+                teleopReef,
+                GetIntValue(allianceElement, "teleopCoralCount"),
+                GetIntValue(allianceElement, "teleopPoints"),
+                GetIntValue(allianceElement, "teleopCoralPoints"),
+                GetIntValue(allianceElement, "algaePoints"),
+                GetIntValue(allianceElement, "netAlgaeCount"),
+                GetIntValue(allianceElement, "wallAlgaeCount"),
+                GetIntValue(allianceElement, "endGameBargePoints"),
+                GetBoolValue(allianceElement, "autoBonusAchieved"),
+                GetBoolValue(allianceElement, "coralBonusAchieved"),
+                GetBoolValue(allianceElement, "bargeBonusAchieved"),
+                GetBoolValue(allianceElement, "coopertitionCriteriaMet"),
+                GetIntValue(allianceElement, "foulCount"),
+                GetIntValue(allianceElement, "techFoulCount"),
+                GetBoolValue(allianceElement, "g206Penalty"),
+                GetBoolValue(allianceElement, "g410Penalty"),
+                GetBoolValue(allianceElement, "g418Penalty"),
+                GetBoolValue(allianceElement, "g428Penalty"),
+                0, // TBA doesn't provide this
+                GetIntValue(allianceElement, "foulPoints"),
+                GetIntValue(allianceElement, "rp"),
+                GetIntValue(allianceElement, "totalPoints")
             );
         }
         catch (Exception ex)
@@ -145,21 +145,23 @@ public static class Frc2025ScoreExtensions
         return new Reef(topRow, midRow, botRow, GetIntValue(reefElement, "trough"));
     }
 
-    private static ReefRow ParseReefRow(JsonElement rowElement) =>
-        new(
-            NodeA: GetBoolValue(rowElement, "nodeA"),
-            NodeB: GetBoolValue(rowElement, "nodeB"),
-            NodeC: GetBoolValue(rowElement, "nodeC"),
-            NodeD: GetBoolValue(rowElement, "nodeD"),
-            NodeE: GetBoolValue(rowElement, "nodeE"),
-            NodeF: GetBoolValue(rowElement, "nodeF"),
-            NodeG: GetBoolValue(rowElement, "nodeG"),
-            NodeH: GetBoolValue(rowElement, "nodeH"),
-            NodeI: GetBoolValue(rowElement, "nodeI"),
-            NodeJ: GetBoolValue(rowElement, "nodeJ"),
-            NodeK: GetBoolValue(rowElement, "nodeK"),
-            NodeL: GetBoolValue(rowElement, "nodeL")
+    private static ReefRow ParseReefRow(JsonElement rowElement)
+    {
+        return new ReefRow(
+            GetBoolValue(rowElement, "nodeA"),
+            GetBoolValue(rowElement, "nodeB"),
+            GetBoolValue(rowElement, "nodeC"),
+            GetBoolValue(rowElement, "nodeD"),
+            GetBoolValue(rowElement, "nodeE"),
+            GetBoolValue(rowElement, "nodeF"),
+            GetBoolValue(rowElement, "nodeG"),
+            GetBoolValue(rowElement, "nodeH"),
+            GetBoolValue(rowElement, "nodeI"),
+            GetBoolValue(rowElement, "nodeJ"),
+            GetBoolValue(rowElement, "nodeK"),
+            GetBoolValue(rowElement, "nodeL")
         );
+    }
 
     private static void ExtractBonusProperties(MatchScore matchScore)
     {
@@ -201,24 +203,31 @@ public static class Frc2025ScoreExtensions
         return -1;
     }
 
-    private static string? GetStringValue(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
+    private static string? GetStringValue(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.String
             ? prop.GetString()
             : null;
+    }
 
-    private static int GetIntValue(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number
+    private static int GetIntValue(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) && prop.ValueKind == JsonValueKind.Number
             ? prop.GetInt32()
             : 0;
+    }
 
-    private static bool GetBoolValue(JsonElement element, string propertyName) =>
-        element.TryGetProperty(propertyName, out var prop) &&
-        prop.ValueKind is JsonValueKind.True or JsonValueKind.False &&
-        prop.GetBoolean();
+    private static bool GetBoolValue(JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var prop) &&
+               prop.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+               prop.GetBoolean();
+    }
 
-    private static string ToCamelCase(string str) =>
-        string.IsNullOrEmpty(str) || char.IsLower(str[0])
+    private static string ToCamelCase(string str)
+    {
+        return string.IsNullOrEmpty(str) || char.IsLower(str[0])
             ? str
-            : char.ToLower(str[0]) + str[1..];
+            : char.ToLowerInvariant(str[0]) + str[1..];
+    }
 }
-

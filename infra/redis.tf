@@ -8,10 +8,10 @@ resource "azapi_resource" "redis_cluster" {
   body = {
     properties = {
       minimumTlsVersion = "1.2"
-      highAvailability  = "Disabled"  # Set to "Enabled" for HA if needed
+      highAvailability  = "Disabled" # Set to "Enabled" for HA if needed
     }
     sku = {
-      name = "Balanced_B0"  # Cheapest SKU - perfect for development/small workloads
+      name = "Balanced_B0" # Cheapest SKU - perfect for development/small workloads
     }
   }
 
@@ -32,10 +32,10 @@ resource "azapi_resource" "redis_database" {
   body = {
     properties = {
       accessKeysAuthentication = "Enabled"
-      clientProtocol          = "Encrypted"
-      port                    = 10000
-      clusteringPolicy        = "OSSCluster"
-      evictionPolicy          = "AllKeysLRU"
+      clientProtocol           = "Encrypted"
+      port                     = 10000
+      clusteringPolicy         = "OSSCluster"
+      evictionPolicy           = "AllKeysLRU"
       persistence = {
         aofEnabled = false
         rdbEnabled = false
@@ -43,15 +43,15 @@ resource "azapi_resource" "redis_database" {
     }
   }
 
-  depends_on = [azapi_resource.redis_cluster]
+  depends_on                = [azapi_resource.redis_cluster]
   schema_validation_enabled = false
 }
 
 # Get the access keys for the Redis database
 data "azapi_resource_action" "redis_keys" {
-  type        = "Microsoft.Cache/redisEnterprise/databases@2024-09-01-preview"
-  resource_id = azapi_resource.redis_database.id
-  action      = "listKeys"
-  depends_on  = [azapi_resource.redis_database]
+  type                   = "Microsoft.Cache/redisEnterprise/databases@2024-09-01-preview"
+  resource_id            = azapi_resource.redis_database.id
+  action                 = "listKeys"
+  depends_on             = [azapi_resource.redis_database]
   response_export_values = ["*"]
 }

@@ -1,5 +1,4 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Exceptions;
 using Microsoft.AspNetCore.WebUtilities;
@@ -27,16 +26,6 @@ public class TBAApiService
             PropertyNameCaseInsensitive = true,
             PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
         };
-    }
-
-    public async Task<JsonArray?> GetGeneric(string path, IDictionary<string, string?>? query = null)
-    {
-        var requestUrl = query != null ? QueryHelpers.AddQueryString(path, query) : path;
-        var response = await _httpClient.GetAsync(requestUrl);
-
-        if (response.IsSuccessStatusCode) return await response.Content.ReadFromJsonAsync<JsonArray>(_jsonOptions);
-        var errorContent = await response.Content.ReadAsStringAsync();
-        throw new ExternalApiException("The Blue Alliance", response.StatusCode, errorContent);
     }
 
     public async Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null)

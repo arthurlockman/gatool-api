@@ -8,5 +8,5 @@ public class TeamAvatar
 
 public class TeamAvatarResponse
 {
-    public List<TeamAvatar> Teams { get; set; } = new();
+    public List<TeamAvatar> Teams { get; set; } = [];
 }

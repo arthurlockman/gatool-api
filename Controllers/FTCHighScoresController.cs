@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json.Nodes;
 using GAToolAPI.Attributes;
 using GAToolAPI.Extensions;
 using GAToolAPI.Models;
@@ -11,6 +10,7 @@ namespace GAToolAPI.Controllers;
 
 [Route("ftc/v2/{year:int}/highscores")]
 [OpenApiTag("FTC High Scores")]
+// ReSharper disable once InconsistentNaming
 public class FTCHighScoresController(
     FTCApiService ftcApi,
     FTCScheduleService ftcSchedule,
@@ -48,10 +48,7 @@ public class FTCHighScoresController(
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForEvent(int year, string eventCode)
     {
-        if (eventCode.Equals("offline", StringComparison.CurrentCultureIgnoreCase))
-        {
-            return Ok(new List<HighScore>());
-        }
+        if (eventCode.Equals("offline", StringComparison.CurrentCultureIgnoreCase)) return Ok(new List<HighScore>());
 
         var events = await ftcApi.Get<FTCEventListResponse>($"{year}/events?eventCode={eventCode}");
         if (events?.Events == null || events.Events.Count < 1) return NotFound("Event not found");

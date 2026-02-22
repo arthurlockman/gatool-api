@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.WebUtilities;
 
 namespace GAToolAPI.Services;
 
+// ReSharper disable once InconsistentNaming
 public class FTCScoutApiService : IApiService
 {
     private readonly HttpClient _httpClient;

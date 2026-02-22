@@ -18,10 +18,7 @@ public class NewRelicRequestFilter(RequestDelegate next)
 
         // Ignore livecheck and version endpoints from Apdex calculation
         var path = context.Request.Path.Value?.ToLowerInvariant();
-        if (path is "/livecheck" or "/version")
-        {
-            NewRelic.Api.Agent.NewRelic.IgnoreApdex();
-        }
+        if (path is "/livecheck" or "/version") NewRelic.Api.Agent.NewRelic.IgnoreApdex();
 
         // Ignore any swagger-based requests entirely
         if (path != null && path.Contains("swagger"))

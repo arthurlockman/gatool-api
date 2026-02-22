@@ -30,8 +30,8 @@ public static class ScoreExtensions
         // Categorize matches based on tournament level and penalty conditions
         foreach (var match in matchList)
         {
-            var isPlayoff = match.TournamentLevel?.ToLower() == "playoff";
-            var isQual = match.TournamentLevel?.ToLower() == "qualification";
+            var isPlayoff = match.TournamentLevel?.ToLowerInvariant() == "playoff";
+            var isQual = match.TournamentLevel?.ToLowerInvariant() == "qualification";
 
             var scoreBlueFoul = match.ScoreBlueFoul ?? 0;
             var scoreRedFoul = match.ScoreRedFoul ?? 0;
@@ -73,49 +73,49 @@ public static class ScoreExtensions
         if (overallHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(overallHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "overall", "playoff", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "overall", "playoff", match, alliance, prefix));
         }
 
         if (overallHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(overallHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "overall", "qual", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "overall", "qual", match, alliance, prefix));
         }
 
         if (penaltyFreeHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(penaltyFreeHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "playoff", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "playoff", match, alliance, prefix));
         }
 
         if (penaltyFreeHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(penaltyFreeHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "qual", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "qual", match, alliance, prefix));
         }
 
         if (offsettingPenaltyHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(offsettingPenaltyHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "playoff", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "playoff", match, alliance, prefix));
         }
 
         if (offsettingPenaltyHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(offsettingPenaltyHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "qual", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "offsetting", "qual", match, alliance, prefix));
         }
 
         if (tbaPenaltyFreeHighScoreQual.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(tbaPenaltyFreeHighScoreQual);
-            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "qual", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "qual", match, alliance, prefix));
         }
 
         if (tbaPenaltyFreeHighScorePlayoff.Count > 0)
         {
             var (match, alliance, score) = FindHighestScore(tbaPenaltyFreeHighScorePlayoff);
-            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "playoff", match, alliance, score, prefix));
+            highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "playoff", match, alliance, prefix));
         }
 
         return highScoresData;
@@ -143,7 +143,7 @@ public static class ScoreExtensions
     }
 
     private static HighScore BuildHighScoreJson(int year, string category, string tournamentLevel,
-        HybridMatch match, string alliance, int score, string? prefix)
+        HybridMatch match, string alliance, string? prefix)
     {
         return new HighScore
         {

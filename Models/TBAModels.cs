@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using JetBrains.Annotations;
+// ReSharper disable InconsistentNaming
 
 namespace GAToolAPI.Models;
 
@@ -67,8 +68,8 @@ public class TBAEvent
     public string? Website { get; set; }
     public string? FirstEventId { get; set; }
     public string? FirstEventCode { get; set; }
-    public List<TBAWebcast> Webcasts { get; set; } = new();
-    public List<string> DivisionKeys { get; set; } = new();
+    public List<TBAWebcast> Webcasts { get; set; } = [];
+    public List<string> DivisionKeys { get; set; } = [];
     public string? ParentEventKey { get; set; }
     public int? PlayoffType { get; set; }
     public string? PlayoffTypeString { get; set; }
@@ -77,35 +78,59 @@ public class TBAEvent
 
 [UsedImplicitly]
 public record RawTbaEvent(
-    [property: JsonPropertyName("address")] string? Address,
+    [property: JsonPropertyName("address")]
+    string? Address,
     [property: JsonPropertyName("city")] string? City,
-    [property: JsonPropertyName("country")] string? Country,
-    [property: JsonPropertyName("district")] object? District,
-    [property: JsonPropertyName("division_keys")] List<string>? DivisionKeys,
-    [property: JsonPropertyName("end_date")] string? EndDate,
-    [property: JsonPropertyName("event_code")] string? EventCode,
-    [property: JsonPropertyName("event_type")] int? EventType,
-    [property: JsonPropertyName("event_type_string")] string? EventTypeString,
-    [property: JsonPropertyName("first_event_code")] string? FirstEventCode,
-    [property: JsonPropertyName("first_event_id")] string? FirstEventId,
-    [property: JsonPropertyName("gmaps_place_id")] string? GmapsPlaceId,
-    [property: JsonPropertyName("gmaps_url")] string? GmapsUrl,
+    [property: JsonPropertyName("country")]
+    string? Country,
+    [property: JsonPropertyName("district")]
+    object? District,
+    [property: JsonPropertyName("division_keys")]
+    List<string>? DivisionKeys,
+    [property: JsonPropertyName("end_date")]
+    string? EndDate,
+    [property: JsonPropertyName("event_code")]
+    string? EventCode,
+    [property: JsonPropertyName("event_type")]
+    int? EventType,
+    [property: JsonPropertyName("event_type_string")]
+    string? EventTypeString,
+    [property: JsonPropertyName("first_event_code")]
+    string? FirstEventCode,
+    [property: JsonPropertyName("first_event_id")]
+    string? FirstEventId,
+    [property: JsonPropertyName("gmaps_place_id")]
+    string? GmapsPlaceId,
+    [property: JsonPropertyName("gmaps_url")]
+    string? GmapsUrl,
     [property: JsonPropertyName("key")] string? Key,
     [property: JsonPropertyName("lat")] double? Lat,
     [property: JsonPropertyName("lng")] double? Lng,
-    [property: JsonPropertyName("location_name")] string? LocationName,
+    [property: JsonPropertyName("location_name")]
+    string? LocationName,
     [property: JsonPropertyName("name")] string? Name,
-    [property: JsonPropertyName("parent_event_key")] string? ParentEventKey,
-    [property: JsonPropertyName("playoff_type")] int? PlayoffType,
-    [property: JsonPropertyName("playoff_type_string")] string? PlayoffTypeString,
-    [property: JsonPropertyName("postal_code")] string? PostalCode,
-    [property: JsonPropertyName("remap_teams")] Dictionary<string, string>? RemapTeams,
-    [property: JsonPropertyName("short_name")] string? ShortName,
-    [property: JsonPropertyName("start_date")] string? StartDate,
-    [property: JsonPropertyName("state_prov")] string? StateProv,
-    [property: JsonPropertyName("timezone")] string? Timezone,
-    [property: JsonPropertyName("webcasts")] List<object>? Webcasts,
-    [property: JsonPropertyName("website")] string? Website,
+    [property: JsonPropertyName("parent_event_key")]
+    string? ParentEventKey,
+    [property: JsonPropertyName("playoff_type")]
+    int? PlayoffType,
+    [property: JsonPropertyName("playoff_type_string")]
+    string? PlayoffTypeString,
+    [property: JsonPropertyName("postal_code")]
+    string? PostalCode,
+    [property: JsonPropertyName("remap_teams")]
+    Dictionary<string, string>? RemapTeams,
+    [property: JsonPropertyName("short_name")]
+    string? ShortName,
+    [property: JsonPropertyName("start_date")]
+    string? StartDate,
+    [property: JsonPropertyName("state_prov")]
+    string? StateProv,
+    [property: JsonPropertyName("timezone")]
+    string? Timezone,
+    [property: JsonPropertyName("webcasts")]
+    List<object>? Webcasts,
+    [property: JsonPropertyName("website")]
+    string? Website,
     [property: JsonPropertyName("week")] int? Week,
     [property: JsonPropertyName("year")] int? Year
 );
@@ -119,9 +144,11 @@ public class TBAVideo
 
 public class TBAMatchAlliance
 {
-    [JsonPropertyName("team_keys")] public List<string> TeamKeys { get; set; } = new();
+    [JsonPropertyName("team_keys")] public List<string> TeamKeys { get; set; } = [];
     [JsonPropertyName("score")] public int? Score { get; set; }
-    [JsonPropertyName("surrogate_team_keys")] public List<string>? SurrogateTeamKeys { get; set; }
+
+    [JsonPropertyName("surrogate_team_keys")]
+    public List<string>? SurrogateTeamKeys { get; set; }
 }
 
 public class TBAMatch
@@ -141,8 +168,12 @@ public class TBAMatch
 
 public class TBAAllianceStatus
 {
-    [JsonPropertyName("current_level_record")] public TBAWinLossRecord? CurrentLevelRecord { get; set; }
-    [JsonPropertyName("double_elim_round")] public string? DoubleElimRound { get; set; }
+    [JsonPropertyName("current_level_record")]
+    public TBAWinLossRecord? CurrentLevelRecord { get; set; }
+
+    [JsonPropertyName("double_elim_round")]
+    public string? DoubleElimRound { get; set; }
+
     public string? Level { get; set; }
     [JsonPropertyName("playoff_type")] public int? PlayoffType { get; set; }
     public TBAWinLossRecord? Record { get; set; }
@@ -188,16 +219,21 @@ public class TBAEventRankings
 
 [UsedImplicitly]
 public record RawTbaAwardRecipient(
-    [property: JsonPropertyName("awardee")] string? Awardee,
-    [property: JsonPropertyName("team_key")] string? TeamKey
+    [property: JsonPropertyName("awardee")]
+    string? Awardee,
+    [property: JsonPropertyName("team_key")]
+    string? TeamKey
 );
 
 [UsedImplicitly]
 public record RawTbaAward(
-    [property: JsonPropertyName("award_type")] int? AwardType,
-    [property: JsonPropertyName("event_key")] string? EventKey,
+    [property: JsonPropertyName("award_type")]
+    int? AwardType,
+    [property: JsonPropertyName("event_key")]
+    string? EventKey,
     [property: JsonPropertyName("name")] string? Name,
-    [property: JsonPropertyName("recipient_list")] List<RawTbaAwardRecipient>? RecipientList,
+    [property: JsonPropertyName("recipient_list")]
+    List<RawTbaAwardRecipient>? RecipientList,
     [property: JsonPropertyName("year")] int? Year
 );
 

@@ -11,7 +11,10 @@ namespace GAToolAPI.Controllers;
 
 [Route("/v3/system")]
 [OpenApiTag("Administration")]
-public class AdminController(UserStorageService userStorage, IConnectionMultiplexer redis, ILogger<AdminController> logger) : ControllerBase
+public class AdminController(
+    UserStorageService userStorage,
+    IConnectionMultiplexer redis,
+    ILogger<AdminController> logger) : ControllerBase
 {
     [HttpPut("announcements")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -25,7 +28,7 @@ public class AdminController(UserStorageService userStorage, IConnectionMultiple
     [HttpPut("announcements/{eventCode}")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     [Authorize("user")]
-    public async Task<IActionResult> StoreEventAnnouncements([FromBody] JsonNode body, string eventCode)
+    public async Task<IActionResult> StoreEventAnnouncements([FromBody] JsonNode? body, string eventCode)
     {
         var json = body?.ToJsonString() ?? "[]";
         await userStorage.StoreEventAnnouncements(eventCode, json);

@@ -8,11 +8,11 @@ namespace GAToolAPI.Controllers;
 
 [ApiController]
 [Route("v3")]
-public class FrcTeamDataController(TBAApiService tbaApi): ControllerBase
+public class FrcTeamDataController(TBAApiService tbaApi) : ControllerBase
 {
     [HttpGet("team/{teamNumber:int}/appearances")]
     [ProducesResponseType<List<RawTbaEvent>>(StatusCodes.Status200OK)]
-    [RedisCache("frcapi:teamappearances",  RedisCacheTime.ThreeDays)]
+    [RedisCache("frcapi:teamappearances", RedisCacheTime.ThreeDays)]
     [OpenApiTag("FRC Team Data")]
     public async Task<ActionResult> GetAppearances(int teamNumber)
     {

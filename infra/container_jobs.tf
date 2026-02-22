@@ -8,8 +8,8 @@ resource "azurerm_container_app_job" "update_high_scores" {
   replica_retry_limit          = 1
 
   schedule_trigger_config {
-    cron_expression = "*/15 * * * *" # Every 15 minutes
-    parallelism     = 1
+    cron_expression          = "*/15 * * * *" # Every 15 minutes
+    parallelism              = 1
     replica_completion_count = 1
   }
 
@@ -76,8 +76,8 @@ resource "azurerm_container_app_job" "sync_users" {
   replica_retry_limit          = 2
 
   schedule_trigger_config {
-    cron_expression = "0 2 * * *" # Daily at 2 AM UTC
-    parallelism     = 1
+    cron_expression          = "0 2 * * *" # Daily at 2 AM UTC
+    parallelism              = 1
     replica_completion_count = 1
   }
 

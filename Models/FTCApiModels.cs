@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using JetBrains.Annotations;
+// ReSharper disable InconsistentNaming
 
 namespace GAToolAPI.Models;
 
@@ -36,7 +37,8 @@ public record FTCLeague(
 
 [UsedImplicitly]
 public record FTCLeagueListResponse(
-    [property: JsonPropertyName("leagues")] List<FTCLeague>? Leagues,
+    [property: JsonPropertyName("leagues")]
+    List<FTCLeague>? Leagues,
     [property: JsonPropertyName("leagueCount")]
     int LeagueCount);
 
@@ -76,10 +78,8 @@ public record FTCHybridMatch(
     int? ScoreBlueFoul,
     [property: JsonPropertyName("scoreBlueAuto")]
     int? ScoreBlueAuto,
-    [property: JsonPropertyName("teams")]
-    List<FTCScheduleTeam>? Teams,
-    [property: JsonPropertyName("field")]
-    string? Field,
+    [property: JsonPropertyName("teams")] List<FTCScheduleTeam>? Teams,
+    [property: JsonPropertyName("field")] string? Field,
     [property: JsonPropertyName("isReplay")]
     bool? IsReplay,
     [property: JsonPropertyName("matchVideoLink")]

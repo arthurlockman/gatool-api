@@ -10,7 +10,7 @@ namespace GAToolAPI.Controllers;
 
 [Route("ftc/v2")]
 [OpenApiTag("Community Updates")]
-public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataService teamData): ControllerBase
+public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataService teamData) : ControllerBase
 {
     [HttpGet("team/{teamNumber}/updates")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -59,17 +59,19 @@ public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
         var teamList = await teamData.GetFtcTeamData(year, eventCode);
         if (teamList == null) return NoContent();
 
-        var teamNumbers = teamList?["teams"]?.AsArray().Select(t => t?["teamNumber"]?.ToString());
+        var teamNumbers = teamList["teams"]?.AsArray().Select(t => t?["teamNumber"]?.ToString());
         if (teamNumbers == null) return NoContent();
         var tasks = teamNumbers.Select(async t =>
         {
             if (t == null) return null;
             var update = await userStorage.GetTeamUpdates(t, true);
-            return string.IsNullOrWhiteSpace(update) ? null : new
-            {
-                teamNumber = t,
-                updates = JsonSerializer.Deserialize<JsonObject>(update)
-            };
+            return string.IsNullOrWhiteSpace(update)
+                ? null
+                : new
+                {
+                    teamNumber = t,
+                    updates = JsonSerializer.Deserialize<JsonObject>(update)
+                };
         });
         var data = await Task.WhenAll(tasks);
         return Ok(data.Where(d => d != null));

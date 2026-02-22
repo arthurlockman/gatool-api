@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -9,34 +10,31 @@ using StackExchange.Redis;
 namespace GAToolAPI.Attributes;
 
 /// <summary>
-/// Static class that provides functionality to ignore caching for the current request
+///     Static class that provides functionality to ignore caching for the current request
 /// </summary>
 public static class RedisCache
 {
     private const string IgnoreCacheKey = "RedisCache_IgnoreCurrentRequest";
 
     /// <summary>
-    /// Call this method within a controller action to prevent the response from being cached
+    ///     Call this method within a controller action to prevent the response from being cached
     /// </summary>
     /// <param name="httpContext">The current HttpContext (optional - will use current context if null)</param>
     public static void IgnoreCurrentRequest(HttpContext? httpContext = null)
     {
         httpContext ??= GetCurrentHttpContext();
-        if (httpContext != null)
-        {
-            httpContext.Items[IgnoreCacheKey] = true;
-        }
+        httpContext?.Items[IgnoreCacheKey] = true;
     }
 
     /// <summary>
-    /// Checks if the current request should be ignored for caching
+    ///     Checks if the current request should be ignored for caching
     /// </summary>
     /// <param name="httpContext">The HttpContext to check</param>
     /// <returns>True if caching should be ignored, false otherwise</returns>
     internal static bool ShouldIgnoreCurrentRequest(HttpContext httpContext)
     {
         return httpContext.Items.ContainsKey(IgnoreCacheKey) &&
-               httpContext.Items[IgnoreCacheKey] is bool ignore && ignore;
+               httpContext.Items[IgnoreCacheKey] is true;
     }
 
     private static HttpContext? GetCurrentHttpContext()
@@ -47,7 +45,7 @@ public static class RedisCache
 }
 
 /// <summary>
-/// Simple service locator to access HttpContext when not directly available
+///     Simple service locator to access HttpContext when not directly available
 /// </summary>
 public static class ServiceLocator
 {
@@ -75,7 +73,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
             var cachedResult = await redis.StringGetAsync(cacheKey);
             if (!string.IsNullOrEmpty(cachedResult))
             {
-                var cachedObject = JsonSerializer.Deserialize<object>(cachedResult!.ToString());
+                var cachedObject = JsonSerializer.Deserialize<object>(cachedResult.ToString());
                 context.Result = new OkObjectResult(cachedObject);
                 return;
             }
@@ -101,25 +99,21 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
             select $"{queryParam.Key}:{queryParam.Value}");
 
         // Include POST body data in cache key for POST/PUT/PATCH requests
-        if (context.HttpContext.Request.Method is "POST" or "PUT" or "PATCH")
-        {
-            // Find parameters marked with [FromBody] attribute
-            var fromBodyParams = context.ActionDescriptor.Parameters
-                .Where(p => p.BindingInfo?.BindingSource?.CanAcceptDataFrom(BindingSource.Body) == true)
-                .Select(p => p.Name)
-                .Where(name => context.ActionArguments.ContainsKey(name) && context.ActionArguments[name] != null)
-                .Select(name => context.ActionArguments[name]!)
-                .ToList();
+        if (context.HttpContext.Request.Method is not ("POST" or "PUT" or "PATCH")) return string.Join(":", keyParts);
+        // Find parameters marked with [FromBody] attribute
+        var fromBodyParams = context.ActionDescriptor.Parameters
+            .Where(p => p.BindingInfo?.BindingSource?.CanAcceptDataFrom(BindingSource.Body) == true)
+            .Select(p => p.Name)
+            .Where(name => context.ActionArguments.ContainsKey(name) && context.ActionArguments[name] != null)
+            .Select(name => context.ActionArguments[name]!)
+            .ToList();
 
-            if (fromBodyParams.Count > 0)
-            {
-                // Serialize body parameters and create a hash for the cache key
-                // Sort lists within objects to ensure consistent hashing regardless of order
-                var bodyJson = JsonSerializer.Serialize(fromBodyParams, _jsonOptions);
-                var bodyHash = ComputeHash(bodyJson);
-                keyParts.Add($"body:{bodyHash}");
-            }
-        }
+        if (fromBodyParams.Count <= 0) return string.Join(":", keyParts);
+        // Serialize body parameters and create a hash for the cache key
+        // Sort lists within objects to ensure consistent hashing regardless of order
+        var bodyJson = JsonSerializer.Serialize(fromBodyParams, _jsonOptions);
+        var bodyHash = ComputeHash(bodyJson);
+        keyParts.Add($"body:{bodyHash}");
 
         return string.Join(":", keyParts);
     }
@@ -132,6 +126,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
     }
 }
 
+[SuppressMessage("ReSharper", "MemberCanBePrivate.Global")]
 public static class RedisCacheTime
 {
     public const int OneMinute = 1;

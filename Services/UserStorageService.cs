@@ -212,7 +212,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
             catch (Exception ex)
             {
                 // Skip corrupted or invalid blobs
-                logger.LogError(ex, ex.Message);
+                logger.LogError(ex, "{ExMessage}", ex.Message);
             }
 
         return results;

@@ -55,7 +55,7 @@ resource "null_resource" "request_managed_certificate" {
 
   triggers = {
     # Use a stable trigger that won't change unless we actually want to recreate the certificate
-    hostname = "api.gatool.org"
+    hostname      = "api.gatool.org"
     container_app = var.containerapp_name
   }
 

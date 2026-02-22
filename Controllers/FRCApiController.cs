@@ -118,7 +118,7 @@ public class FrcApiController(
 
     [HttpGet("scores/{eventCode}/{tournamentLevel}/{start}/{end}")]
     [OpenApiTag("FRC Schedules and Results")]
-    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)]        // 2025 and earlier
+    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)] // 2025 and earlier
     [ProducesResponseType(typeof(GenericMatchScoresResponse), (int)HttpStatusCode.OK)] // 2026 and later
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetScores(string year, string eventCode, string tournamentLevel,
@@ -132,7 +132,9 @@ public class FrcApiController(
             var queryParams = start == end
                 ? new Dictionary<string, string?> { ["matchNumber"] = start }
                 : new { start, end }.ToParameterDictionary();
-            var result = await frcApiClient.Get<GenericMatchScoresResponse>($"{year}/scores/{eventCode}/{tournamentLevel}", queryParams);
+            var result =
+                await frcApiClient.Get<GenericMatchScoresResponse>($"{year}/scores/{eventCode}/{tournamentLevel}",
+                    queryParams);
             if (result == null) return NoContent();
             return Ok(result);
         }
@@ -152,7 +154,7 @@ public class FrcApiController(
 
     [HttpGet("scores/{eventCode}/{tournamentLevel}")]
     [OpenApiTag("FRC Schedules and Results")]
-    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)]        // 2025 and earlier
+    [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)] // 2025 and earlier
     [ProducesResponseType(typeof(GenericMatchScoresResponse), (int)HttpStatusCode.OK)] // 2026 and later
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetScores(string year, string eventCode, string tournamentLevel)
@@ -411,7 +413,6 @@ public class FrcApiController(
 
             // Transform TBA format to FIRST API format
             foreach (var team in sortedTeams)
-            {
                 try
                 {
                     var transformedTeam = new OffseasonTeam(team.TeamNumber, team.Name, team.Nickname, null, team.City,
@@ -423,7 +424,6 @@ public class FrcApiController(
                     logger.LogError(ex, "Error parsing team data: {TeamData}",
                         JsonSerializer.Serialize(team));
                 }
-            }
 
             return Ok(new OffseasonTeamsResponse(result, result.Count, result.Count, 1, 1));
         }
@@ -476,7 +476,6 @@ public class FrcApiController(
             // Transform TBA format to FIRST API format, filter for offseason events
             // Include: Offseason (99), Preseason (100), and Unlabeled (-1) events
             foreach (var evt in tbaResponse)
-            {
                 try
                 {
                     // Filter for non-official events: Offseason, Preseason, Unlabeled
@@ -518,7 +517,6 @@ public class FrcApiController(
                     logger.LogError(ex, "Error parsing event data: {EventData}",
                         JsonSerializer.Serialize(evt));
                 }
-            }
 
             return Ok(new OffseasonEventsResponse(result, result.Count));
         }
@@ -561,17 +559,17 @@ public class FrcApiController(
 
             // Process qualification matches
             foreach (var m in qualMatches)
-            {
                 try
                 {
-                    var hm = CreateHybridMatch(m, m.MatchNumber ?? 0, $"Qualification {m.MatchNumber ?? 0}", "Qual", year);
+                    var hm = CreateHybridMatch(m, m.MatchNumber ?? 0, $"Qualification {m.MatchNumber ?? 0}", "Qual",
+                        year);
                     hybridMatches.Add(hm);
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error mapping qual TBAMatch to HybridMatch: {Match}", JsonSerializer.Serialize(m));
+                    logger.LogError(ex, "Error mapping qual TBAMatch to HybridMatch: {Match}",
+                        JsonSerializer.Serialize(m));
                 }
-            }
 
             // Determine tournament size by counting unique sets in quarterfinals and semifinals
             var qfSets = sortedPlayoffs.Where(m => m.CompLevel == "qf").Select(m => m.SetNumber).Distinct().Count();
@@ -579,14 +577,13 @@ public class FrcApiController(
 
             // Determine tournament structure
             int tournamentSize;
-            if (qfSets >= 4 || sfSets >= 8) tournamentSize = 8;  // 8 alliances (has quarterfinals OR many semifinals)
-            else if (sfSets >= 2) tournamentSize = 4;  // 4 alliances (has 2-7 semifinals)
-            else tournamentSize = 2;  // 2 alliances (finals only)
+            if (qfSets >= 4 || sfSets >= 8) tournamentSize = 8; // 8 alliances (has quarterfinals OR many semifinals)
+            else if (sfSets >= 2) tournamentSize = 4; // 4 alliances (has 2-7 semifinals)
+            else tournamentSize = 2; // 2 alliances (finals only)
 
             // Process playoff matches with sequential match numbers
             var playoffMatchNumber = 1;
             foreach (var m in sortedPlayoffs)
-            {
                 try
                 {
                     var description = GetMatchDescription(playoffMatchNumber, tournamentSize);
@@ -596,9 +593,9 @@ public class FrcApiController(
                 }
                 catch (Exception ex)
                 {
-                    logger.LogError(ex, "Error mapping playoff TBAMatch to HybridMatch: {Match}", JsonSerializer.Serialize(m));
+                    logger.LogError(ex, "Error mapping playoff TBAMatch to HybridMatch: {Match}",
+                        JsonSerializer.Serialize(m));
                 }
-            }
 
             var response = new HybridScheduleResponse { Schedule = new HybridSchedule { Schedule = hybridMatches } };
             return Ok(response);
@@ -625,7 +622,7 @@ public class FrcApiController(
                 13 => $"Match {playoffMatchNumber} (R5)",
                 14 => "Final 1",
                 15 => "Final 2",
-                _ => $"Final Tiebreaker {playoffMatchNumber - 15}"  // 16+ => Tiebreaker 1, 2, 3...
+                _ => $"Final Tiebreaker {playoffMatchNumber - 15}" // 16+ => Tiebreaker 1, 2, 3...
             },
             4 => playoffMatchNumber switch
             {
@@ -635,26 +632,24 @@ public class FrcApiController(
                 5 => $"Match {playoffMatchNumber} (R3)",
                 6 => "Final 1",
                 7 => "Final 2",
-                _ => $"Final Tiebreaker {playoffMatchNumber - 7}"  // 8+ => Tiebreaker 1, 2, 3...
+                _ => $"Final Tiebreaker {playoffMatchNumber - 7}" // 8+ => Tiebreaker 1, 2, 3...
             },
             2 => playoffMatchNumber switch
             {
                 // 2 alliances - all matches are finals
                 1 => "Final 1",
                 2 => "Final 2",
-                _ => $"Final Tiebreaker {playoffMatchNumber - 2}"  // 3+ => Tiebreaker 1, 2, 3...
+                _ => $"Final Tiebreaker {playoffMatchNumber - 2}" // 3+ => Tiebreaker 1, 2, 3...
             },
             _ => $"Match {playoffMatchNumber}" // Default fallback
         };
     }
 
-    private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel, int year)
+    private HybridMatch CreateHybridMatch(TBAMatch m, int matchNumber, string description, string tournamentLevel,
+        int year)
     {
         // Detect if match has been played by checking if score breakdown exists
         var matchHasBeenPlayed = m.ScoreBreakdown != null;
-
-        // Helper function to convert -1 scores to null (TBA uses -1 for unplayed matches)
-        int? NormalizeScore(int? score) => score is -1 ? null : score;
 
         JsonElement? matchScores = null;
         if (matchHasBeenPlayed)
@@ -678,16 +673,26 @@ public class FrcApiController(
         {
             Field = null,
             StartTime = m.Time.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.Time.Value).ToString("o") : null,
-            AutoStartTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
+            AutoStartTime = m.PostResultTime.HasValue
+                ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o")
+                : null,
             MatchVideoLink = m.Videos is { Count: > 0 } ? m.Videos[0].Key : null,
             MatchNumber = matchNumber,
             IsReplay = false,
-            ActualStartTime = m.ActualTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.ActualTime.Value).ToString("o") : null,
+            ActualStartTime = m.ActualTime.HasValue
+                ? DateTimeOffset.FromUnixTimeSeconds(m.ActualTime.Value).ToString("o")
+                : null,
             TournamentLevel = tournamentLevel,
-            PostResultTime = m.PostResultTime.HasValue ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o") : null,
+            PostResultTime = m.PostResultTime.HasValue
+                ? DateTimeOffset.FromUnixTimeSeconds(m.PostResultTime.Value).ToString("o")
+                : null,
             Description = description,
-            ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1) ? NormalizeScore(v1.Score) : null,
-            ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2) ? NormalizeScore(v2.Score) : null,
+            ScoreRedFinal = m.Alliances != null && m.Alliances.TryGetValue("red", out var v1)
+                ? NormalizeScore(v1.Score)
+                : null,
+            ScoreBlueFinal = m.Alliances != null && m.Alliances.TryGetValue("blue", out var v2)
+                ? NormalizeScore(v2.Score)
+                : null,
             Teams = [],
             EventCode = m.EventKey,
             MatchScores = matchScores
@@ -711,7 +716,6 @@ public class FrcApiController(
         // Map teams: red then blue, assign station names Red1..3 and Blue1..3
         if (m.Alliances == null) return hm;
         if (m.Alliances.TryGetValue("red", out var red))
-        {
             for (var idx = 0; idx < red.TeamKeys.Count; idx++)
             {
                 var teamKey = red.TeamKeys[idx];
@@ -719,12 +723,11 @@ public class FrcApiController(
                 // Try to parse as int first, if it fails keep it as string for teams like "971B"
                 object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
                 var surrogate = red.SurrogateTeamKeys?.Contains(teamKey) ?? false;
-                hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Red{idx + 1}", Surrogate = surrogate });
+                hm.Teams.Add(new HybridTeam
+                    { TeamNumber = teamNumber, Station = $"Red{idx + 1}", Surrogate = surrogate });
             }
-        }
 
         if (m.Alliances.TryGetValue("blue", out var blue))
-        {
             for (var idx = 0; idx < blue.TeamKeys.Count; idx++)
             {
                 var teamKey = blue.TeamKeys[idx];
@@ -732,15 +735,21 @@ public class FrcApiController(
                 // Try to parse as int first, if it fails keep it as string for teams like "971B"
                 object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
                 var surrogate = blue.SurrogateTeamKeys != null && blue.SurrogateTeamKeys.Contains(teamKey);
-                hm.Teams.Add(new HybridTeam { TeamNumber = teamNumber, Station = $"Blue{idx + 1}", Surrogate = surrogate });
+                hm.Teams.Add(new HybridTeam
+                    { TeamNumber = teamNumber, Station = $"Blue{idx + 1}", Surrogate = surrogate });
             }
-        }
 
         return hm;
+
+        // Helper function to convert -1 scores to null (TBA uses -1 for unplayed matches)
+        int? NormalizeScore(int? score)
+        {
+            return score is -1 ? null : score;
+        }
     }
 
     /// <summary>
-    /// Gets playoff alliance selections for an offseason FRC event from The Blue Alliance
+    ///     Gets playoff alliance selections for an offseason FRC event from The Blue Alliance
     /// </summary>
     /// <param name="year">The competition year/season</param>
     /// <param name="eventCode">The event code (e.g., "cc" for Chezy Champs)</param>
@@ -783,14 +792,14 @@ public class FrcApiController(
                 if (teamIdentifiers.Count < 2) continue; // Need at least captain and round1
 
                 var alliance = new Alliance(
-                    Number: i + 1,
-                    Captain: teamIdentifiers[0],
-                    Round1: teamIdentifiers[1],
-                    Round2: teamIdentifiers.Count > 2 ? teamIdentifiers[2] : null,
-                    Round3: teamIdentifiers.Count > 3 ? teamIdentifiers[3] : null,
-                    Backup: null, // TBA doesn't provide backup in this format
-                    BackupReplaced: null, // TBA doesn't provide backup replaced in this format
-                    Name: $"Alliance {i + 1}"
+                    i + 1,
+                    teamIdentifiers[0],
+                    teamIdentifiers[1],
+                    teamIdentifiers.Count > 2 ? teamIdentifiers[2] : null,
+                    teamIdentifiers.Count > 3 ? teamIdentifiers[3] : null,
+                    null, // TBA doesn't provide backup in this format
+                    null, // TBA doesn't provide backup replaced in this format
+                    $"Alliance {i + 1}"
                 );
 
                 alliances.Add(alliance);
@@ -807,7 +816,7 @@ public class FrcApiController(
     }
 
     /// <summary>
-    /// Gets qualification rankings for an offseason FRC event from The Blue Alliance
+    ///     Gets qualification rankings for an offseason FRC event from The Blue Alliance
     /// </summary>
     /// <param name="year">The competition year/season</param>
     /// <param name="eventCode">The event code (e.g., "iri" for Indiana Robotics Invitational)</param>
@@ -827,7 +836,8 @@ public class FrcApiController(
         {
             // Call TBA: /event/{eventCode}/rankings
             var tbaResponse = await tbaApiClient.Get<TBAEventRankings>($"event/{year}{eventCode}/rankings");
-            if (tbaResponse == null || tbaResponse.Rankings == null || tbaResponse.Rankings.Count == 0) return NoContent();
+            if (tbaResponse?.Rankings == null || tbaResponse.Rankings.Count == 0)
+                return NoContent();
 
             // Transform TBA format to FIRST API format
             var rankings = new List<TeamRanking>();
@@ -839,7 +849,7 @@ public class FrcApiController(
                 object teamNumber = int.TryParse(teamIdentifier, out var tn) ? tn : teamIdentifier;
 
                 // Map sort_orders array to individual sortOrder properties (pad with 0 if not enough values)
-                var sortOrders = tbaRanking.SortOrders ?? new List<double>();
+                var sortOrders = tbaRanking.SortOrders ?? [];
                 var ranking = new TeamRanking(
                     tbaRanking.Rank,
                     teamNumber,
@@ -870,7 +880,7 @@ public class FrcApiController(
     }
 
     /// <summary>
-    /// Gets team statistics and data for a specific FRC team from Statbotics
+    ///     Gets team statistics and data for a specific FRC team from Statbotics
     /// </summary>
     /// <param name="year">The competition year/season</param>
     /// <param name="teamNumber">The FRC team number</param>
@@ -896,7 +906,8 @@ public class FrcApiController(
         var cacheKey = $"frc:team:{team}:season:{season}:awards";
 
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult.ToString());
+        if (!string.IsNullOrEmpty(cachedResult))
+            return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult.ToString());
 
         try
         {
@@ -931,7 +942,8 @@ public class FrcApiController(
 
         // Check Redis cache first
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<List<TeamMedia>?>(cachedResult.ToString());
+        if (!string.IsNullOrEmpty(cachedResult))
+            return JsonSerializer.Deserialize<List<TeamMedia>?>(cachedResult.ToString());
 
         try
         {

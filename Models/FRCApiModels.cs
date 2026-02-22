@@ -44,7 +44,7 @@ public record Match(
 public record MatchResponse(List<Match>? Matches);
 
 [UsedImplicitly]
-public record Event(
+public record FrcEvent(
     string? AllianceCount,
     int? WeekNumber,
     List<string>? Announcements,
@@ -66,7 +66,7 @@ public record Event(
 );
 
 [UsedImplicitly]
-public record EventListResponse(List<Event>? Events, int EventCount);
+public record EventListResponse(List<FrcEvent>? Events, int EventCount);
 
 [UsedImplicitly]
 public record DistrictListResponse(List<District>? Districts);
@@ -213,9 +213,8 @@ public record MatchScore(
     List<AllianceScore>? Alliances)
 {
     // Dynamic properties for game-specific bonuses (extracted from alliance details)
-    [JsonExtensionData]
-    public Dictionary<string, object>? AdditionalProperties { get; init; }
-};
+    [JsonExtensionData] public Dictionary<string, object>? AdditionalProperties { get; init; }
+}
 
 /// <summary>Response wrapper used for 2025 and earlier score endpoints.</summary>
 [UsedImplicitly]
@@ -234,9 +233,9 @@ public record MatchScoresResponse(
 // ---------------------------------------------------------------------------
 
 /// <summary>
-/// The minimal per-alliance data that has been present in every FRC season's
-/// score response.  Season-specific fields are preserved in
-/// <see cref="AdditionalProperties"/>.
+///     The minimal per-alliance data that has been present in every FRC season's
+///     score response.  Season-specific fields are preserved in
+///     <see cref="AdditionalProperties" />.
 /// </summary>
 [UsedImplicitly]
 public record MatchScoreAllianceSummary(
@@ -246,15 +245,14 @@ public record MatchScoreAllianceSummary(
     int Rp,
     int TotalPoints)
 {
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+    [JsonExtensionData] public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
 }
 
 /// <summary>
-/// Year-agnostic wrapper for a single match's score breakdown.  Fields common
-/// to all seasons are typed; everything else is surfaced via
-/// <see cref="AdditionalProperties"/> so no model changes are needed for future
-/// seasons.
+///     Year-agnostic wrapper for a single match's score breakdown.  Fields common
+///     to all seasons are typed; everything else is surfaced via
+///     <see cref="AdditionalProperties" /> so no model changes are needed for future
+///     seasons.
 /// </summary>
 [UsedImplicitly]
 public record MatchScoreEnvelope(
@@ -264,8 +262,7 @@ public record MatchScoreEnvelope(
     Tiebreaker? Tiebreaker,
     List<MatchScoreAllianceSummary>? Alliances)
 {
-    [JsonExtensionData]
-    public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+    [JsonExtensionData] public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
 }
 
 /// <summary>Response wrapper used for 2026+ score endpoints.</summary>

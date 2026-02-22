@@ -6,6 +6,12 @@ namespace GAToolAPI.Middleware;
 
 public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger)
 {
+    private readonly JsonSerializerOptions _jsonSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false
+    };
+
     public async Task InvokeAsync(HttpContext context)
     {
         try
@@ -67,12 +73,6 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
 
         context.Response.StatusCode = (int)statusCode;
 
-        var options = new JsonSerializerOptions
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = false
-        };
-
-        await context.Response.WriteAsync(JsonSerializer.Serialize(response, options));
+        await context.Response.WriteAsync(JsonSerializer.Serialize(response, _jsonSerializerOptions));
     }
 }

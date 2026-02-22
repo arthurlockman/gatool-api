@@ -3,9 +3,11 @@
 ## Fastest Way to Run Locally
 
 ### 1. Prerequisites
+
 - Install [Docker Desktop](https://www.docker.com/products/docker-desktop)
 - Install [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
-- Install Azure CLI: `brew install azure-cli` (macOS) or [Download](https://docs.microsoft.com/cli/azure/install-azure-cli)
+- Install Azure CLI: `brew install azure-cli` (macOS)
+  or [Download](https://docs.microsoft.com/cli/azure/install-azure-cli)
 
 ### 2. Run the Script
 
@@ -14,6 +16,7 @@
 ```
 
 That's it! The script will:
+
 - ✅ Start Redis in Docker
 - ✅ Check Azure authentication
 - ✅ Build the project
@@ -24,6 +27,7 @@ That's it! The script will:
 Open your browser to **http://localhost:5000/swagger**
 
 Or test from the command line:
+
 ```bash
 # Get offseason events for 2025
 curl http://localhost:5000/v3/2025/offseason/events
@@ -53,13 +57,17 @@ dotnet run
 ## Troubleshooting
 
 ### "Permission denied: ./run-local.sh"
+
 Make the script executable:
+
 ```bash
 chmod +x run-local.sh
 ```
 
 ### "Unable to connect to Redis"
+
 Start Redis manually:
+
 ```bash
 docker start redis
 # or
@@ -67,13 +75,16 @@ docker run -d --name redis -p 6379:6379 redis:latest
 ```
 
 ### "Access denied to Key Vault" or "Refresh token expired"
+
 Your Azure token may have expired. Re-authenticate:
+
 ```bash
 az logout
 az login --scope "https://vault.azure.net/.default"
 ```
 
 Then try running the API again:
+
 ```bash
 ./run-local.sh
 ```
@@ -81,21 +92,25 @@ Then try running the API again:
 ## Testing Endpoints
 
 ### Test Offseason Events
+
 ```bash
 curl -s http://localhost:5000/v3/2025/offseason/events | jq
 ```
 
 ### Test Rankings
+
 ```bash
 curl -s http://localhost:5000/v3/2025/offseason/rankings/cc | jq
 ```
 
 ### Test Alliances
+
 ```bash
 curl -s http://localhost:5000/v3/2025/offseason/alliances/cc | jq
 ```
 
 ### Test Match Scores
+
 ```bash
 curl -s http://localhost:5000/v3/2025/offseason/schedule/hybrid/cc | jq
 ```
@@ -105,6 +120,7 @@ curl -s http://localhost:5000/v3/2025/offseason/schedule/hybrid/cc | jq
 Press `Ctrl+C` in the terminal where the API is running.
 
 To stop Redis:
+
 ```bash
 docker stop redis
 ```

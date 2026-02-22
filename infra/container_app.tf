@@ -35,22 +35,22 @@ resource "azurerm_container_app" "main" {
       memory = "1Gi"
 
       liveness_probe {
-        transport = "HTTP"
-        port = 8080
-        initial_delay = 15
-        interval_seconds = 60
-        timeout = 10
-        path = "/livecheck"
+        transport               = "HTTP"
+        port                    = 8080
+        initial_delay           = 15
+        interval_seconds        = 60
+        timeout                 = 10
+        path                    = "/livecheck"
         failure_count_threshold = 3
       }
 
       readiness_probe {
-        transport = "HTTP"
-        port = 8080
-        initial_delay = 20
+        transport        = "HTTP"
+        port             = 8080
+        initial_delay    = 20
         interval_seconds = 10
-        timeout = 10
-        path = "/livecheck"
+        timeout          = 10
+        path             = "/livecheck"
       }
 
       env {

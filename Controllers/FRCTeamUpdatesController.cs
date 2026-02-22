@@ -62,11 +62,13 @@ public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
         var tasks = teamNumbers.Select(async t =>
         {
             var update = await userStorage.GetTeamUpdates(t);
-            return string.IsNullOrWhiteSpace(update) ? null : new
-            {
-                teamNumber = t,
-                updates = JsonSerializer.Deserialize<JsonObject>(update)
-            };
+            return string.IsNullOrWhiteSpace(update)
+                ? null
+                : new
+                {
+                    teamNumber = t,
+                    updates = JsonSerializer.Deserialize<JsonObject>(update)
+                };
         });
         var data = await Task.WhenAll(tasks);
         return Ok(data.Where(d => d != null));

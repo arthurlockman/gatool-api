@@ -1,7 +1,7 @@
-using System.Net;
-using System.Text.Json.Nodes;
 using System.Collections.Concurrent;
+using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using GAToolAPI.Attributes;
 using GAToolAPI.Helpers;
 using GAToolAPI.Models;
@@ -225,7 +225,7 @@ public class FtcApiController(
     }
 
     /// <summary>
-    /// Gets quick statistics for a specific FTC team from FTC Scout
+    ///     Gets quick statistics for a specific FTC team from FTC Scout
     /// </summary>
     /// <param name="year">The competition year/season</param>
     /// <param name="teamNumber">The FTC team number</param>
@@ -245,7 +245,7 @@ public class FtcApiController(
     }
 
     /// <summary>
-    /// Gets events data for a specific FTC team from FTC Scout
+    ///     Gets events data for a specific FTC team from FTC Scout
     /// </summary>
     /// <param name="year">The competition year/season</param>
     /// <param name="teamNumber">The FTC team number</param>
@@ -271,7 +271,8 @@ public class FtcApiController(
         var cacheKey = $"ftc:team:{team}:season:{season}:awards";
 
         var cachedResult = await _redis.StringGetAsync(cacheKey);
-        if (!string.IsNullOrEmpty(cachedResult)) return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult!.ToString());
+        if (!string.IsNullOrEmpty(cachedResult))
+            return JsonSerializer.Deserialize<TeamAwardsResponse?>(cachedResult.ToString());
 
         try
         {

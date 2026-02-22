@@ -29,9 +29,11 @@ public class HybridMatch
     public int? ScoreBlueFinal { get; set; }
     public int? ScoreBlueFoul { get; set; }
     public int? ScoreBlueAuto { get; set; }
-    public List<HybridTeam> Teams { get; set; } = new();
+    public List<HybridTeam> Teams { get; set; } = [];
     public string? EventCode { get; set; }
+
     public string? DistrictCode { get; set; }
+
     // For 2025 and earlier: typed MatchScore serialised as a JsonElement.
     // For 2026 and later: GenericMatchScoresResponse envelope serialised as a JsonElement,
     // forwarded directly from the FIRST API response.
