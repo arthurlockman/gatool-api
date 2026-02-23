@@ -16,6 +16,7 @@ public static class ScoreExtensions
         string? prefix = null)
     {
         var matchList = matches.ToList();
+        var isFtc = prefix?.StartsWith("FTC", StringComparison.OrdinalIgnoreCase) == true;
 
         // Initialize buckets for different score categories
         var overallHighScorePlayoff = new List<HybridMatch>();
@@ -44,15 +45,20 @@ public static class ScoreExtensions
             if (isQual)
                 overallHighScoreQual.Add(match);
 
-            // TBA penalty-free (winning alliance had no fouls)
-            if (isPlayoff &&
-                ((scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) ||
-                 (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal)))
+            // TBA penalty-free (winning alliance had no foul points).
+            // FRC: score*Foul = points that alliance receives from opponent fouls → check winner's own foul score.
+            // FTC: score*Foul = points that alliance gives to opponent → check opponent's foul score for "winner received none".
+            var tbaPenaltyFreePlayoff = isFtc
+                ? ((scoreRedFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreBlueFoul == 0 && scoreBlueFinal <= scoreRedFinal))
+                : ((scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal));
+            var tbaPenaltyFreeQual = isFtc
+                ? ((scoreRedFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreBlueFoul == 0 && scoreBlueFinal <= scoreRedFinal))
+                : ((scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal));
+
+            if (isPlayoff && tbaPenaltyFreePlayoff)
                 tbaPenaltyFreeHighScorePlayoff.Add(match);
 
-            if (isQual &&
-                ((scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) ||
-                 (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal)))
+            if (isQual && tbaPenaltyFreeQual)
                 tbaPenaltyFreeHighScoreQual.Add(match);
 
             // Penalty-free matches (no fouls on either alliance)
