@@ -36,22 +36,20 @@ public class SyncUsersJob(
 
         try
         {
-            // Retrieve secrets asynchronously during execution instead of constructor
-            var mailChimpApiKey =
-                (await secretClient.GetSecretAsync("MailChimpAPIKey", cancellationToken: cancellationToken)).Value
-                .Value;
-            var mailChimpApiUrl =
-                (await secretClient.GetSecretAsync("MailchimpAPIURL", cancellationToken: cancellationToken)).Value
-                .Value;
-            var mailChimpListId =
-                (await secretClient.GetSecretAsync("MailchimpListID", cancellationToken: cancellationToken)).Value
-                .Value;
-            var auth0ClientId =
-                (await secretClient.GetSecretAsync("Auth0AdminClientId", cancellationToken: cancellationToken)).Value
-                .Value;
-            var auth0ClientSecret =
-                (await secretClient.GetSecretAsync("Auth0AdminClientSecret", cancellationToken: cancellationToken))
-                .Value.Value;
+            // Retrieve secrets in parallel to reduce startup latency
+            var mailChimpApiKeyTask = secretClient.GetSecretAsync("MailChimpAPIKey", cancellationToken: cancellationToken);
+            var mailChimpApiUrlTask = secretClient.GetSecretAsync("MailchimpAPIURL", cancellationToken: cancellationToken);
+            var mailChimpListIdTask = secretClient.GetSecretAsync("MailchimpListID", cancellationToken: cancellationToken);
+            var auth0ClientIdTask = secretClient.GetSecretAsync("Auth0AdminClientId", cancellationToken: cancellationToken);
+            var auth0ClientSecretTask = secretClient.GetSecretAsync("Auth0AdminClientSecret", cancellationToken: cancellationToken);
+
+            await Task.WhenAll(mailChimpApiKeyTask, mailChimpApiUrlTask, mailChimpListIdTask, auth0ClientIdTask, auth0ClientSecretTask);
+
+            var mailChimpApiKey = mailChimpApiKeyTask.Result.Value.Value;
+            var mailChimpApiUrl = mailChimpApiUrlTask.Result.Value.Value;
+            var mailChimpListId = mailChimpListIdTask.Result.Value.Value;
+            var auth0ClientId = auth0ClientIdTask.Result.Value.Value;
+            var auth0ClientSecret = auth0ClientSecretTask.Result.Value.Value;
 
             var authClient = new AuthenticationApiClient(Auth0Domain);
 
@@ -178,7 +176,7 @@ public class SyncUsersJob(
                 logger.LogInformation("Did not add any new users, no welcome campaign sent.");
             }
 
-            await userStorageService.SaveUserSyncResults(optedOutUsers.Length, optedOutUsers.Length, deletedUsers);
+            await userStorageService.SaveUserSyncResults(optedInUsers.Length, optedOutUsers.Length, deletedUsers);
             logger.LogInformation("SyncUsers job completed successfully");
         }
         catch (Exception ex)

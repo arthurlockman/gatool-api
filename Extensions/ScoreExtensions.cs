@@ -9,7 +9,7 @@ public static class ScoreExtensions
         int year,
         string? typePrefix = null)
     {
-        foreach (var highScore in highScores) await storage.StoreHighScore(year, highScore, typePrefix);
+        await Task.WhenAll(highScores.Select(highScore => storage.StoreHighScore(year, highScore, typePrefix)));
     }
 
     public static List<HighScore> CalculateHighScores(this IEnumerable<HybridMatch> matches, int year,

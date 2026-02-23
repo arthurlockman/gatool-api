@@ -31,25 +31,34 @@ public class UpdateGlobalHighScoresJob(
 
         var errors = new List<Exception>();
 
-        try
+        // Run FRC and FTC calculations in parallel since they are independent
+        var frcTask = Task.Run(async () =>
         {
-            await CalculateFrcHighScores(logPrefix, lookbackDays, isDryRun, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error calculating FRC high scores");
-            errors.Add(ex);
-        }
+            try
+            {
+                await CalculateFrcHighScores(logPrefix, lookbackDays, isDryRun, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error calculating FRC high scores");
+                lock (errors) errors.Add(ex);
+            }
+        }, cancellationToken);
 
-        try
+        var ftcTask = Task.Run(async () =>
         {
-            await CalculateFtcHighScores(logPrefix, lookbackDays, isDryRun, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error calculating FTC high scores");
-            errors.Add(ex);
-        }
+            try
+            {
+                await CalculateFtcHighScores(logPrefix, lookbackDays, isDryRun, cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error calculating FTC high scores");
+                lock (errors) errors.Add(ex);
+            }
+        }, cancellationToken);
+
+        await Task.WhenAll(frcTask, ftcTask);
 
         if (errors.Count > 0) throw new AggregateException("One or more high score calculations failed", errors);
     }
@@ -345,7 +354,7 @@ public class UpdateGlobalHighScoresJob(
             .Distinct()
             .ToList();
 
-        foreach (var region in regions)
+        await Task.WhenAll(regions.Select(async region =>
         {
             var regionMatches = allMatches
                 .Where(m => m.DistrictCode != null && m.DistrictCode.Split('-')[0] == region)
@@ -357,7 +366,7 @@ public class UpdateGlobalHighScoresJob(
                 logPrefix, region, regionMatches.Count, regionHighScores.Count);
 
             if (!isDryRun) await regionHighScores.StoreHighScores(userStorageService, year, regionPrefix);
-        }
+        }));
 
         logger.LogInformation("{Prefix}[FTC] UpdateGlobalHighScores completed successfully", logPrefix);
     }
