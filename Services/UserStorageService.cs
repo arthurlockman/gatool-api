@@ -222,9 +222,7 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
     {
         var dataString = JsonSerializer.Serialize(highScore, _camelCaseIgnoreCaseOptions);
         var blob = _highScoresClient.GetBlobClient($"{year}-{typePrefix}{highScore.Type}-{highScore.Level}.json");
-        await using var stream = await blob.OpenWriteAsync(true);
-        await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(dataString);
+        await blob.UploadAsync(BinaryData.FromString(dataString), overwrite: true);
     }
 
     public async Task SaveUserSyncResults(int fullUsers, int readOnlyUsers, int deletedUsers)
