@@ -27,6 +27,8 @@ public static class ScoreExtensions
         var tbaPenaltyFreeHighScoreQual = new List<HybridMatch>();
         var offsettingPenaltyHighScorePlayoff = new List<HybridMatch>();
         var offsettingPenaltyHighScoreQual = new List<HybridMatch>();
+        var allianceContributionHighScorePlayoff = new List<HybridMatch>();
+        var allianceContributionHighScoreQual = new List<HybridMatch>();
 
         // Categorize matches based on tournament level and penalty conditions
         foreach (var match in matchList)
@@ -44,6 +46,12 @@ public static class ScoreExtensions
                 overallHighScorePlayoff.Add(match);
             if (isQual)
                 overallHighScoreQual.Add(match);
+
+            // Alliance contribution (all matches, scored with penalties deducted)
+            if (isPlayoff)
+                allianceContributionHighScorePlayoff.Add(match);
+            if (isQual)
+                allianceContributionHighScoreQual.Add(match);
 
             // TBA penalty-free (winning alliance had no foul points).
             // FRC: score*Foul = points that alliance receives from opponent fouls → check winner's own foul score.
@@ -78,59 +86,71 @@ public static class ScoreExtensions
 
         if (overallHighScorePlayoff.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(overallHighScorePlayoff);
+            var (match, alliance) = FindHighestScore(overallHighScorePlayoff);
             highScoresData.Add(BuildHighScoreJson(year, "overall", "playoff", match, alliance, prefix));
         }
 
         if (overallHighScoreQual.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(overallHighScoreQual);
+            var (match, alliance) = FindHighestScore(overallHighScoreQual);
             highScoresData.Add(BuildHighScoreJson(year, "overall", "qual", match, alliance, prefix));
         }
 
         if (penaltyFreeHighScorePlayoff.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(penaltyFreeHighScorePlayoff);
+            var (match, alliance) = FindHighestScore(penaltyFreeHighScorePlayoff);
             highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "playoff", match, alliance, prefix));
         }
 
         if (penaltyFreeHighScoreQual.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(penaltyFreeHighScoreQual);
+            var (match, alliance) = FindHighestScore(penaltyFreeHighScoreQual);
             highScoresData.Add(BuildHighScoreJson(year, "penaltyFree", "qual", match, alliance, prefix));
         }
 
         if (offsettingPenaltyHighScorePlayoff.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(offsettingPenaltyHighScorePlayoff);
+            var (match, alliance) = FindHighestScore(offsettingPenaltyHighScorePlayoff);
             highScoresData.Add(BuildHighScoreJson(year, "offsetting", "playoff", match, alliance, prefix));
         }
 
         if (offsettingPenaltyHighScoreQual.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(offsettingPenaltyHighScoreQual);
+            var (match, alliance) = FindHighestScore(offsettingPenaltyHighScoreQual);
             highScoresData.Add(BuildHighScoreJson(year, "offsetting", "qual", match, alliance, prefix));
         }
 
         if (tbaPenaltyFreeHighScoreQual.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(tbaPenaltyFreeHighScoreQual);
+            var (match, alliance) = FindHighestScore(tbaPenaltyFreeHighScoreQual);
             highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "qual", match, alliance, prefix));
         }
 
         if (tbaPenaltyFreeHighScorePlayoff.Count > 0)
         {
-            var (match, alliance, score) = FindHighestScore(tbaPenaltyFreeHighScorePlayoff);
+            var (match, alliance) = FindHighestScore(tbaPenaltyFreeHighScorePlayoff);
             highScoresData.Add(BuildHighScoreJson(year, "TBAPenaltyFree", "playoff", match, alliance, prefix));
+        }
+
+        if (allianceContributionHighScorePlayoff.Count > 0)
+        {
+            var (match, alliance) = FindHighestPenaltyDeductedScore(allianceContributionHighScorePlayoff, isFtc);
+            highScoresData.Add(BuildHighScoreJson(year, "allianceContribution", "playoff", match, alliance, prefix));
+        }
+
+        if (allianceContributionHighScoreQual.Count > 0)
+        {
+            var (match, alliance) = FindHighestPenaltyDeductedScore(allianceContributionHighScoreQual, isFtc);
+            highScoresData.Add(BuildHighScoreJson(year, "allianceContribution", "qual", match, alliance, prefix));
         }
 
         return highScoresData;
     }
 
-    private static (HybridMatch match, string alliance, int score) FindHighestScore(IEnumerable<HybridMatch> matches)
+    private static (HybridMatch match, string alliance) FindHighestScore(IEnumerable<HybridMatch> matches)
     {
         var matchList = matches.ToList();
-        if (matchList.Count == 0) return (new HybridMatch(), "", 0);
+        if (matchList.Count == 0) return (new HybridMatch(), "");
 
         // Find the match with the highest score from either alliance
         var bestMatch = matchList
@@ -145,7 +165,46 @@ public static class ScoreExtensions
             .OrderByDescending(x => x.HighestScore)
             .First();
 
-        return (bestMatch.Match, bestMatch.WinningAlliance, bestMatch.HighestScore);
+        return (bestMatch.Match, bestMatch.WinningAlliance);
+    }
+
+    private static (HybridMatch match, string alliance) FindHighestPenaltyDeductedScore(
+        IEnumerable<HybridMatch> matches, bool isFtc)
+    {
+        var matchList = matches.ToList();
+        if (matchList.Count == 0) return (new HybridMatch(), "");
+
+        // Find the match with the highest score after deducting penalty points received.
+        // FRC: allianceFoul = points that alliance received from opponent fouls → deduct from own final.
+        // FTC: allianceFoul = points that alliance committed → deduct opponent's foul from own final.
+        var bestMatch = matchList
+            .Select(m =>
+            {
+                var blueFinal = m.ScoreBlueFinal ?? 0;
+                var redFinal = m.ScoreRedFinal ?? 0;
+                var blueFoul = m.ScoreBlueFoul ?? 0;
+                var redFoul = m.ScoreRedFoul ?? 0;
+
+                var blueDeducted = isFtc
+                    ? Math.Max(0, blueFinal - redFoul)   // FTC: blue received red's committed fouls
+                    : Math.Max(0, blueFinal - blueFoul); // FRC: blueFoul = points blue received
+                var redDeducted = isFtc
+                    ? Math.Max(0, redFinal - blueFoul)   // FTC: red received blue's committed fouls
+                    : Math.Max(0, redFinal - redFoul);   // FRC: redFoul = points red received
+
+                return new
+                {
+                    Match = m,
+                    BlueDeducted = blueDeducted,
+                    RedDeducted = redDeducted,
+                    HighestDeducted = Math.Max(blueDeducted, redDeducted),
+                    BestAlliance = blueDeducted >= redDeducted ? "blue" : "red"
+                };
+            })
+            .OrderByDescending(x => x.HighestDeducted)
+            .First();
+
+        return (bestMatch.Match, bestMatch.BestAlliance);
     }
 
     private static HighScore BuildHighScoreJson(int year, string category, string tournamentLevel,
