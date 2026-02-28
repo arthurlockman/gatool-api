@@ -24,10 +24,11 @@ public class UpdateGlobalHighScoresJob(
     {
         var isDryRun = configuration.GetValue<bool>("DryRun");
         var lookbackDays = configuration.GetValue("HighScoresLookbackDays", 7);
+        var skipHistorical = configuration.GetValue<bool>("SkipHistoricalScores");
         var logPrefix = isDryRun ? "[DRY RUN] " : "";
 
-        logger.LogInformation("{Prefix}Starting UpdateGlobalHighScores job (Time window: ±{Days} days)...",
-            logPrefix, lookbackDays);
+        logger.LogInformation("{Prefix}Starting UpdateGlobalHighScores job (Time window: ±{Days} days, Skip historical: {Skip})...",
+            logPrefix, lookbackDays, skipHistorical);
 
         var errors = new List<Exception>();
 
@@ -36,7 +37,7 @@ public class UpdateGlobalHighScoresJob(
         {
             try
             {
-                await CalculateFrcHighScores(logPrefix, lookbackDays, isDryRun, cancellationToken);
+                await CalculateFrcHighScores(logPrefix, lookbackDays, isDryRun, skipHistorical, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -49,7 +50,7 @@ public class UpdateGlobalHighScoresJob(
         {
             try
             {
-                await CalculateFtcHighScores(logPrefix, lookbackDays, isDryRun, cancellationToken);
+                await CalculateFtcHighScores(logPrefix, lookbackDays, isDryRun, skipHistorical, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -70,7 +71,7 @@ public class UpdateGlobalHighScoresJob(
     }
 
     private async Task CalculateFrcHighScores(string logPrefix, int lookbackDays, bool isDryRun,
-        CancellationToken cancellationToken)
+        bool skipHistorical, CancellationToken cancellationToken)
     {
         var currentYear =
             await secretClient.GetSecretAsync("FRCCurrentSeason", cancellationToken: cancellationToken);
@@ -127,13 +128,17 @@ public class UpdateGlobalHighScoresJob(
                 logPrefix, windowStart, windowEnd, lookbackDays, year);
 
         // Retrieve existing high scores to extract historical matches
-        var existingHighScores = await userStorageService.GetHighScores(year);
-        var historicalMatches = existingHighScores
-            .Select(hs => hs.MatchData.Match)
-            .ToList();
+        var historicalMatches = new List<HybridMatch>();
+        if (!skipHistorical)
+        {
+            var existingHighScores = await userStorageService.GetHighScores(year);
+            historicalMatches = existingHighScores
+                .Select(hs => hs.MatchData.Match)
+                .ToList();
+        }
 
-        logger.LogInformation("{Prefix}Retrieved {HistoricalCount} historical matches from existing high scores.",
-            logPrefix, historicalMatches.Count);
+        logger.LogInformation("{Prefix}Retrieved {HistoricalCount} historical matches from existing high scores (skip={Skip}).",
+            logPrefix, historicalMatches.Count, skipHistorical);
 
         // Early exit if no filtered events and no historical matches
         if (filteredEvents.Count == 0 && historicalMatches.Count == 0)
@@ -210,7 +215,7 @@ public class UpdateGlobalHighScoresJob(
     }
 
     private async Task CalculateFtcHighScores(string logPrefix, int lookbackDays, bool isDryRun,
-        CancellationToken cancellationToken)
+        bool skipHistorical, CancellationToken cancellationToken)
     {
         var currentFtcYear =
             await secretClient.GetSecretAsync("FTCCurrentSeason", cancellationToken: cancellationToken);
@@ -263,13 +268,17 @@ public class UpdateGlobalHighScoresJob(
                 logPrefix, windowStart, windowEnd, lookbackDays, year);
 
         // Retrieve existing FTC high scores to extract historical matches
-        var existingHighScores = await userStorageService.GetHighScores(year, "FTC-");
-        var historicalMatches = existingHighScores
-            .Select(hs => hs.MatchData.Match)
-            .ToList();
+        var historicalMatches = new List<HybridMatch>();
+        if (!skipHistorical)
+        {
+            var existingHighScores = await userStorageService.GetHighScores(year, "FTC-");
+            historicalMatches = existingHighScores
+                .Select(hs => hs.MatchData.Match)
+                .ToList();
+        }
 
-        logger.LogInformation("{Prefix}[FTC] Retrieved {HistoricalCount} historical matches from existing high scores.",
-            logPrefix, historicalMatches.Count);
+        logger.LogInformation("{Prefix}[FTC] Retrieved {HistoricalCount} historical matches from existing high scores (skip={Skip}).",
+            logPrefix, historicalMatches.Count, skipHistorical);
 
         // Early exit if no filtered events and no historical matches
         if (filteredEvents.Count == 0 && historicalMatches.Count == 0)
