@@ -475,7 +475,7 @@ public record RegionalTeamDetail(
     int Rank,
     int TeamNumber,
     string? NameShort,
-    int Regional1Points,
+    int? Regional1Points,
     RegionalDetailsInfo? Regional1Details,
     int? Regional2PointsProjection,
     int? Regional2Points,
