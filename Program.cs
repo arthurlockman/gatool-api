@@ -89,21 +89,6 @@ try
         });
 
         config.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
-
-        // Include XML documentation for Swagger/OpenAPI operation descriptions
-        var xmlPath = Path.Combine(AppContext.BaseDirectory, "gatool-api.xml");
-        if (File.Exists(xmlPath))
-        {
-            try
-            {
-                config.IncludeXmlComments(xmlPath);
-            }
-            catch (Exception ex)
-            {
-                // If XML loading fails (e.g. malformed or unsupported), skip it; Swagger still works without descriptions.
-                Serilog.Log.Warning(ex, "Could not load XML comments for OpenAPI from {XmlPath}", xmlPath);
-            }
-        }
     });
 
     var redisConfig = new ConfigurationOptions
