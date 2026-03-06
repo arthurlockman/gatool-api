@@ -22,6 +22,16 @@ public class FtcApiController(
 {
     private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
 
+    /// <summary>
+    ///     Gets FTC team list for a season, optionally filtered by event, state, or team number.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">Optional event code to filter teams.</param>
+    /// <param name="state">Optional state/region to filter teams.</param>
+    /// <param name="teamNumber">Optional team number to fetch a single team.</param>
+    /// <returns>Team list (generic JSON).</returns>
+    /// <response code="200">Returns the team list.</response>
+    /// <response code="204">No teams found.</response>
     [HttpGet("teams")]
     [RedisCache("ftcapi:teams", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Team Data")]
@@ -35,6 +45,15 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets the match schedule for an FTC event and tournament level.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level (e.g. Qual, Playoff).</param>
+    /// <returns>Schedule data as JSON.</returns>
+    /// <response code="200">Returns the schedule.</response>
+    /// <response code="204">No schedule found.</response>
     [HttpGet("schedule/{eventCode}/{tournamentLevel}")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -46,6 +65,14 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets awards given at an FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Awards list as JSON.</returns>
+    /// <response code="200">Returns the event awards.</response>
+    /// <response code="204">No awards found.</response>
     [HttpGet("awards/event/{eventCode}")]
     [RedisCache("ftcapi:awards", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Event Data")]
@@ -58,6 +85,13 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets the list of FTC events for a season.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <returns>Event list as JSON.</returns>
+    /// <response code="200">Returns the event list.</response>
+    /// <response code="204">No events found.</response>
     [HttpGet("events")]
     [RedisCache("ftcapi:events", RedisCacheTime.OneDay)]
     [OpenApiTag("FTC Season Data")]
@@ -70,6 +104,14 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets details for a single FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Event details as JSON.</returns>
+    /// <response code="200">Returns the event details.</response>
+    /// <response code="204">Event not found.</response>
     [HttpGet("events/{eventCode}")]
     [RedisCache("ftcapi:event", RedisCacheTime.OneDay)]
     [OpenApiTag("FTC Event Data")]
@@ -82,6 +124,17 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets match scores for a range of matches at an FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level.</param>
+    /// <param name="start">Start match number (or single match if start equals end).</param>
+    /// <param name="end">End match number.</param>
+    /// <returns>Score data as JSON.</returns>
+    /// <response code="200">Returns the match scores.</response>
+    /// <response code="204">No scores found.</response>
     [HttpGet("scores/{eventCode}/{tournamentLevel}/{start}/{end}")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -99,6 +152,14 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets all playoff match scores for an FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Playoff scores as JSON.</returns>
+    /// <response code="200">Returns the playoff scores.</response>
+    /// <response code="204">No scores found.</response>
     [HttpGet("scores/{eventCode}/playoff")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -110,6 +171,14 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets all qualification match scores for an FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Qualification scores as JSON.</returns>
+    /// <response code="200">Returns the qual scores.</response>
+    /// <response code="204">No scores found.</response>
     [HttpGet("scores/{eventCode}/qual")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -121,6 +190,13 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets the list of FTC leagues for a season.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <returns>League list as JSON.</returns>
+    /// <response code="200">Returns the league list.</response>
+    /// <response code="204">No leagues found.</response>
     [HttpGet("leagues")]
     [OpenApiTag("FTC League Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -132,6 +208,15 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets league rankings for an FTC region and league.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="regionCode">The region code.</param>
+    /// <param name="leagueCode">The league code.</param>
+    /// <returns>Rankings as JSON.</returns>
+    /// <response code="200">Returns the league rankings.</response>
+    /// <response code="204">No rankings found.</response>
     [HttpGet("leagues/rankings/{regionCode}/{leagueCode}")]
     [OpenApiTag("FTC League Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -143,6 +228,15 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets match results for an FTC event and tournament level.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level.</param>
+    /// <returns>Match results as JSON.</returns>
+    /// <response code="200">Returns the match results.</response>
+    /// <response code="204">No matches found.</response>
     [HttpGet("matches/{eventCode}/{tournamentLevel}")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -154,6 +248,15 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets hybrid schedule for an FTC event and tournament level.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level.</param>
+    /// <returns>Hybrid schedule as JSON.</returns>
+    /// <response code="200">Returns the hybrid schedule.</response>
+    /// <response code="204">No schedule found.</response>
     [HttpGet("schedule/hybrid/{eventCode}/{tournamentLevel}")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -165,6 +268,14 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets rankings for an FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Rankings as JSON (wrapped in rankings property).</returns>
+    /// <response code="200">Returns the event rankings.</response>
+    /// <response code="204">No rankings found.</response>
     [HttpGet("rankings/{eventCode}")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -181,6 +292,14 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets alliance selections for an FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Alliance picks as JSON.</returns>
+    /// <response code="200">Returns the alliance selections.</response>
+    /// <response code="204">No alliances found.</response>
     [HttpGet("alliances/{eventCode}")]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
@@ -192,6 +311,13 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets awards for an FTC team for the current season and the two previous seasons.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="teamNumber">The FTC team number.</param>
+    /// <returns>Dictionary of year to awards list.</returns>
+    /// <response code="200">Returns awards for the last three seasons.</response>
     [HttpGet("team/{teamNumber:int}/awards")]
     [OpenApiTag("FTC Team Data")]
     [ProducesResponseType(typeof(Dictionary<string, TeamAwardsResponse?>), (int)HttpStatusCode.OK)]
@@ -202,6 +328,14 @@ public class FtcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets awards for multiple FTC teams for the current season and the two previous seasons.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="request">Request body containing list of team numbers.</param>
+    /// <returns>Dictionary of team number to dictionary of year to awards.</returns>
+    /// <response code="200">Returns awards for each requested team.</response>
+    /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryAwards")]
     [RedisCache("ftcapi:batch-team-awards", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Team Data")]

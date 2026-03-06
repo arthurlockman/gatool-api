@@ -404,3 +404,55 @@ public record OffseasonEvent(
 
 [UsedImplicitly]
 public record OffseasonEventsResponse(List<OffseasonEvent>? Events, int EventCount);
+
+// ---------------------------------------------------------------------------
+// Regional Event Detail (rankings/regional/eventdetail)
+// ---------------------------------------------------------------------------
+
+[UsedImplicitly]
+public record RegionalEventDetailResponse(
+    int SeasonYear,
+    string? EventCode,
+    string? EventName,
+    string? EventStatus,
+    List<RegionalEventTeamDetail>? TeamDetails,
+    int TeamCountTotal,
+    int TeamCountPage,
+    int PageCurrent,
+    int PageTotal);
+
+[UsedImplicitly]
+public record RegionalEventTeamDetail(
+    int Rank,
+    int TeamNumber,
+    string? TeamName,
+    int RegionalPoints,
+    RegionalDetailsInfo? RegionalDetails,
+    string? ChampionshipStatus,
+    bool QualifiedFirstCmp,
+    DateTime? QualifiedFirstCmpDate,
+    int QualifiedFirstCmpEventWeek,
+    string? QualifiedFirstCmpEventCode,
+    int? QualifiedFirstCmpAwardId,
+    string? QualifiedFirstCmpAwardName,
+    RegionalTiebreakers? Tiebreakers);
+
+[UsedImplicitly]
+public record RegionalDetailsInfo(
+    string? TournamentCode,
+    int TotalPoints,
+    int QualificationPerformancePoints,
+    int AllianceSelectionPoints,
+    int PlayoffAdvancementPoints,
+    int AwardPoints,
+    int TeamAgePoints,
+    int? AwardId);
+
+[UsedImplicitly]
+public record RegionalTiebreakers(
+    int EventPlayoffPoints,
+    int EventAlliancePoints,
+    int EventQualificationPoints,
+    int MatchHighScore1,
+    int MatchHighScore2,
+    int MatchHighScore3);

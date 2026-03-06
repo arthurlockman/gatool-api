@@ -13,6 +13,12 @@ namespace GAToolAPI.Controllers;
 [OpenApiTag("User Preferences Data")]
 public class UserDataController(UserStorageService userStorage) : ControllerBase
 {
+    /// <summary>
+    ///     Gets the current user's stored preferences. Requires user authorization.
+    /// </summary>
+    /// <returns>User preferences as JSON.</returns>
+    /// <response code="200">Returns the user preferences.</response>
+    /// <response code="204">No preferences or user not found.</response>
     [HttpGet]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -28,6 +34,11 @@ public class UserDataController(UserStorageService userStorage) : ControllerBase
         return Ok(json);
     }
 
+    /// <summary>
+    ///     Stores or updates the current user's preferences. Requires user authorization.
+    /// </summary>
+    /// <param name="preferences">JSON object containing the user preferences.</param>
+    /// <response code="204">Preferences stored successfully.</response>
     [HttpPut]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]

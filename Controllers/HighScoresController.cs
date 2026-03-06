@@ -14,6 +14,12 @@ namespace GAToolAPI.Controllers;
 public class HighScoresController(FRCApiService frcApi, ScheduleService schedule, UserStorageService storageService)
     : ControllerBase
 {
+    /// <summary>
+    ///     Gets all FRC high scores for the season (overall, penalty-free, etc.) across all events.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <returns>List of high score entries (excludes FTC high scores).</returns>
+    /// <response code="200">Returns the high scores list.</response>
     [HttpGet]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScores(int year)
@@ -24,6 +30,14 @@ public class HighScoresController(FRCApiService frcApi, ScheduleService schedule
         return Ok(frcScores);
     }
 
+    /// <summary>
+    ///     Gets calculated high scores (overall, penalty-free, etc.) for a specific FRC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>List of high score entries for the event.</returns>
+    /// <response code="200">Returns the high scores for the event.</response>
+    /// <response code="404">Event not found.</response>
     [HttpGet("{eventCode}")]
     [RedisCache("frc:highscores", 5)]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]

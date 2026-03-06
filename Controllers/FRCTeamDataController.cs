@@ -10,6 +10,12 @@ namespace GAToolAPI.Controllers;
 [Route("v3")]
 public class FrcTeamDataController(TBAApiService tbaApi) : ControllerBase
 {
+    /// <summary>
+    ///     Gets event appearances for an FRC team from The Blue Alliance (all events the team has attended).
+    /// </summary>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>List of TBA event records for the team.</returns>
+    /// <response code="200">Returns the list of event appearances.</response>
     [HttpGet("team/{teamNumber:int}/appearances")]
     [ProducesResponseType<List<RawTbaEvent>>(StatusCodes.Status200OK)]
     [RedisCache("frcapi:teamappearances", RedisCacheTime.ThreeDays)]

@@ -12,6 +12,12 @@ namespace GAToolAPI.Controllers;
 [OpenApiTag("System Announcements")]
 public class AnnouncementsController(UserStorageService userStorage) : ControllerBase
 {
+    /// <summary>
+    ///     Gets global system announcements.
+    /// </summary>
+    /// <returns>Announcements as JSON.</returns>
+    /// <response code="200">Returns the announcements.</response>
+    /// <response code="204">No announcements found.</response>
     [HttpGet]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -23,6 +29,13 @@ public class AnnouncementsController(UserStorageService userStorage) : Controlle
         return Ok(json);
     }
 
+    /// <summary>
+    ///     Gets announcements for a specific event.
+    /// </summary>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Event announcements as JSON.</returns>
+    /// <response code="200">Returns the event announcements.</response>
+    /// <response code="204">No announcements found.</response>
     [HttpGet("{eventCode}")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]

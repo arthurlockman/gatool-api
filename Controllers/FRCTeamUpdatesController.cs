@@ -12,6 +12,12 @@ namespace GAToolAPI.Controllers;
 [OpenApiTag("Community Updates")]
 public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataService teamData) : ControllerBase
 {
+    /// <summary>
+    ///     Gets community updates (pit display data) for an FRC team.
+    /// </summary>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>Object with teamNumber and updates JSON, or teamNumber only if no updates.</returns>
+    /// <response code="200">Returns the team updates or empty placeholder.</response>
     [HttpGet("team/{teamNumber}/updates")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -31,6 +37,12 @@ public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
         });
     }
 
+    /// <summary>
+    ///     Gets the update history for an FRC team's community updates.
+    /// </summary>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>Update history entries.</returns>
+    /// <response code="200">Returns the update history.</response>
     [HttpGet("team/{teamNumber}/updates/history")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -40,6 +52,13 @@ public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
         return Ok(updateHistory);
     }
 
+    /// <summary>
+    ///     Stores or updates community updates (pit display data) for an FRC team. Requires user authorization.
+    /// </summary>
+    /// <param name="updates">JSON object containing the updates to store.</param>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <response code="204">Updates stored successfully.</response>
+    /// <response code="400">Missing user email in token.</response>
     [HttpPut("team/{teamNumber}/updates")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     [Authorize("user")]
@@ -51,6 +70,14 @@ public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
         return NoContent();
     }
 
+    /// <summary>
+    ///     Gets community updates for all teams at an FRC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Array of objects with teamNumber and updates for each team that has updates.</returns>
+    /// <response code="200">Returns updates for teams at the event.</response>
+    /// <response code="204">No team list or updates found.</response>
     [HttpGet("{year}/communityUpdates/{eventCode}")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]

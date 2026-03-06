@@ -17,6 +17,12 @@ public class FTCHighScoresController(
     UserStorageService storageService)
     : ControllerBase
 {
+    /// <summary>
+    ///     Gets all FTC high scores for the season across all events.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <returns>List of high score entries.</returns>
+    /// <response code="200">Returns the high scores list.</response>
     [HttpGet]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScores(int year)
@@ -25,6 +31,14 @@ public class FTCHighScoresController(
         return Ok(scores);
     }
 
+    /// <summary>
+    ///     Gets FTC high scores for a specific league (region + league code).
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="regionCode">The region code.</param>
+    /// <param name="leagueCode">The league code.</param>
+    /// <returns>List of high score entries for the league.</returns>
+    /// <response code="200">Returns the high scores for the league.</response>
     [HttpGet("league/{regionCode}/{leagueCode}")]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForLeague(int year, string regionCode, string leagueCode)
@@ -34,6 +48,13 @@ public class FTCHighScoresController(
         return Ok(scores);
     }
 
+    /// <summary>
+    ///     Gets FTC high scores for a specific region.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="regionCode">The region code.</param>
+    /// <returns>List of high score entries for the region.</returns>
+    /// <response code="200">Returns the high scores for the region.</response>
     [HttpGet("region/{regionCode}")]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForRegion(int year, string regionCode)
@@ -43,6 +64,14 @@ public class FTCHighScoresController(
         return Ok(scores);
     }
 
+    /// <summary>
+    ///     Gets calculated high scores for a specific FTC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>List of high score entries for the event.</returns>
+    /// <response code="200">Returns the high scores for the event.</response>
+    /// <response code="404">Event not found.</response>
     [HttpGet("{eventCode}")]
     [RedisCache("ftc:highscores", 5)]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]

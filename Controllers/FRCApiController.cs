@@ -25,6 +25,16 @@ public class FrcApiController(
 {
     private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
 
+    /// <summary>
+    ///     Gets FRC team list for a season, optionally filtered by event, district, or team number.
+    /// </summary>
+    /// <param name="year">The competition year/season (e.g. 2026).</param>
+    /// <param name="eventCode">Optional event code to filter teams that attended.</param>
+    /// <param name="districtCode">Optional district code to filter teams.</param>
+    /// <param name="teamNumber">Optional team number to fetch a single team.</param>
+    /// <returns>Paginated list of teams.</returns>
+    /// <response code="200">Returns the team list.</response>
+    /// <response code="204">No teams found.</response>
     [HttpGet("teams")]
     [RedisCache("frcapi:teams", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Team Data")]
@@ -39,6 +49,15 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets the match schedule for an FRC event and tournament level (qual or playoff).
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code (e.g. TUIS).</param>
+    /// <param name="tournamentLevel">Tournament level: qual or playoff.</param>
+    /// <returns>Schedule with match list and team assignments.</returns>
+    /// <response code="200">Returns the schedule.</response>
+    /// <response code="204">No schedule found.</response>
     [HttpGet("schedule/{eventCode}/{tournamentLevel}")]
     [RedisCache("frcapi:schedule", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Schedules and Results")]
@@ -51,6 +70,13 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets the list of FRC districts for a season.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <returns>List of districts with code and name.</returns>
+    /// <response code="200">Returns the district list.</response>
+    /// <response code="204">No districts found.</response>
     [HttpGet("districts")]
     [RedisCache("frcapi:districtlist", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Events")]
@@ -63,6 +89,15 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets match results for an FRC event and tournament level.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level: qual or playoff.</param>
+    /// <returns>List of match results with scores and teams.</returns>
+    /// <response code="200">Returns the match results.</response>
+    /// <response code="204">No matches found.</response>
     [HttpGet("matches/{eventCode}/{tournamentLevel}")]
     [RedisCache("frcapi:districtlist", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Schedules and Results")]
@@ -75,6 +110,15 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets a hybrid schedule combining FIRST API schedule with TBA match data for an FRC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level: qual or playoff.</param>
+    /// <returns>Hybrid schedule with matches and score data where available.</returns>
+    /// <response code="200">Returns the hybrid schedule.</response>
+    /// <response code="204">No schedule found.</response>
     [HttpGet("schedule/hybrid/{eventCode}/{tournamentLevel}")]
     [RedisCache("frcapi:schedule", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Schedules and Results")]
@@ -90,6 +134,14 @@ public class FrcApiController(
         });
     }
 
+    /// <summary>
+    ///     Gets awards given at an FRC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>List of awards with team and recipient information.</returns>
+    /// <response code="200">Returns the event awards.</response>
+    /// <response code="204">No awards found.</response>
     [HttpGet("awards/event/{eventCode}")]
     [RedisCache("frcapi:events", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Schedules and Results")]
@@ -102,6 +154,16 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets the list of FRC events for a season, optionally filtered by event code, district, or team.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">Optional event code to get a single event.</param>
+    /// <param name="districtCode">Optional district code to filter events.</param>
+    /// <param name="teamNumber">Optional team number to get events the team attended.</param>
+    /// <returns>List of events with dates, location, and type.</returns>
+    /// <response code="200">Returns the event list.</response>
+    /// <response code="204">No events found.</response>
     [HttpGet("events")]
     [RedisCache("frcapi:events", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Events")]
@@ -116,6 +178,17 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets match score breakdowns for a range of matches at an FRC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level: qual or playoff.</param>
+    /// <param name="start">Starting match number (or single match if start equals end).</param>
+    /// <param name="end">Ending match number.</param>
+    /// <returns>Match score details; shape varies by season (2025 and earlier vs 2026+).</returns>
+    /// <response code="200">Returns the match scores.</response>
+    /// <response code="204">No scores found.</response>
     [HttpGet("scores/{eventCode}/{tournamentLevel}/{start}/{end}")]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)] // 2025 and earlier
@@ -152,6 +225,16 @@ public class FrcApiController(
         return Ok(legacyResult);
     }
 
+    /// <summary>
+    ///     Gets all match score breakdowns for an FRC event and tournament level.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <param name="tournamentLevel">Tournament level: qual or playoff.</param>
+    /// <returns>Match score details for the level; shape varies by season.</returns>
+    /// <response code="200">Returns the match scores.</response>
+    /// <response code="204">No scores found.</response>
+    /// <response code="400">Invalid tournament level.</response>
     [HttpGet("scores/{eventCode}/{tournamentLevel}")]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)] // 2025 and earlier
@@ -182,6 +265,13 @@ public class FrcApiController(
         return Ok(legacyResult);
     }
 
+    /// <summary>
+    ///     Gets awards for an FRC team for the current season and the two previous seasons.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>Dictionary of year to awards list for that year.</returns>
+    /// <response code="200">Returns awards for the last three seasons.</response>
     [HttpGet("team/{teamNumber:int}/awards")]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<string, TeamAwardsResponse?>), (int)HttpStatusCode.OK)]
@@ -192,6 +282,14 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets awards for multiple FRC teams for the current season and the two previous seasons.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="request">Request body containing list of team numbers.</param>
+    /// <returns>Dictionary of team number to dictionary of year to awards.</returns>
+    /// <response code="200">Returns awards for each requested team.</response>
+    /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryAwards")]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<int, Dictionary<string, TeamAwardsResponse?>>), (int)HttpStatusCode.OK)]
@@ -213,6 +311,14 @@ public class FrcApiController(
         return Ok(awards.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
     }
 
+    /// <summary>
+    ///     Gets media (images, videos, etc.) for an FRC team from The Blue Alliance.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>List of team media items with URLs and metadata.</returns>
+    /// <response code="200">Returns the team media list.</response>
+    /// <response code="204">No media found.</response>
     [HttpGet("team/{teamNumber:int}/media")]
     [RedisCache("frc:teammedia", RedisCacheTime.ThreeDays)]
     [OpenApiTag("FRC Team Data")]
@@ -225,6 +331,14 @@ public class FrcApiController(
         return Ok(media);
     }
 
+    /// <summary>
+    ///     Gets media for multiple FRC teams from The Blue Alliance.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="request">Request body containing list of team numbers.</param>
+    /// <returns>Dictionary of team number to list of media items.</returns>
+    /// <response code="200">Returns media for each requested team.</response>
+    /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryMedia")]
     [RedisCache("frc:teammediaquery", RedisCacheTime.ThreeDays)]
     [OpenApiTag("FRC Team Data")]
@@ -247,6 +361,14 @@ public class FrcApiController(
         return Ok(media.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
     }
 
+    /// <summary>
+    ///     Gets competition history for an FRC team from The Blue Alliance.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>Team history including events and performance.</returns>
+    /// <response code="200">Returns the team history.</response>
+    /// <response code="204">No history found.</response>
     [HttpGet("team/{teamNumber:int}/history")]
     [RedisCache("tbaapi:teamhistory", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Team Data")]
@@ -269,6 +391,14 @@ public class FrcApiController(
         }
     }
 
+    /// <summary>
+    ///     Gets the team avatar image for an FRC team (PNG) from the FIRST API.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>PNG image file.</returns>
+    /// <response code="200">Returns the avatar image.</response>
+    /// <response code="404">Avatar not found.</response>
     [HttpGet("avatars/team/{teamNumber:int}/avatar.png")]
     [RedisCache("frc:teamavatar", RedisCacheTime.OneMonth)]
     [OpenApiTag("FRC Team Data")]
@@ -308,6 +438,58 @@ public class FrcApiController(
         }
     }
 
+    /// <summary>
+    ///     Gets regional event detail (rankings/points) for a specific team at an FRC regional event.
+    /// </summary>
+    /// <param name="year">The competition year/season (e.g. 2026).</param>
+    /// <param name="eventCode">The event code (e.g. TUIS for İstanbul Regional).</param>
+    /// <param name="teamNumber">The FRC team number to filter results for.</param>
+    /// <returns>Event summary with team details including regional points, qualification status, and tiebreakers.</returns>
+    /// <response code="200">Returns the regional event detail for the specified team.</response>
+    /// <response code="204">No data found for the specified event and team.</response>
+    [HttpGet("regional/eventdetail/{eventCode}/{teamNumber:int}")]
+    [RedisCache("frcapi:regional:eventdetail", RedisCacheTime.FiveMinutes)]
+    [OpenApiTag("FRC Events")]
+    [ProducesResponseType(typeof(RegionalEventDetailResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetRegionalEventDetailByTeam(string year, string eventCode, int teamNumber)
+    {
+        var query = new Dictionary<string, string?> { ["teamNumber"] = teamNumber.ToString() };
+        var result = await frcApiClient.Get<RegionalEventDetailResponse>(
+            $"{year}/rankings/regional/eventdetail/{eventCode}", query);
+        if (result == null) return NoContent();
+        return Ok(result);
+    }
+
+    /// <summary>
+    ///     Gets regional event detail (rankings and points) for all teams at an FRC regional event.
+    /// </summary>
+    /// <param name="year">The competition year/season (e.g. 2026).</param>
+    /// <param name="eventCode">The event code (e.g. TUIS for İstanbul Regional).</param>
+    /// <returns>Event summary with team details including regional points, qualification status, and tiebreakers.</returns>
+    /// <response code="200">Returns the full regional event detail with all teams.</response>
+    /// <response code="204">No data found for the specified event.</response>
+    [HttpGet("regional/eventdetail/{eventCode}")]
+    [RedisCache("frcapi:regional:eventdetail", RedisCacheTime.FiveMinutes)]
+    [OpenApiTag("FRC Events")]
+    [ProducesResponseType(typeof(RegionalEventDetailResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetRegionalEventDetail(string year, string eventCode)
+    {
+        var result = await frcApiClient.Get<RegionalEventDetailResponse>(
+            $"{year}/rankings/regional/eventdetail/{eventCode}");
+        if (result == null) return NoContent();
+        return Ok(result);
+    }
+
+    /// <summary>
+    ///     Gets qualification rankings for an FRC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Rankings with sort order information.</returns>
+    /// <response code="200">Returns the event rankings.</response>
+    /// <response code="204">No rankings found.</response>
     [HttpGet("rankings/{eventCode}")]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
@@ -323,6 +505,14 @@ public class FrcApiController(
         return Ok(new RankingsResponse(result, null));
     }
 
+    /// <summary>
+    ///     Gets playoff alliance selections for an FRC event.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <returns>Alliance picks (captain, first pick, second pick, etc.) for each alliance.</returns>
+    /// <response code="200">Returns the alliance selections.</response>
+    /// <response code="204">No alliances found.</response>
     [HttpGet("alliances/{eventCode}")]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(AlliancesResponse), (int)HttpStatusCode.OK)]
@@ -336,6 +526,15 @@ public class FrcApiController(
         return Ok(result);
     }
 
+    /// <summary>
+    ///     Gets district rankings for an FRC district; optionally limited to top N teams.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="districtCode">The district code (e.g. FIM, PNW).</param>
+    /// <param name="top">Optional limit on number of teams to return.</param>
+    /// <returns>District rankings with points and qualification status.</returns>
+    /// <response code="200">Returns the district rankings.</response>
+    /// <response code="204">No rankings found.</response>
     [HttpGet("district/rankings/{districtCode}")]
     [RedisCache("frcapi:district:rankings", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Events")]
@@ -391,6 +590,14 @@ public class FrcApiController(
         return Ok(mergedResult);
     }
 
+    /// <summary>
+    ///     Gets the list of teams registered for an FRC offseason event from The Blue Alliance.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The offseason event code (e.g. cc for Chezy Champs).</param>
+    /// <returns>List of teams at the event.</returns>
+    /// <response code="200">Returns the team list.</response>
+    /// <response code="204">No teams found.</response>
     [HttpGet("offseason/teams/{eventCode}")]
     [RedisCache("tbaapi:offseason:teams", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Offseason")]
@@ -434,6 +641,14 @@ public class FrcApiController(
         }
     }
 
+    /// <summary>
+    ///     Gets details for a single FRC offseason event from The Blue Alliance.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The offseason event code.</param>
+    /// <returns>Event details including name, dates, location.</returns>
+    /// <response code="200">Returns the event details.</response>
+    /// <response code="204">Event not found.</response>
     [HttpGet("offseason/event/{eventCode}")]
     [RedisCache("tbaapi:offseason:event", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Offseason")]
@@ -457,6 +672,13 @@ public class FrcApiController(
         }
     }
 
+    /// <summary>
+    ///     Gets the list of FRC offseason and preseason events for a season from The Blue Alliance.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <returns>List of offseason/preseason events.</returns>
+    /// <response code="200">Returns the event list.</response>
+    /// <response code="204">No events found.</response>
     [HttpGet("offseason/events")]
     [RedisCache("tbaapi:offseason:events", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Offseason")]
@@ -527,6 +749,14 @@ public class FrcApiController(
         }
     }
 
+    /// <summary>
+    ///     Gets a hybrid schedule for an FRC offseason event (TBA match data with FIRST-style structure).
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="eventCode">The offseason event code.</param>
+    /// <returns>Hybrid schedule with qualification and playoff matches.</returns>
+    /// <response code="200">Returns the hybrid schedule.</response>
+    /// <response code="204">No schedule found.</response>
     [HttpGet("offseason/schedule/hybrid/{eventCode}")]
     [RedisCache("tbaapi:offseason:schedule", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Offseason")]

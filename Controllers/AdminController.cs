@@ -16,6 +16,11 @@ public class AdminController(
     IConnectionMultiplexer redis,
     ILogger<AdminController> logger) : ControllerBase
 {
+    /// <summary>
+    ///     Stores or updates global system announcements. Requires admin authorization.
+    /// </summary>
+    /// <param name="json">JSON object containing the announcements.</param>
+    /// <response code="204">Announcements stored successfully.</response>
     [HttpPut("announcements")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     [Authorize("admin")]
@@ -25,6 +30,12 @@ public class AdminController(
         return NoContent();
     }
 
+    /// <summary>
+    ///     Stores or updates announcements for a specific event. Requires user authorization.
+    /// </summary>
+    /// <param name="body">JSON body containing the event announcements.</param>
+    /// <param name="eventCode">The event code.</param>
+    /// <response code="204">Announcements stored successfully.</response>
     [HttpPut("announcements/{eventCode}")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     [Authorize("user")]
@@ -35,6 +46,12 @@ public class AdminController(
         return NoContent();
     }
 
+    /// <summary>
+    ///     Gets the status/results of the last user sync operation. Requires admin authorization.
+    /// </summary>
+    /// <returns>Sync results as JSON.</returns>
+    /// <response code="200">Returns the sync status.</response>
+    /// <response code="204">No sync data found.</response>
     [HttpGet("syncusers")]
     [Authorize("admin")]
     public async Task<IActionResult> GetUserSyncStatus()
@@ -44,6 +61,11 @@ public class AdminController(
         return NoContent();
     }
 
+    /// <summary>
+    ///     Clears all entries in the Redis cache. Requires admin authorization.
+    /// </summary>
+    /// <response code="204">Cache cleared successfully.</response>
+    /// <response code="500">Failed to clear cache.</response>
     [HttpDelete("cache")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
