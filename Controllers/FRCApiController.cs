@@ -483,6 +483,46 @@ public class FrcApiController(
     }
 
     /// <summary>
+    ///     Gets championship ranking details for a specific FRC team across all regional events in the season.
+    /// </summary>
+    /// <param name="year">The competition year/season (e.g. 2026).</param>
+    /// <param name="teamNumber">The FRC team number.</param>
+    /// <returns>Team's regional points, event details, qualification status, and tiebreakers.</returns>
+    /// <response code="200">Returns the team's championship ranking details.</response>
+    /// <response code="204">No data found for the specified team.</response>
+    [HttpGet("regional/teamdetail/{teamNumber:int}")]
+    [RedisCache("frcapi:regional:teamdetail", RedisCacheTime.FiveMinutes)]
+    [OpenApiTag("FRC Events")]
+    [ProducesResponseType(typeof(RegionalTeamDetailResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetRegionalTeamDetailByTeam(string year, int teamNumber)
+    {
+        var query = new Dictionary<string, string?> { ["teamNumber"] = teamNumber.ToString() };
+        var result = await frcApiClient.Get<RegionalTeamDetailResponse>($"{year}/rankings/regional/teamdetail", query);
+        if (result == null) return NoContent();
+        return Ok(result);
+    }
+
+    /// <summary>
+    ///     Gets championship ranking details for all competing FRC teams in the season (across regional events).
+    /// </summary>
+    /// <param name="year">The competition year/season (e.g. 2026).</param>
+    /// <returns>Paginated list of teams with regional points, event details, and qualification status.</returns>
+    /// <response code="200">Returns the full team detail list.</response>
+    /// <response code="204">No data found.</response>
+    [HttpGet("regional/teamdetail")]
+    [RedisCache("frcapi:regional:teamdetail", RedisCacheTime.FiveMinutes)]
+    [OpenApiTag("FRC Events")]
+    [ProducesResponseType(typeof(RegionalTeamDetailResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetRegionalTeamDetail(string year)
+    {
+        var result = await frcApiClient.Get<RegionalTeamDetailResponse>($"{year}/rankings/regional/teamdetail");
+        if (result == null) return NoContent();
+        return Ok(result);
+    }
+
+    /// <summary>
     ///     Gets qualification rankings for an FRC event.
     /// </summary>
     /// <param name="year">The competition year/season.</param>

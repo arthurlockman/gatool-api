@@ -456,3 +456,41 @@ public record RegionalTiebreakers(
     int MatchHighScore1,
     int MatchHighScore2,
     int MatchHighScore3);
+
+// ---------------------------------------------------------------------------
+// Regional Team Detail (rankings/regional/teamdetail) - Championship ranking across events
+// ---------------------------------------------------------------------------
+
+[UsedImplicitly]
+public record RegionalTeamDetailResponse(
+    int Season,
+    List<RegionalTeamDetail>? Teams,
+    int TeamCountTotal,
+    int TeamCountPage,
+    int PageCurrent,
+    int PageTotal);
+
+[UsedImplicitly]
+public record RegionalTeamDetail(
+    int Rank,
+    int TeamNumber,
+    string? NameShort,
+    int Regional1Points,
+    RegionalDetailsInfo? Regional1Details,
+    int? Regional2PointsProjection,
+    int? Regional2Points,
+    RegionalDetailsInfo? Regional2Details,
+    int? RegionalDirectPoints,
+    RegionalDetailsInfo? RegionalDirectDetails,
+    int TotalPoints,
+    string? ChampionshipStatus,
+    bool QualifiedFirstCmp,
+    DateTime? QualifiedFirstCmpDate,
+    int QualifiedFirstCmpEventWeek,
+    string? QualifiedFirstCmpEventCode,
+    int? QualifiedFirstCmpAwardId,
+    string? QualifiedFirstCmpAwardName,
+    bool DeclinedFirstCmp,
+    DateTime? DeclinedFirstCmpDate,
+    RegionalTiebreakers? Tiebreakers,
+    int AdjustPoints);
