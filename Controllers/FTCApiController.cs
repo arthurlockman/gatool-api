@@ -93,7 +93,7 @@ public class FtcApiController(
     /// <response code="200">Returns the event list.</response>
     /// <response code="204">No events found.</response>
     [HttpGet("events")]
-    [RedisCache("ftcapi:events", RedisCacheTime.OneDay)]
+    [RedisCache("ftcapi:events", RedisCacheTime.OneHour)]
     [OpenApiTag("FTC Season Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -113,7 +113,7 @@ public class FtcApiController(
     /// <response code="200">Returns the event details.</response>
     /// <response code="204">Event not found.</response>
     [HttpGet("events/{eventCode}")]
-    [RedisCache("ftcapi:event", RedisCacheTime.OneDay)]
+    [RedisCache("ftcapi:event", RedisCacheTime.OneHour)]
     [OpenApiTag("FTC Event Data")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]

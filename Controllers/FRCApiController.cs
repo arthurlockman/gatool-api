@@ -36,7 +36,7 @@ public class FrcApiController(
     /// <response code="200">Returns the team list.</response>
     /// <response code="204">No teams found.</response>
     [HttpGet("teams")]
-    [RedisCache("frcapi:teams", RedisCacheTime.OneWeek)]
+    [RedisCache("frcapi:teams", RedisCacheTime.OneHour)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(TeamsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -143,7 +143,7 @@ public class FrcApiController(
     /// <response code="200">Returns the event awards.</response>
     /// <response code="204">No awards found.</response>
     [HttpGet("awards/event/{eventCode}")]
-    [RedisCache("frcapi:events", RedisCacheTime.OneWeek)]
+    [RedisCache("frcapi:events", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(EventAwardsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -165,7 +165,7 @@ public class FrcApiController(
     /// <response code="200">Returns the event list.</response>
     /// <response code="204">No events found.</response>
     [HttpGet("events")]
-    [RedisCache("frcapi:events", RedisCacheTime.OneWeek)]
+    [RedisCache("frcapi:events", RedisCacheTime.OneHour)]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(EventListResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -320,7 +320,7 @@ public class FrcApiController(
     /// <response code="200">Returns the team media list.</response>
     /// <response code="204">No media found.</response>
     [HttpGet("team/{teamNumber:int}/media")]
-    [RedisCache("frc:teammedia", RedisCacheTime.ThreeDays)]
+    [RedisCache("frc:teammedia", RedisCacheTime.OneHour)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(List<TeamMedia>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -340,7 +340,7 @@ public class FrcApiController(
     /// <response code="200">Returns media for each requested team.</response>
     /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryMedia")]
-    [RedisCache("frc:teammediaquery", RedisCacheTime.ThreeDays)]
+    [RedisCache("frc:teammediaquery", RedisCacheTime.OneHour)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<string, List<TeamMedia>>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
@@ -370,7 +370,7 @@ public class FrcApiController(
     /// <response code="200">Returns the team history.</response>
     /// <response code="204">No history found.</response>
     [HttpGet("team/{teamNumber:int}/history")]
-    [RedisCache("tbaapi:teamhistory", RedisCacheTime.OneWeek)]
+    [RedisCache("tbaapi:teamhistory", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(TBATeamHistory), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -400,7 +400,7 @@ public class FrcApiController(
     /// <response code="200">Returns the avatar image.</response>
     /// <response code="404">Avatar not found.</response>
     [HttpGet("avatars/team/{teamNumber:int}/avatar.png")]
-    [RedisCache("frc:teamavatar", RedisCacheTime.OneMonth)]
+    [RedisCache("frc:teamavatar", RedisCacheTime.OneWeek)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(FileResult), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
@@ -576,7 +576,7 @@ public class FrcApiController(
     /// <response code="200">Returns the district rankings.</response>
     /// <response code="204">No rankings found.</response>
     [HttpGet("district/rankings/{districtCode}")]
-    [RedisCache("frcapi:district:rankings", RedisCacheTime.OneDay)]
+    [RedisCache("frcapi:district:rankings", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(DistrictRankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -690,7 +690,7 @@ public class FrcApiController(
     /// <response code="200">Returns the event details.</response>
     /// <response code="204">Event not found.</response>
     [HttpGet("offseason/event/{eventCode}")]
-    [RedisCache("tbaapi:offseason:event", RedisCacheTime.OneDay)]
+    [RedisCache("tbaapi:offseason:event", RedisCacheTime.OneHour)]
     [OpenApiTag("FRC Offseason")]
     [ProducesResponseType(typeof(TBAEvent), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -720,7 +720,7 @@ public class FrcApiController(
     /// <response code="200">Returns the event list.</response>
     /// <response code="204">No events found.</response>
     [HttpGet("offseason/events")]
-    [RedisCache("tbaapi:offseason:events", RedisCacheTime.OneDay)]
+    [RedisCache("tbaapi:offseason:events", RedisCacheTime.OneHour)]
     [OpenApiTag("FRC Offseason")]
     [ProducesResponseType(typeof(OffseasonEventsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -1027,7 +1027,7 @@ public class FrcApiController(
     /// <response code="200">Returns the alliance selections with captain and team picks</response>
     /// <response code="204">No alliances found for the specified event</response>
     [HttpGet("offseason/alliances/{eventCode}")]
-    [RedisCache("tbaapi:offseason:alliances", RedisCacheTime.OneDay)]
+    [RedisCache("tbaapi:offseason:alliances", RedisCacheTime.OneHour)]
     [OpenApiTag("FRC Offseason")]
     [ProducesResponseType(typeof(AlliancesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
