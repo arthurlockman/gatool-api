@@ -111,6 +111,7 @@ try
     builder.Services.AddHttpClient();
 
     builder.Services.AddSingleton<FRCApiService>();
+    builder.Services.AddSingleton<FirstGlobalApiService>();
     builder.Services.AddSingleton<TBAApiService>();
     builder.Services.AddSingleton<StatboticsApiService>();
     builder.Services.AddSingleton<FTCApiService>();
