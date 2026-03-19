@@ -114,6 +114,7 @@ try
     builder.Services.AddSingleton<FirstGlobalApiService>();
     builder.Services.AddSingleton<TBAApiService>();
     builder.Services.AddSingleton<StatboticsApiService>();
+    builder.Services.AddSingleton<CasterstoolApiService>();
     builder.Services.AddSingleton<FTCApiService>();
     builder.Services.AddSingleton<FTCScoutApiService>();
     builder.Services.AddSingleton<TOAApiService>();

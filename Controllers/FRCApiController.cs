@@ -18,6 +18,7 @@ public class FrcApiController(
     FRCApiService frcApiClient,
     TBAApiService tbaApiClient,
     StatboticsApiService statboticsApiClient,
+    CasterstoolApiService casterstoolApiClient,
     IConnectionMultiplexer connectionMultiplexer,
     TeamDataService teamDataService,
     ScheduleService scheduleService)
@@ -1166,6 +1167,31 @@ public class FrcApiController(
     {
         var result = await statboticsApiClient.Get<StatboticsTeamData>($"team_year/{teamNumber}/{year}");
         if (result == null) return NoContent();
+        return Ok(result);
+    }
+
+    /// <summary>
+    ///     Gets team connection history (partnerships and opponent matchups) from Casterstool for the given teams at an event.
+    /// </summary>
+    /// <param name="year">The competition year/season (e.g. 2025).</param>
+    /// <param name="eventCode">The TBA event code (e.g. rikin, mabri).</param>
+    /// <param name="teamNumbers">Comma-separated list of FRC team numbers (e.g. 1119,5962,8013).</param>
+    /// <returns>List of team connections with partnered_at and opponents_at event history.</returns>
+    /// <response code="200">Returns the connection data.</response>
+    /// <response code="204">No connections found.</response>
+    /// <response code="404">Event or resource not found.</response>
+    /// <response code="429">Rate limit exceeded.</response>
+    /// <response code="500">Casterstool service error.</response>
+    /// <response code="502">Upstream service (TBA, FRC Events) unavailable.</response>
+    [HttpGet("matchups/{eventCode}/{teamNumbers}")]
+    [RedisCache("casterstool:connections", RedisCacheTime.FiveMinutes)]
+    [OpenApiTag("FRC Team Data")]
+    [ProducesResponseType(typeof(List<TeamConnection>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetMatchupConnections(string year, string eventCode, string teamNumbers)
+    {
+        var result = await casterstoolApiClient.GetConnections(year, eventCode, teamNumbers);
+        if (result == null || result.Count == 0) return NoContent();
         return Ok(result);
     }
 

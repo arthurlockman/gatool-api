@@ -38,7 +38,19 @@ docker start redis
 
 ### 2. Azure Authentication
 
-The API uses Azure Key Vault to retrieve secrets. You need to authenticate with Azure:
+The API uses Azure Key Vault to retrieve secrets. You must be signed in with an account that exists in the **Gorham-Falmouth Alliance for Robotics** Azure tenant.
+
+If you see `AADSTS50020: User account ... does not exist in tenant 'Gorham-Falmouth Alliance for Robotics'`:
+
+```bash
+# Log out of any current Azure account
+az logout
+
+# Log in to the correct tenant (with Key Vault scope)
+az login --tenant "c8c6d255-9e1a-4560-aa0e-8e61501ab304" --scope "https://vault.azure.net/.default"
+```
+
+For normal login (if your account is already in the right tenant):
 
 ```bash
 # Login to Azure
