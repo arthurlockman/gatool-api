@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Exceptions;
 using GAToolAPI.Models;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Net.Http.Headers;
 
 namespace GAToolAPI.Services;
 
@@ -10,10 +12,12 @@ public class CasterstoolApiService
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public CasterstoolApiService(HttpClient httpClient)
+    public CasterstoolApiService(HttpClient httpClient, SecretClient keyVaultClient)
     {
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri("https://casterstool.com/api/");
+        _httpClient.DefaultRequestHeaders.Add(HeaderNames.Accept, "application/json");
+        _httpClient.DefaultRequestHeaders.Add("X-API-Key", keyVaultClient.GetSecret("CasterstoolApiKey").Value.Value);
 
         _jsonOptions = new JsonSerializerOptions
         {

@@ -119,6 +119,7 @@ The application retrieves these secrets from Azure Key Vault (`https://GAToolApi
 | `StatboticsApiKey`            | Statbotics API key          | Statistical data        |
 | `FTCApiKey`                   | FTC API key                 | FTC data endpoints      |
 | `TOAApiKey`                   | The Orange Alliance API key | FTC data endpoints      |
+| `CasterstoolApiKey`          | Casterstool API key         | Matchup connections     |
 
 ## Testing Without Authentication
 
