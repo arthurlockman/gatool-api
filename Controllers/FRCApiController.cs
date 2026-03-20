@@ -1184,7 +1184,7 @@ public class FrcApiController(
     /// <response code="500">Casterstool service error.</response>
     /// <response code="502">Upstream service (TBA, FRC Events) unavailable.</response>
     [HttpGet("matchups/{eventCode}/{teamNumbers}")]
-    [RedisCache("casterstool:connections", RedisCacheTime.FiveMinutes)]
+    [RedisCache("casterstool:connections", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(List<TeamConnection>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
