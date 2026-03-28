@@ -76,7 +76,7 @@ resource "azurerm_container_app_job" "sync_users" {
   replica_retry_limit          = 2
 
   schedule_trigger_config {
-    cron_expression          = "0 2 * * *" # Daily at 2 AM UTC
+    cron_expression          = "0 2,14 * * *" # Twice daily at 2 AM and 2 PM UTC
     parallelism              = 1
     replica_completion_count = 1
   }
