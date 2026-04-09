@@ -12,7 +12,7 @@ RUN dotnet publish gatool-api.csproj -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
 # Install the Newrelic agent
-RUN apt-get update && apt-get install -y wget ca-certificates gnupg \
+RUN apt-get update && apt-get install -y wget curl ca-certificates gnupg \
 && echo 'deb [signed-by=/usr/share/keyrings/newrelic-apt.gpg] http://apt.newrelic.com/debian/ newrelic non-free' | tee /etc/apt/sources.list.d/newrelic.list \
 && wget -O- https://download.newrelic.com/NEWRELIC_APT_2DAD550E.public | gpg --import --batch --no-default-keyring --keyring /usr/share/keyrings/newrelic-apt.gpg \
 && apt-get update \

@@ -3,7 +3,6 @@ using Auth0.AuthenticationApi;
 using Auth0.AuthenticationApi.Models;
 using Auth0.ManagementApi;
 using Auth0.ManagementApi.Models;
-using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Services;
 using MailChimp.Net;
 using MailChimp.Net.Core;
@@ -15,7 +14,7 @@ namespace GAToolAPI.Jobs;
 public class SyncUsersJob(
     ILogger<SyncUsersJob> logger,
     UserStorageService userStorageService,
-    SecretClient secretClient)
+    ISecretProvider secretProvider)
     : IJob
 {
     private const string OptInText =
@@ -37,19 +36,19 @@ public class SyncUsersJob(
         try
         {
             // Retrieve secrets in parallel to reduce startup latency
-            var mailChimpApiKeyTask = secretClient.GetSecretAsync("MailChimpAPIKey", cancellationToken: cancellationToken);
-            var mailChimpApiUrlTask = secretClient.GetSecretAsync("MailchimpAPIURL", cancellationToken: cancellationToken);
-            var mailChimpListIdTask = secretClient.GetSecretAsync("MailchimpListID", cancellationToken: cancellationToken);
-            var auth0ClientIdTask = secretClient.GetSecretAsync("Auth0AdminClientId", cancellationToken: cancellationToken);
-            var auth0ClientSecretTask = secretClient.GetSecretAsync("Auth0AdminClientSecret", cancellationToken: cancellationToken);
+            var mailChimpApiKeyTask = secretProvider.GetSecretAsync("MailChimpAPIKey", cancellationToken);
+            var mailChimpApiUrlTask = secretProvider.GetSecretAsync("MailchimpAPIURL", cancellationToken);
+            var mailChimpListIdTask = secretProvider.GetSecretAsync("MailchimpListID", cancellationToken);
+            var auth0ClientIdTask = secretProvider.GetSecretAsync("Auth0AdminClientId", cancellationToken);
+            var auth0ClientSecretTask = secretProvider.GetSecretAsync("Auth0AdminClientSecret", cancellationToken);
 
             await Task.WhenAll(mailChimpApiKeyTask, mailChimpApiUrlTask, mailChimpListIdTask, auth0ClientIdTask, auth0ClientSecretTask);
 
-            var mailChimpApiKey = mailChimpApiKeyTask.Result.Value.Value;
-            var mailChimpApiUrl = mailChimpApiUrlTask.Result.Value.Value;
-            var mailChimpListId = mailChimpListIdTask.Result.Value.Value;
-            var auth0ClientId = auth0ClientIdTask.Result.Value.Value;
-            var auth0ClientSecret = auth0ClientSecretTask.Result.Value.Value;
+            var mailChimpApiKey = mailChimpApiKeyTask.Result;
+            var mailChimpApiUrl = mailChimpApiUrlTask.Result;
+            var mailChimpListId = mailChimpListIdTask.Result;
+            var auth0ClientId = auth0ClientIdTask.Result;
+            var auth0ClientSecret = auth0ClientSecretTask.Result;
 
             var authClient = new AuthenticationApiClient(Auth0Domain);
 

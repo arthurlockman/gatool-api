@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Exceptions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
@@ -13,16 +12,16 @@ public class TOAApiService
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public TOAApiService(HttpClient httpClient, SecretClient keyVaultClient)
+    public TOAApiService(HttpClient httpClient, ISecretProvider secretProvider)
     {
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri("https://theorangealliance.org/api/");
         _httpClient.DefaultRequestHeaders.Add(
             HeaderNames.Accept, "application/json");
         _httpClient.DefaultRequestHeaders.Add(
-            "X-TOA-Key", keyVaultClient.GetSecret("TOAApiKey").Value.Value);
+            "X-TOA-Key", secretProvider.GetSecret("TOAApiKey"));
         _httpClient.DefaultRequestHeaders.Add(
-            "X-Application-Origin", keyVaultClient.GetSecret("TOAApiKey").Value.Value);
+            "X-Application-Origin", secretProvider.GetSecret("TOAApiKey"));
 
         _jsonOptions = new JsonSerializerOptions
         {

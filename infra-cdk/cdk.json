@@ -1,0 +1,6 @@
+{
+  "app": "dotnet run --project InfraCdk.csproj",
+  "context": {
+    "@aws-cdk/core:newStyleStackSynthesis": true
+  }
+}

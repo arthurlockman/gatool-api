@@ -1,4 +1,3 @@
-using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Extensions;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
@@ -9,7 +8,7 @@ namespace GAToolAPI.Jobs;
 public class UpdateGlobalHighScoresJob(
     ILogger<UpdateGlobalHighScoresJob> logger,
     IConfiguration configuration,
-    SecretClient secretClient,
+    ISecretProvider secretProvider,
     FRCApiService frcApiService,
     ScheduleService scheduleService,
     FTCApiService ftcApiService,
@@ -74,8 +73,8 @@ public class UpdateGlobalHighScoresJob(
         bool skipHistorical, CancellationToken cancellationToken)
     {
         var currentYear =
-            await secretClient.GetSecretAsync("FRCCurrentSeason", cancellationToken: cancellationToken);
-        var year = int.Parse(currentYear.Value.Value);
+            await secretProvider.GetSecretAsync("FRCCurrentSeason", cancellationToken);
+        var year = int.Parse(currentYear);
 
         // Fetch all events for the season
         var events = await frcApiService.Get<EventListResponse>($"{year}/events");
@@ -218,8 +217,8 @@ public class UpdateGlobalHighScoresJob(
         bool skipHistorical, CancellationToken cancellationToken)
     {
         var currentFtcYear =
-            await secretClient.GetSecretAsync("FTCCurrentSeason", cancellationToken: cancellationToken);
-        var year = int.Parse(currentFtcYear.Value.Value);
+            await secretProvider.GetSecretAsync("FTCCurrentSeason", cancellationToken);
+        var year = int.Parse(currentFtcYear);
 
         // Fetch all FTC events for the season
         var events = await ftcApiService.Get<FTCEventListResponse>($"{year}/events");
