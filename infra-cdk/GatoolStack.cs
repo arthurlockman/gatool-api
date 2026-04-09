@@ -229,16 +229,16 @@ public class GatoolStack : Stack
                 new ContainerOverride
                 {
                     ContainerName = "job",
-                    Command = ["dotnet", "gatool-api.dll", "--job", "UpdateGlobalHighScores"]
+                    Command = ["--job", "UpdateGlobalHighScores"]
                 }
             ]
         }));
 
         // SyncUsers - twice daily at 2 AM and 2 PM UTC
-        new Rule(this, "SyncUsersSchedule2AM", new RuleProps
+        new Rule(this, "SyncUsersSchedule", new RuleProps
         {
-            Schedule = Schedule.Cron(new CronOptions { Hour = "2", Minute = "0" }),
-            Description = "Sync users at 2 AM UTC"
+            Schedule = Schedule.Cron(new CronOptions { Hour = "2,14", Minute = "0" }),
+            Description = "Sync users at 2 AM and 2 PM UTC"
         }).AddTarget(new EcsTask(new EcsTaskProps
         {
             Cluster = cluster,
@@ -250,27 +250,7 @@ public class GatoolStack : Stack
                 new ContainerOverride
                 {
                     ContainerName = "job",
-                    Command = ["dotnet", "gatool-api.dll", "--job", "SyncUsers"]
-                }
-            ]
-        }));
-
-        new Rule(this, "SyncUsersSchedule2PM", new RuleProps
-        {
-            Schedule = Schedule.Cron(new CronOptions { Hour = "14", Minute = "0" }),
-            Description = "Sync users at 2 PM UTC"
-        }).AddTarget(new EcsTask(new EcsTaskProps
-        {
-            Cluster = cluster,
-            TaskDefinition = jobTaskDef,
-            SubnetSelection = new SubnetSelection { SubnetType = SubnetType.PUBLIC },
-            AssignPublicIp = true,
-            ContainerOverrides =
-            [
-                new ContainerOverride
-                {
-                    ContainerName = "job",
-                    Command = ["dotnet", "gatool-api.dll", "--job", "SyncUsers"]
+                    Command = ["--job", "SyncUsers"]
                 }
             ]
         }));
