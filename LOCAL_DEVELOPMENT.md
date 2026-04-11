@@ -47,7 +47,7 @@ aws configure
 # Or set environment variables
 export AWS_ACCESS_KEY_ID=your-access-key
 export AWS_SECRET_ACCESS_KEY=your-secret-key
-export AWS_REGION=us-east-1
+export AWS_REGION=us-east-2
 ```
 
 Verify your credentials are working:
@@ -116,7 +116,7 @@ The application retrieves these secrets from AWS Secrets Manager (prefix: `gatoo
 To create all secrets at once, use the provided script:
 
 ```bash
-AWS_REGION=us-east-1 ./scripts/create-secrets.sh
+AWS_REGION=us-east-2 ./scripts/create-secrets.sh
 ```
 
 ## Testing Without Authentication
@@ -157,7 +157,7 @@ export Redis__Host=your-redis-host
 export Redis__Port=6380
 
 # Override AWS region
-export AWS__Region=us-east-1
+export AWS__Region=us-east-2
 
 # Run the application
 dotnet run

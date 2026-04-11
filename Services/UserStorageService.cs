@@ -3,23 +3,18 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Amazon.S3;
 using Amazon.S3.Model;
-using GAToolAPI.Models;
 
 namespace GAToolAPI.Services;
 
 public class UserStorageService(
     IAmazonS3 s3Client,
-    IConfiguration configuration,
-    ILogger<UserStorageService> logger)
+    IConfiguration configuration)
 {
     private readonly JsonSerializerOptions _camelCaseIgnoreCaseOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true
     };
-
-    private readonly string _highScoresBucket =
-        configuration["S3:HighScoresBucket"] ?? "gatool-high-scores";
 
     private readonly string _teamUpdatesBucket =
         configuration["S3:TeamUpdatesBucket"] ?? "gatool-team-updates";
@@ -92,73 +87,34 @@ public class UserStorageService(
 
     public async Task<IEnumerable<JsonObject>> GetTeamUpdateHistory(string teamNumber, bool ftc = false)
     {
-        var results = new List<JsonObject>();
         var blobPrefix = ftc ? "ftc/" : "";
         var prefix = $"{blobPrefix}{teamNumber}/";
 
         var keys = await ListAllKeys(_teamUpdatesHistoryBucket, prefix);
 
-        foreach (var key in keys)
+        var tasks = keys.Select(async key =>
+        {
             try
             {
                 var content = await GetObjectStringOrNull(_teamUpdatesHistoryBucket, key);
-                if (content == null) continue;
+                if (content == null) return null;
 
-                if (JsonNode.Parse(content) is not JsonObject updateData) continue;
+                if (JsonNode.Parse(content) is not JsonObject updateData) return null;
                 var modifiedDate = key
                     .Replace(prefix, "")
                     .Replace(".json", "");
 
                 updateData["modifiedDate"] = JsonValue.Create(modifiedDate);
-                results.Add(updateData);
+                return updateData;
             }
             catch
             {
-                // Skip corrupted or invalid objects
+                return null;
             }
+        });
 
-        return results;
-    }
-
-    public async Task<List<HighScore>> GetHighScores(int year, string? typePrefix = null)
-    {
-        var results = new List<HighScore>();
-        var prefix = typePrefix != null ? $"{year}-{typePrefix}" : year.ToString();
-
-        var keys = await ListAllKeys(_highScoresBucket, prefix);
-
-        foreach (var key in keys)
-            try
-            {
-                var jsonString = await GetObjectStringOrNull(_highScoresBucket, key);
-                if (jsonString == null) continue;
-
-                var jsonNode = JsonNode.Parse(jsonString);
-                if (jsonNode is JsonArray jsonArray)
-                {
-                    results.AddRange(jsonArray.Select(item => item?.Deserialize<HighScore>(_camelCaseIgnoreCaseOptions))
-                        .OfType<HighScore>());
-                }
-                else
-                {
-                    var highScore = jsonNode?.Deserialize<HighScore>(_camelCaseIgnoreCaseOptions);
-                    if (highScore != null)
-                        results.Add(highScore);
-                }
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "{ExMessage}", ex.Message);
-            }
-
-        return results;
-    }
-
-    public async Task StoreHighScore(int year, HighScore highScore, string? typePrefix = null)
-    {
-        var dataString = JsonSerializer.Serialize(highScore, _camelCaseIgnoreCaseOptions);
-        var key = $"{year}-{typePrefix}{highScore.Type}-{highScore.Level}.json";
-        await PutObjectString(_highScoresBucket, key, dataString);
+        var results = await Task.WhenAll(tasks);
+        return results.OfType<JsonObject>().ToList();
     }
 
     public async Task SaveUserSyncResults(int fullUsers, int readOnlyUsers, int deletedUsers)
@@ -223,7 +179,7 @@ public class UserStorageService(
             });
 
             keys.AddRange(response.S3Objects.Select(o => o.Key));
-            continuationToken = response.IsTruncated ? response.NextContinuationToken : null;
+            continuationToken = response.IsTruncated == true ? response.NextContinuationToken : null;
         } while (continuationToken != null);
 
         return keys;

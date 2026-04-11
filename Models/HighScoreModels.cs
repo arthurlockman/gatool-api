@@ -1,4 +1,18 @@
+using System.Text.Json.Serialization;
+
 namespace GAToolAPI.Models;
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ScoreProgram { FRC, FTC }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ScoreScope { Global, District, League, Region }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ScoreType { Overall, PenaltyFree, Offsetting, TBAPenaltyFree, AllianceContribution }
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum TournamentLevel { Qual, Playoff }
 
 public record HighScore
 {

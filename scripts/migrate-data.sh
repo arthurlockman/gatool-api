@@ -7,7 +7,7 @@
 #   - Both Azure and AWS have network access
 #
 # Usage:
-#   AZURE_STORAGE_ACCOUNT=<account> AWS_REGION=us-east-1 ./scripts/migrate-data.sh
+#   AZURE_STORAGE_ACCOUNT=<account> AWS_REGION=us-east-2 ./scripts/migrate-data.sh
 #
 # The script copies all blobs from 4 Azure containers to matching S3 buckets,
 # preserving key names exactly.

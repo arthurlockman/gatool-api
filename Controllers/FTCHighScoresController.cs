@@ -14,7 +14,7 @@ namespace GAToolAPI.Controllers;
 public class FTCHighScoresController(
     FTCApiService ftcApi,
     FTCScheduleService ftcSchedule,
-    UserStorageService storageService)
+    HighScoreRepository highScoreRepository)
     : ControllerBase
 {
     /// <summary>
@@ -27,7 +27,7 @@ public class FTCHighScoresController(
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScores(int year)
     {
-        var scores = await storageService.GetHighScores(year, "FTC-");
+        var scores = await highScoreRepository.GetHighScores(year, ScoreProgram.FTC, ScoreScope.Global);
         return Ok(scores);
     }
 
@@ -43,8 +43,7 @@ public class FTCHighScoresController(
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForLeague(int year, string regionCode, string leagueCode)
     {
-        var leaguePrefix = $"FTCLeague{regionCode}{leagueCode}";
-        var scores = await storageService.GetHighScores(year, leaguePrefix);
+        var scores = await highScoreRepository.GetHighScores(year, ScoreProgram.FTC, ScoreScope.League, regionCode, leagueCode);
         return Ok(scores);
     }
 
@@ -59,8 +58,7 @@ public class FTCHighScoresController(
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForRegion(int year, string regionCode)
     {
-        var regionPrefix = $"FTCRegion{regionCode}";
-        var scores = await storageService.GetHighScores(year, regionPrefix);
+        var scores = await highScoreRepository.GetHighScores(year, ScoreProgram.FTC, ScoreScope.Region, regionCode);
         return Ok(scores);
     }
 

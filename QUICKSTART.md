@@ -13,7 +13,7 @@
 
 ```bash
 aws configure
-# Enter your Access Key ID, Secret Access Key, and region (us-east-1)
+# Enter your Access Key ID, Secret Access Key, and region (us-east-2)
 ```
 
 ### 3. Run the Script

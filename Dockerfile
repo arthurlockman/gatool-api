@@ -56,7 +56,5 @@ ENV Redis__Password=""
 # Expose port
 EXPOSE 8080
 
-# Health check
-
 # Set the entry point
 ENTRYPOINT ["dotnet", "gatool-api.dll"]

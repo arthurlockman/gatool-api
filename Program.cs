@@ -1,3 +1,4 @@
+using Amazon.DynamoDBv2;
 using Amazon.S3;
 using Amazon.SecretsManager;
 using GAToolAPI.Attributes;
@@ -60,6 +61,7 @@ try
     builder.Services.AddSingleton<ISecretProvider>(secretProvider);
     builder.Services.AddSingleton<IAmazonSecretsManager>(smClient);
     builder.Services.AddAWSService<IAmazonS3>();
+    builder.Services.AddAWSService<IAmazonDynamoDB>();
 
     builder.Services.AddCors(options =>
     {
@@ -118,6 +120,7 @@ try
     builder.Services.AddSingleton<FTCScoutApiService>();
     builder.Services.AddSingleton<TOAApiService>();
     builder.Services.AddSingleton<UserStorageService>();
+    builder.Services.AddSingleton<HighScoreRepository>();
     builder.Services.AddSingleton<TeamDataService>();
     builder.Services.AddSingleton<ScheduleService>();
     builder.Services.AddSingleton<FTCScheduleService>();

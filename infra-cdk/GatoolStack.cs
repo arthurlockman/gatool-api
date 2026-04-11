@@ -1,4 +1,6 @@
 using Amazon.CDK;
+using Amazon.CDK.AWS.CertificateManager;
+using Amazon.CDK.AWS.DynamoDB;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.ECS.Patterns;
@@ -7,12 +9,12 @@ using Amazon.CDK.AWS.Events.Targets;
 using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.S3;
-using Amazon.CDK.AWS.CertificateManager;
 using Constructs;
 using EnableScalingProps = Amazon.CDK.AWS.ApplicationAutoScaling.EnableScalingProps;
 using HealthCheck = Amazon.CDK.AWS.ElasticLoadBalancingV2.HealthCheck;
 using Schedule = Amazon.CDK.AWS.Events.Schedule;
 using CronOptions = Amazon.CDK.AWS.Events.CronOptions;
+using Attribute = Amazon.CDK.AWS.DynamoDB.Attribute;
 
 namespace InfraCdk;
 
@@ -46,6 +48,16 @@ public class GatoolStack : Stack
             buckets.Add(bucket);
         }
 
+        // ── DynamoDB Tables ───────────────────────────────────────────────
+        var highScoresTable = new Table(this, "HighScoresTable", new TableProps
+        {
+            TableName = "gatool-high-scores",
+            PartitionKey = new Attribute { Name = "Year", Type = AttributeType.NUMBER },
+            SortKey = new Attribute { Name = "ScoreKey", Type = AttributeType.STRING },
+            BillingMode = BillingMode.PAY_PER_REQUEST,
+            RemovalPolicy = RemovalPolicy.RETAIN
+        });
+
         // ── ECS Cluster ─────────────────────────────────────────────────
         var cluster = new Cluster(this, "GatoolCluster", new ClusterProps
         {
@@ -56,8 +68,8 @@ public class GatoolStack : Stack
         // ── Task Definition (API + Redis sidecar) ───────────────────────
         var taskDef = new FargateTaskDefinition(this, "GatoolApiTask", new FargateTaskDefinitionProps
         {
-            Cpu = 512,         // 0.5 vCPU
-            MemoryLimitMiB = 1024, // 1 GB
+            Cpu = 256,         // 0.25 vCPU
+            MemoryLimitMiB = 512,  // 0.5 GB (shared with Redis sidecar)
             RuntimePlatform = new RuntimePlatform
             {
                 CpuArchitecture = CpuArchitecture.ARM64,
@@ -75,6 +87,14 @@ public class GatoolStack : Stack
                 LogRetention = RetentionDays.ONE_MONTH
             }),
             PortMappings = [new PortMapping { ContainerPort = 8080 }],
+            HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
+            {
+                Command = ["CMD-SHELL", "curl -f http://localhost:8080/livecheck || exit 1"],
+                Interval = Duration.Seconds(30),
+                Timeout = Duration.Seconds(5),
+                StartPeriod = Duration.Seconds(10),
+                Retries = 3
+            },
             Environment = new Dictionary<string, string>
             {
                 ["Redis__Host"] = "localhost",
@@ -116,6 +136,9 @@ public class GatoolStack : Stack
         foreach (var bucket in buckets)
             bucket.GrantReadWrite(taskDef.TaskRole);
 
+        // Grant DynamoDB access
+        highScoresTable.GrantReadWriteData(taskDef.TaskRole);
+
         // Grant Secrets Manager access
         taskDef.TaskRole.AddManagedPolicy(
             ManagedPolicy.FromAwsManagedPolicyName("SecretsManagerReadWrite"));
@@ -138,7 +161,8 @@ public class GatoolStack : Stack
                 Certificate = certificate,
                 RedirectHTTP = true,
                 TaskSubnets = new SubnetSelection { SubnetType = SubnetType.PUBLIC },
-                AssignPublicIp = true
+                AssignPublicIp = true,
+                HealthCheckGracePeriod = Duration.Seconds(300)
             });
 
         // Configure health check on ALB target group
@@ -147,10 +171,12 @@ public class GatoolStack : Stack
             Path = "/livecheck",
             HealthyHttpCodes = "200",
             Interval = Duration.Seconds(30),
-            Timeout = Duration.Seconds(10)
+            Timeout = Duration.Seconds(10),
+            HealthyThresholdCount = 2,
+            UnhealthyThresholdCount = 3
         });
 
-        // Auto-scaling: 0 to 5 based on request count
+        // Auto-scaling: 1 to 5 based on request count
         var scaling = fargateService.Service.AutoScaleTaskCount(new EnableScalingProps
         {
             MinCapacity = 1,
@@ -159,7 +185,7 @@ public class GatoolStack : Stack
         scaling.ScaleOnRequestCount("RequestScaling", new RequestCountScalingProps
         {
             TargetGroup = fargateService.TargetGroup,
-            RequestsPerTarget = 20
+            RequestsPerTarget = 2000
         });
 
         // ── Scheduled Tasks ─────────────────────────────────────────────
@@ -210,6 +236,7 @@ public class GatoolStack : Stack
         // Grant same access to job task role
         foreach (var bucket in buckets)
             bucket.GrantReadWrite(jobTaskDef.TaskRole);
+        highScoresTable.GrantReadWriteData(jobTaskDef.TaskRole);
         jobTaskDef.TaskRole.AddManagedPolicy(
             ManagedPolicy.FromAwsManagedPolicyName("SecretsManagerReadWrite"));
 
