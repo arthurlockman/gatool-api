@@ -35,7 +35,8 @@ try
         "FRCCurrentSeason", "FTCCurrentSeason",
         "MailChimpAPIKey", "MailchimpAPIURL", "MailchimpListID",
         "Auth0AdminClientId", "Auth0AdminClientSecret",
-        "NewRelicLicenseKey"
+        "NewRelicLicenseKey",
+        "MailchimpWebhookSecret"
     };
     var preloadedSecrets = await AwsSecretProvider.PreloadSecretsAsync(smClient, secretNames);
     var secretProvider = new AwsSecretProvider(smClient, preloadedSecrets);
@@ -124,11 +125,11 @@ try
     builder.Services.AddSingleton<TeamDataService>();
     builder.Services.AddSingleton<ScheduleService>();
     builder.Services.AddSingleton<FTCScheduleService>();
+    builder.Services.AddSingleton<MailchimpWebhookService>();
 
     // Register job services
     builder.Services.AddScoped<JobRunnerService>();
     builder.Services.AddScoped<UpdateGlobalHighScoresJob>();
-    builder.Services.AddScoped<SyncUsersJob>();
 
     var app = builder.Build();
 

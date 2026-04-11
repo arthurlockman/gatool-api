@@ -6,8 +6,7 @@ public class JobRunnerService(IServiceProvider serviceProvider, ILogger<JobRunne
 {
     private readonly Dictionary<string, Type> _availableJobs = new()
     {
-        { "UpdateGlobalHighScores", typeof(UpdateGlobalHighScoresJob) },
-        { "SyncUsers", typeof(SyncUsersJob) }
+        { "UpdateGlobalHighScores", typeof(UpdateGlobalHighScoresJob) }
     };
 
     public async Task RunJobAsync(string jobName, CancellationToken cancellationToken = default)

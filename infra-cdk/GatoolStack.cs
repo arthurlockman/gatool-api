@@ -261,27 +261,6 @@ public class GatoolStack : Stack
             ]
         }));
 
-        // SyncUsers - twice daily at 2 AM and 2 PM UTC
-        new Rule(this, "SyncUsersSchedule", new RuleProps
-        {
-            Schedule = Schedule.Cron(new CronOptions { Hour = "2,14", Minute = "0" }),
-            Description = "Sync users at 2 AM and 2 PM UTC"
-        }).AddTarget(new EcsTask(new EcsTaskProps
-        {
-            Cluster = cluster,
-            TaskDefinition = jobTaskDef,
-            SubnetSelection = new SubnetSelection { SubnetType = SubnetType.PUBLIC },
-            AssignPublicIp = true,
-            ContainerOverrides =
-            [
-                new ContainerOverride
-                {
-                    ContainerName = "job",
-                    Command = ["--job", "SyncUsers"]
-                }
-            ]
-        }));
-
         // ── Outputs ─────────────────────────────────────────────────────
         new CfnOutput(this, "AlbDnsName", new CfnOutputProps
         {

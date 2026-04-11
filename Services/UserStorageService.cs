@@ -117,23 +117,86 @@ public class UserStorageService(
         return results.OfType<JsonObject>().ToList();
     }
 
-    public async Task SaveUserSyncResults(int fullUsers, int readOnlyUsers, int deletedUsers)
+    public async Task RecordWebhookEvent(string eventType, string email)
     {
-        var timestamp = DateTimeOffset.UtcNow;
-        var data = new
+        const int maxRecentEvents = 50;
+        WebhookActivityLog activity;
+
+        try
         {
-            timestamp,
-            fullUsers,
-            readOnlyUsers,
-            deletedUsers
-        };
+            var existing = await GetObjectStringOrNull(_userPrefsBucket, "system.userSync.json");
+            activity = existing != null
+                ? JsonSerializer.Deserialize<WebhookActivityLog>(existing, _camelCaseIgnoreCaseOptions) ??
+                  new WebhookActivityLog()
+                : new WebhookActivityLog();
+        }
+        catch
+        {
+            activity = new WebhookActivityLog();
+        }
+
+        activity.LastUpdated = DateTimeOffset.UtcNow;
+        activity.TotalEvents++;
+
+        switch (eventType)
+        {
+            case "subscribe":
+                activity.Subscribes++;
+                break;
+            case "unsubscribe":
+                activity.Unsubscribes++;
+                break;
+            case "profile":
+                activity.ProfileUpdates++;
+                break;
+            case "cleaned":
+                activity.Cleaned++;
+                break;
+        }
+
+        activity.RecentEvents.Insert(0, new WebhookEvent
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Type = eventType,
+            Email = email
+        });
+
+        if (activity.RecentEvents.Count > maxRecentEvents)
+            activity.RecentEvents.RemoveRange(maxRecentEvents, activity.RecentEvents.Count - maxRecentEvents);
+
         await PutObjectString(_userPrefsBucket, "system.userSync.json",
-            JsonSerializer.Serialize(data, _camelCaseIgnoreCaseOptions));
+            JsonSerializer.Serialize(activity, _camelCaseIgnoreCaseOptions));
     }
 
     public async Task<string?> GetUserSyncResults()
     {
         return await GetObjectStringOrNull(_userPrefsBucket, "system.userSync.json");
+    }
+
+    public async Task SaveUserSyncResults(int fullUsers, int readOnlyUsers, int deletedUsers)
+    {
+        var timestamp = DateTimeOffset.UtcNow;
+        var data = new { timestamp, fullUsers, readOnlyUsers, deletedUsers };
+        await PutObjectString(_userPrefsBucket, "system.userSync.json",
+            JsonSerializer.Serialize(data, _camelCaseIgnoreCaseOptions));
+    }
+
+    public class WebhookActivityLog
+    {
+        public DateTimeOffset LastUpdated { get; set; }
+        public int TotalEvents { get; set; }
+        public int Subscribes { get; set; }
+        public int Unsubscribes { get; set; }
+        public int ProfileUpdates { get; set; }
+        public int Cleaned { get; set; }
+        public List<WebhookEvent> RecentEvents { get; set; } = [];
+    }
+
+    public class WebhookEvent
+    {
+        public DateTimeOffset Timestamp { get; set; }
+        public string Type { get; set; } = "";
+        public string Email { get; set; } = "";
     }
 
     private async Task<string?> GetObjectStringOrNull(string bucket, string key)
