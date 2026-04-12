@@ -3,6 +3,7 @@ using Amazon.S3;
 using Amazon.SecretsManager;
 using GAToolAPI.Attributes;
 using GAToolAPI.AuthExtensions;
+using GAToolAPI.Helpers;
 using GAToolAPI.Jobs;
 using GAToolAPI.Middleware;
 using GAToolAPI.Services;
@@ -26,6 +27,13 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    // Fetch ECS task metadata (no-ops gracefully outside ECS)
+    var ecsMetadata = await EcsMetadataService.FetchAsync();
+    builder.Services.AddSingleton(ecsMetadata);
+    if (ecsMetadata.IsRunningOnEcs)
+        Log.Information("Running on ECS: Task {TaskId} in cluster {Cluster} ({AZ})",
+            ecsMetadata.TaskId, ecsMetadata.ClusterName, ecsMetadata.AvailabilityZone);
+
     // Preload secrets from AWS Secrets Manager
     var smClient = new AmazonSecretsManagerClient();
     var secretNames = new[]
@@ -44,6 +52,7 @@ try
     builder.Services.AddSerilog((services, lc) => lc
         .ReadFrom.Configuration(builder.Configuration)
         .ReadFrom.Services(services)
+        .Enrich.With(new EcsSerilogEnricher(ecsMetadata))
         .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", LogEventLevel.Warning)
         .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
         .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning));
@@ -158,6 +167,7 @@ try
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseMiddleware<NewRelicRequestFilter>();
+    app.UseMiddleware<NewRelicEcsEnricher>();
     app.UseOpenApi();
     app.UseSwaggerUi(config =>
     {

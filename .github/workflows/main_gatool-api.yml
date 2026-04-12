@@ -87,22 +87,29 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: build-and-push-image
     permissions:
+      contents: read
       id-token: write
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Deploy to ECS
+      - name: Store image tag in SSM
         run: |
-          echo "Deploying new image to ECS..."
-          aws ecs update-service \
-            --cluster gatool \
-            --service gatool-api \
-            --force-new-deployment \
-            --no-cli-pager
+          aws ssm put-parameter \
+            --name /gatool/image-tag \
+            --value "${{ github.sha }}" \
+            --type String \
+            --overwrite
+
+      - name: Deploy via CDK
+        working-directory: infra-cdk
+        run: npx cdk deploy --require-approval never
 
   newrelic-notify:
     runs-on: ubuntu-latest

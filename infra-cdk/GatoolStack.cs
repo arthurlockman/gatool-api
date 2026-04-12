@@ -9,6 +9,7 @@ using Amazon.CDK.AWS.Events.Targets;
 using Amazon.CDK.AWS.IAM;
 using Amazon.CDK.AWS.Logs;
 using Amazon.CDK.AWS.S3;
+using Amazon.CDK.AWS.SSM;
 using Constructs;
 using EnableScalingProps = Amazon.CDK.AWS.ApplicationAutoScaling.EnableScalingProps;
 using HealthCheck = Amazon.CDK.AWS.ElasticLoadBalancingV2.HealthCheck;
@@ -65,6 +66,11 @@ public class GatoolStack : Stack
             ClusterName = "gatool"
         });
 
+        // Read the deployed image tag from SSM (written by CI/CD pipeline)
+        var imageTag = StringParameter.ValueForStringParameter(this, "/gatool/image-tag");
+        var appImage = ContainerImage.FromRegistry(
+            Fn.Join("", new[] { "ghcr.io/arthurlockman/gatool-api:", imageTag }));
+
         // ── Task Definition (API + Redis sidecar) ───────────────────────
         var taskDef = new FargateTaskDefinition(this, "GatoolApiTask", new FargateTaskDefinitionProps
         {
@@ -80,7 +86,7 @@ public class GatoolStack : Stack
         // API container
         var apiContainer = taskDef.AddContainer("gatool-api", new ContainerDefinitionOptions
         {
-            Image = ContainerImage.FromRegistry("ghcr.io/arthurlockman/gatool-api:aws"),
+            Image = appImage,
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 StreamPrefix = "gatool-api",
@@ -203,7 +209,7 @@ public class GatoolStack : Stack
 
         jobTaskDef.AddContainer("job", new ContainerDefinitionOptions
         {
-            Image = ContainerImage.FromRegistry("ghcr.io/arthurlockman/gatool-api:aws"),
+            Image = appImage,
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 StreamPrefix = "gatool-jobs",
@@ -243,6 +249,7 @@ public class GatoolStack : Stack
         // UpdateGlobalHighScores - every 15 minutes
         new Rule(this, "HighScoresSchedule", new RuleProps
         {
+            RuleName = "gatool-update-high-scores",
             Schedule = Schedule.Cron(new CronOptions { Minute = "*/15" }),
             Description = "Update global high scores every 15 minutes"
         }).AddTarget(new EcsTask(new EcsTaskProps
