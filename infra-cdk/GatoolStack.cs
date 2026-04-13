@@ -74,8 +74,8 @@ public class GatoolStack : Stack
         // ── Task Definition (API + Redis sidecar) ───────────────────────
         var taskDef = new FargateTaskDefinition(this, "GatoolApiTask", new FargateTaskDefinitionProps
         {
-            Cpu = 256,         // 0.25 vCPU
-            MemoryLimitMiB = 512,  // 0.5 GB (shared with Redis sidecar)
+            Cpu = 512,         // 0.5 vCPU
+            MemoryLimitMiB = 1024, // 1 GB (shared with Redis sidecar)
             RuntimePlatform = new RuntimePlatform
             {
                 CpuArchitecture = CpuArchitecture.ARM64,

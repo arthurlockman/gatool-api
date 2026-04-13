@@ -18,6 +18,19 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         {
             await next(context);
         }
+        catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
+        {
+            // Client disconnected — not an error, just log at debug level
+            logger.LogDebug("Request cancelled by client: {Method} {Path}", context.Request.Method, context.Request.Path);
+        }
+        catch (Microsoft.AspNetCore.Connections.ConnectionResetException)
+        {
+            logger.LogDebug("Connection reset by client: {Method} {Path}", context.Request.Method, context.Request.Path);
+        }
+        catch (Exception ex) when (ex is IOException && context.RequestAborted.IsCancellationRequested)
+        {
+            logger.LogDebug("Request body read aborted by client: {Method} {Path}", context.Request.Method, context.Request.Path);
+        }
         catch (Exception ex)
         {
             await HandleExceptionAsync(context, ex);
