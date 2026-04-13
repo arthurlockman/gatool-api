@@ -1,13 +1,14 @@
-using Azure.Identity;
-using Azure.Security.KeyVault.Secrets;
+using Amazon.DynamoDBv2;
+using Amazon.S3;
+using Amazon.SecretsManager;
 using GAToolAPI.Attributes;
 using GAToolAPI.AuthExtensions;
+using GAToolAPI.Helpers;
 using GAToolAPI.Jobs;
 using GAToolAPI.Middleware;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.Extensions.Azure;
 using NewRelic.LogEnrichers.Serilog;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -26,41 +27,51 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
-    var keyVaultUrl = builder.Configuration["KeyVaultUrl"] ??
-                      throw new ArgumentException("Key Vault URL required to start up.");
-    var keyVaultClient = new SecretClient(new Uri(keyVaultUrl), new DefaultAzureCredential());
+    // Fetch ECS task metadata (no-ops gracefully outside ECS)
+    var ecsMetadata = await EcsMetadataService.FetchAsync();
+    builder.Services.AddSingleton(ecsMetadata);
+    if (ecsMetadata.IsRunningOnEcs)
+        Log.Information("Running on ECS: Task {TaskId} in cluster {Cluster} ({AZ})",
+            ecsMetadata.TaskId, ecsMetadata.ClusterName, ecsMetadata.AvailabilityZone);
+
+    // Preload secrets from AWS Secrets Manager
+    var smClient = new AmazonSecretsManagerClient();
+    var secretNames = new[]
+    {
+        "Auth0Issuer", "Auth0Audience",
+        "FRCApiKey", "TBAApiKey", "FTCApiKey", "CasterstoolApiKey", "TOAApiKey",
+        "FRCCurrentSeason", "FTCCurrentSeason",
+        "MailChimpAPIKey", "MailchimpAPIURL", "MailchimpListID",
+        "Auth0AdminClientId", "Auth0AdminClientSecret",
+        "NewRelicLicenseKey",
+        "MailchimpWebhookSecret"
+    };
+    var preloadedSecrets = await AwsSecretProvider.PreloadSecretsAsync(smClient, secretNames);
+    var secretProvider = new AwsSecretProvider(smClient, preloadedSecrets);
 
     builder.Services.AddSerilog((services, lc) => lc
         .ReadFrom.Configuration(builder.Configuration)
         .ReadFrom.Services(services)
+        .Enrich.With(new EcsSerilogEnricher(ecsMetadata))
         .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", LogEventLevel.Warning)
         .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
         .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning));
 
-    var authAuthority = keyVaultClient.GetSecret("Auth0Issuer");
-    var authAudience = keyVaultClient.GetSecret("Auth0Audience");
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
         {
-            options.Authority = authAuthority.Value.Value;
-            options.Audience = authAudience.Value.Value;
+            options.Authority = secretProvider.GetSecret("Auth0Issuer");
+            options.Audience = secretProvider.GetSecret("Auth0Audience");
         });
     builder.Services.AddAuthorizationBuilder()
         .AddPolicy("user", policy => policy.Requirements.Add(new HasRoleRequirement("user")))
         .AddPolicy("admin", policy => policy.Requirements.Add(new HasRoleRequirement("admin")));
     builder.Services.AddSingleton<IAuthorizationHandler, HasRoleHandler>();
 
-    var storageConnectionString = keyVaultClient.GetSecret("UserStorageConnectionString").Value.Value;
-    builder.Services.AddAzureClients(clientBuilder =>
-    {
-        // Register default credential for all DI services
-        DefaultAzureCredential credential = new();
-        clientBuilder.UseCredential(credential);
-
-        // Register clients
-        clientBuilder.AddSecretClient(new Uri(keyVaultUrl));
-        clientBuilder.AddBlobServiceClient(storageConnectionString);
-    });
+    builder.Services.AddSingleton<ISecretProvider>(secretProvider);
+    builder.Services.AddSingleton<IAmazonSecretsManager>(smClient);
+    builder.Services.AddAWSService<IAmazonS3>();
+    builder.Services.AddAWSService<IAmazonDynamoDB>();
 
     builder.Services.AddCors(options =>
     {
@@ -119,14 +130,15 @@ try
     builder.Services.AddSingleton<FTCScoutApiService>();
     builder.Services.AddSingleton<TOAApiService>();
     builder.Services.AddSingleton<UserStorageService>();
+    builder.Services.AddSingleton<HighScoreRepository>();
     builder.Services.AddSingleton<TeamDataService>();
     builder.Services.AddSingleton<ScheduleService>();
     builder.Services.AddSingleton<FTCScheduleService>();
+    builder.Services.AddSingleton<MailchimpWebhookService>();
 
     // Register job services
     builder.Services.AddScoped<JobRunnerService>();
     builder.Services.AddScoped<UpdateGlobalHighScoresJob>();
-    builder.Services.AddScoped<SyncUsersJob>();
 
     var app = builder.Build();
 
@@ -155,6 +167,7 @@ try
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseMiddleware<NewRelicRequestFilter>();
+    app.UseMiddleware<NewRelicEcsEnricher>();
     app.UseOpenApi();
     app.UseSwaggerUi(config =>
     {

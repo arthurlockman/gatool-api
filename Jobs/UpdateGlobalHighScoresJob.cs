@@ -1,4 +1,3 @@
-using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Extensions;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
@@ -9,12 +8,12 @@ namespace GAToolAPI.Jobs;
 public class UpdateGlobalHighScoresJob(
     ILogger<UpdateGlobalHighScoresJob> logger,
     IConfiguration configuration,
-    SecretClient secretClient,
+    ISecretProvider secretProvider,
     FRCApiService frcApiService,
     ScheduleService scheduleService,
     FTCApiService ftcApiService,
     FTCScheduleService ftcScheduleService,
-    UserStorageService userStorageService) : IJob
+    HighScoreRepository highScoreRepository) : IJob
 {
     public string Name => "UpdateGlobalHighScores";
 
@@ -73,9 +72,18 @@ public class UpdateGlobalHighScoresJob(
     private async Task CalculateFrcHighScores(string logPrefix, int lookbackDays, bool isDryRun,
         bool skipHistorical, CancellationToken cancellationToken)
     {
-        var currentYear =
-            await secretClient.GetSecretAsync("FRCCurrentSeason", cancellationToken: cancellationToken);
-        var year = int.Parse(currentYear.Value.Value);
+        var yearOverride = configuration.GetValue<int?>("HighScoresYear");
+        int year;
+        if (yearOverride.HasValue)
+        {
+            year = yearOverride.Value;
+            logger.LogInformation("{Prefix}Using year override: {Year}", logPrefix, year);
+        }
+        else
+        {
+            var currentYear = await secretProvider.GetSecretAsync("FRCCurrentSeason", cancellationToken);
+            year = int.Parse(currentYear);
+        }
 
         // Fetch all events for the season
         var events = await frcApiService.Get<EventListResponse>($"{year}/events");
@@ -131,7 +139,7 @@ public class UpdateGlobalHighScoresJob(
         var historicalMatches = new List<HybridMatch>();
         if (!skipHistorical)
         {
-            var existingHighScores = await userStorageService.GetHighScores(year);
+            var existingHighScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FRC, ScoreScope.Global);
             historicalMatches = existingHighScores
                 .Select(hs => hs.MatchData.Match)
                 .ToList();
@@ -193,7 +201,7 @@ public class UpdateGlobalHighScoresJob(
 
         // Calculate and store global high scores
         var globalHighScores = allMatches.CalculateHighScores(year);
-        if (!isDryRun) await globalHighScores.StoreHighScores(userStorageService, year);
+        if (!isDryRun) await globalHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FRC, ScoreScope.Global);
         logger.LogInformation("{Prefix}Calculated global high scores: {Count} categories.",
             logPrefix, globalHighScores.Count);
 
@@ -202,13 +210,13 @@ public class UpdateGlobalHighScoresJob(
         await Task.WhenAll(districts?.Districts?.Select(async district =>
         {
             var districtMatches = allMatches.Where(m => m.DistrictCode == district.Code).ToList();
-            var districtHighScores = districtMatches.CalculateHighScores(year, $"District{district.Code}");
+            var districtHighScores = districtMatches.CalculateHighScores(year, $"FRC:district:{district.Code}");
 
             logger.LogInformation("{Prefix}District {DistrictCode}: {MatchCount} matches, {ScoreCount} high scores.",
                 logPrefix, district.Code, districtMatches.Count, districtHighScores.Count);
 
             if (!isDryRun)
-                await districtHighScores.StoreHighScores(userStorageService, year, $"District{district.Code}");
+                await districtHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FRC, ScoreScope.District, district.Code!);
         }) ?? []);
 
         logger.LogInformation("{Prefix}FRC UpdateGlobalHighScores completed successfully", logPrefix);
@@ -217,9 +225,18 @@ public class UpdateGlobalHighScoresJob(
     private async Task CalculateFtcHighScores(string logPrefix, int lookbackDays, bool isDryRun,
         bool skipHistorical, CancellationToken cancellationToken)
     {
-        var currentFtcYear =
-            await secretClient.GetSecretAsync("FTCCurrentSeason", cancellationToken: cancellationToken);
-        var year = int.Parse(currentFtcYear.Value.Value);
+        var yearOverride = configuration.GetValue<int?>("HighScoresYear");
+        int year;
+        if (yearOverride.HasValue)
+        {
+            year = yearOverride.Value;
+            logger.LogInformation("{Prefix}[FTC] Using year override: {Year}", logPrefix, year);
+        }
+        else
+        {
+            var currentFtcYear = await secretProvider.GetSecretAsync("FTCCurrentSeason", cancellationToken);
+            year = int.Parse(currentFtcYear);
+        }
 
         // Fetch all FTC events for the season
         var events = await ftcApiService.Get<FTCEventListResponse>($"{year}/events");
@@ -271,7 +288,7 @@ public class UpdateGlobalHighScoresJob(
         var historicalMatches = new List<HybridMatch>();
         if (!skipHistorical)
         {
-            var existingHighScores = await userStorageService.GetHighScores(year, "FTC-");
+            var existingHighScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FTC, ScoreScope.Global);
             historicalMatches = existingHighScores
                 .Select(hs => hs.MatchData.Match)
                 .ToList();
@@ -335,7 +352,7 @@ public class UpdateGlobalHighScoresJob(
 
         // Calculate and store global FTC high scores
         var globalHighScores = allMatches.CalculateHighScores(year, "FTC");
-        if (!isDryRun) await globalHighScores.StoreHighScores(userStorageService, year, "FTC-");
+        if (!isDryRun) await globalHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.Global);
         logger.LogInformation("{Prefix}[FTC] Calculated global high scores: {Count} categories.",
             logPrefix, globalHighScores.Count);
 
@@ -346,14 +363,14 @@ public class UpdateGlobalHighScoresJob(
             {
                 var leagueKey = $"{league.Region}-{league.Code}";
                 var leagueMatches = allMatches.Where(m => m.DistrictCode == leagueKey).ToList();
-                var leaguePrefix = $"FTCLeague{league.Region}{league.Code}";
+                var leaguePrefix = $"FTC:league:{league.Region}:{league.Code}";
                 var leagueHighScores = leagueMatches.CalculateHighScores(year, leaguePrefix);
 
                 logger.LogInformation(
                     "{Prefix}[FTC] League {LeagueKey}: {MatchCount} matches, {ScoreCount} high scores.",
                     logPrefix, leagueKey, leagueMatches.Count, leagueHighScores.Count);
 
-                if (!isDryRun) await leagueHighScores.StoreHighScores(userStorageService, year, leaguePrefix);
+                if (!isDryRun) await leagueHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.League, league.Region!, league.Code!);
             }));
 
         // Calculate high scores per region (aggregate all matches in a region)
@@ -368,13 +385,13 @@ public class UpdateGlobalHighScoresJob(
             var regionMatches = allMatches
                 .Where(m => m.DistrictCode != null && m.DistrictCode.Split('-')[0] == region)
                 .ToList();
-            var regionPrefix = $"FTCRegion{region}";
+            var regionPrefix = $"FTC:region:{region}";
             var regionHighScores = regionMatches.CalculateHighScores(year, regionPrefix);
 
             logger.LogInformation("{Prefix}[FTC] Region {Region}: {MatchCount} matches, {ScoreCount} high scores.",
                 logPrefix, region, regionMatches.Count, regionHighScores.Count);
 
-            if (!isDryRun) await regionHighScores.StoreHighScores(userStorageService, year, regionPrefix);
+            if (!isDryRun) await regionHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.Region, region);
         }));
 
         logger.LogInformation("{Prefix}[FTC] UpdateGlobalHighScores completed successfully", logPrefix);

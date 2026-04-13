@@ -1,12 +1,14 @@
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Azure;
-using Azure.Storage.Blobs;
-using GAToolAPI.Models;
+using Amazon.S3;
+using Amazon.S3.Model;
 
 namespace GAToolAPI.Services;
 
-public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<UserStorageService> logger)
+public class UserStorageService(
+    IAmazonS3 s3Client,
+    IConfiguration configuration)
 {
     private readonly JsonSerializerOptions _camelCaseIgnoreCaseOptions = new()
     {
@@ -14,122 +16,65 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         PropertyNameCaseInsensitive = true
     };
 
-    private readonly BlobContainerClient _highScoresClient =
-        blobServiceClient.GetBlobContainerClient("gatool-high-scores");
+    private readonly string _teamUpdatesBucket =
+        configuration["S3:TeamUpdatesBucket"] ?? "gatool-team-updates";
 
-    private readonly BlobContainerClient _teamUpdatesClient =
-        blobServiceClient.GetBlobContainerClient("gatool-team-updates");
+    private readonly string _teamUpdatesHistoryBucket =
+        configuration["S3:TeamUpdatesHistoryBucket"] ?? "gatool-team-updates-history";
 
-    private readonly BlobContainerClient _teamUpdatesHistoryClient =
-        blobServiceClient.GetBlobContainerClient("gatool-team-updates-history");
-
-    private readonly BlobContainerClient _userPrefsClient =
-        blobServiceClient.GetBlobContainerClient("gatool-user-preferences");
+    private readonly string _userPrefsBucket =
+        configuration["S3:UserPreferencesBucket"] ?? "gatool-user-preferences";
 
     public async Task<string?> GetUserPreferences(string username)
     {
-        var blob = _userPrefsClient.GetBlobClient($"{username}.prefs.json");
-        var content = await blob.DownloadAsync();
-        if (!content.HasValue) return null;
-        var reader = new StreamReader(content.Value.Content);
-        return await reader.ReadToEndAsync();
+        return await GetObjectStringOrNull(_userPrefsBucket, $"{username}.prefs.json");
     }
 
     public async Task StoreUserPreferences(string username, JsonObject preferences)
     {
-        var blob = _userPrefsClient.GetBlobClient($"{username}.prefs.json");
-        var prefString = preferences.ToJsonString();
-        await using var stream = await blob.OpenWriteAsync(true);
-        await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(prefString);
+        await PutObjectString(_userPrefsBucket, $"{username}.prefs.json", preferences.ToJsonString());
     }
 
     public async Task<string?> GetGlobalAnnouncements()
     {
-        try
-        {
-            var blob = _userPrefsClient.GetBlobClient("system.announce.json");
-            var content = await blob.DownloadAsync();
-            if (!content.HasValue) return null;
-            var reader = new StreamReader(content.Value.Content);
-            return await reader.ReadToEndAsync();
-        }
-        catch (RequestFailedException)
-        {
-            return null;
-        }
+        return await GetObjectStringOrNull(_userPrefsBucket, "system.announce.json");
     }
 
     public async Task StoreGlobalAnnouncements(JsonObject announcements)
     {
-        var blob = _userPrefsClient.GetBlobClient("system.announce.json");
-        var prefString = announcements.ToJsonString();
-        await using var stream = await blob.OpenWriteAsync(true);
-        await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(prefString);
+        await PutObjectString(_userPrefsBucket, "system.announce.json", announcements.ToJsonString());
     }
 
     public async Task<string?> GetEventAnnouncements(string eventCode)
     {
-        try
-        {
-            var blob = _userPrefsClient.GetBlobClient($"{eventCode}.announce.json");
-            var content = await blob.DownloadAsync();
-            if (!content.HasValue) return null;
-            var reader = new StreamReader(content.Value.Content);
-            return await reader.ReadToEndAsync();
-        }
-        catch (RequestFailedException)
-        {
-            return null;
-        }
+        return await GetObjectStringOrNull(_userPrefsBucket, $"{eventCode}.announce.json");
     }
 
     public async Task StoreEventAnnouncements(string eventCode, string announcements)
     {
-        var blob = _userPrefsClient.GetBlobClient($"{eventCode}.announce.json");
-        await using var stream = await blob.OpenWriteAsync(true);
-        await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(announcements);
+        await PutObjectString(_userPrefsBucket, $"{eventCode}.announce.json", announcements);
     }
 
     public async Task<string?> GetTeamUpdates(string teamNumber, bool ftc = false)
     {
-        try
-        {
-            var prefix = ftc ? "ftc/" : "";
-            var blob = _teamUpdatesClient.GetBlobClient($"{prefix}{teamNumber}.json");
-            var content = await blob.DownloadAsync();
-            if (!content.HasValue) return null;
-            var reader = new StreamReader(content.Value.Content);
-            return await reader.ReadToEndAsync();
-        }
-        catch (RequestFailedException)
-        {
-            return null;
-        }
+        var prefix = ftc ? "ftc/" : "";
+        return await GetObjectStringOrNull(_teamUpdatesBucket, $"{prefix}{teamNumber}.json");
     }
 
     public async Task StoreTeamUpdates(string teamNumber, JsonObject data, string email, bool ftc = false)
     {
         var blobPrefix = ftc ? "ftc/" : "";
-        var updateBlobName = $"{blobPrefix}{teamNumber}.json";
+        var updateKey = $"{blobPrefix}{teamNumber}.json";
         try
         {
-            var blob = _teamUpdatesClient.GetBlobClient(updateBlobName);
-            var properties = await blob.GetPropertiesAsync();
-            var lastModifiedDate = properties.Value.LastModified;
-
-            var currentContent = await blob.DownloadAsync();
-            using var reader = new StreamReader(currentContent.Value.Content);
-            var content = await reader.ReadToEndAsync();
-
-            var historyBlob =
-                _teamUpdatesHistoryClient.GetBlobClient(
-                    $"{blobPrefix}{teamNumber}/{lastModifiedDate:yyyy-MM-ddTHH:mm:ss.fffZ}.json");
-            await using var historyStream = await historyBlob.OpenWriteAsync(true);
-            await using var historyWriter = new StreamWriter(historyStream);
-            await historyWriter.WriteAsync(content);
+            var currentContent = await GetObjectStringOrNull(_teamUpdatesBucket, updateKey);
+            if (currentContent != null)
+            {
+                // Archive current version to history with current UTC timestamp
+                var timestamp = DateTimeOffset.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+                var historyKey = $"{blobPrefix}{teamNumber}/{timestamp}.json";
+                await PutObjectString(_teamUpdatesHistoryBucket, historyKey, currentContent);
+            }
         }
         catch
         {
@@ -137,116 +82,169 @@ public class UserStorageService(BlobServiceClient blobServiceClient, ILogger<Use
         }
 
         data["source"] = JsonValue.Create(email);
-        var dataString = data.ToJsonString();
-
-        var userBlob = _teamUpdatesClient.GetBlobClient(updateBlobName);
-        await using var stream = await userBlob.OpenWriteAsync(true);
-        await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(dataString);
+        await PutObjectString(_teamUpdatesBucket, updateKey, data.ToJsonString());
     }
 
     public async Task<IEnumerable<JsonObject>> GetTeamUpdateHistory(string teamNumber, bool ftc = false)
     {
-        var results = new List<JsonObject>();
-
         var blobPrefix = ftc ? "ftc/" : "";
-        var blobs = _teamUpdatesHistoryClient.GetBlobsAsync(prefix: $"{blobPrefix}{teamNumber}/");
+        var prefix = $"{blobPrefix}{teamNumber}/";
 
-        await foreach (var blob in blobs)
+        var keys = await ListAllKeys(_teamUpdatesHistoryBucket, prefix);
+
+        var tasks = keys.Select(async key =>
+        {
             try
             {
-                var blobClient = _teamUpdatesHistoryClient.GetBlobClient(blob.Name);
-                var content = await blobClient.DownloadContentAsync();
-                var jsonString = content.Value.Content.ToString();
+                var content = await GetObjectStringOrNull(_teamUpdatesHistoryBucket, key);
+                if (content == null) return null;
 
-                if (JsonNode.Parse(jsonString) is not JsonObject updateData) continue;
-                // Extract the modification date from the blob name
-                // Format: {teamNumber}/{timestamp}.json -> timestamp
-                var modifiedDate = blob.Name
-                    .Replace($"{blobPrefix}{teamNumber}/", "")
+                if (JsonNode.Parse(content) is not JsonObject updateData) return null;
+                var modifiedDate = key
+                    .Replace(prefix, "")
                     .Replace(".json", "");
 
                 updateData["modifiedDate"] = JsonValue.Create(modifiedDate);
-                results.Add(updateData);
+                return updateData;
             }
             catch
             {
-                // Skip corrupted or invalid blobs
+                return null;
             }
+        });
 
-        return results;
+        var results = await Task.WhenAll(tasks);
+        return results.OfType<JsonObject>().ToList();
     }
 
-    public async Task<List<HighScore>> GetHighScores(int year, string? typePrefix = null)
+    public async Task RecordWebhookEvent(string eventType, string email)
     {
-        var results = new List<HighScore>();
+        const int maxRecentEvents = 50;
+        WebhookActivityLog activity;
 
-        // List all blobs with the year prefix
-        var blobPrefix = typePrefix != null ? $"{year}-{typePrefix}" : year.ToString();
-        var blobs = _highScoresClient.GetBlobsAsync(prefix: blobPrefix);
+        try
+        {
+            var existing = await GetObjectStringOrNull(_userPrefsBucket, "system.userSync.json");
+            activity = existing != null
+                ? JsonSerializer.Deserialize<WebhookActivityLog>(existing, _camelCaseIgnoreCaseOptions) ??
+                  new WebhookActivityLog()
+                : new WebhookActivityLog();
+        }
+        catch
+        {
+            activity = new WebhookActivityLog();
+        }
 
-        await foreach (var blob in blobs)
-            try
-            {
-                // Download and parse each high score blob
-                var blobClient = _highScoresClient.GetBlobClient(blob.Name);
-                var content = await blobClient.DownloadContentAsync();
-                var jsonString = content.Value.Content.ToString();
+        activity.LastUpdated = DateTimeOffset.UtcNow;
+        activity.TotalEvents++;
 
-                // Parse the JSON - could be a single HighScore or an array
-                var jsonNode = JsonNode.Parse(jsonString);
-                if (jsonNode is JsonArray jsonArray)
-                {
-                    // Handle array of high scores
-                    results.AddRange(jsonArray.Select(item => item?.Deserialize<HighScore>(_camelCaseIgnoreCaseOptions))
-                        .OfType<HighScore>());
-                }
-                else
-                {
-                    // Handle single high score
-                    var highScore = jsonNode?.Deserialize<HighScore>(_camelCaseIgnoreCaseOptions);
-                    if (highScore != null)
-                        results.Add(highScore);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Skip corrupted or invalid blobs
-                logger.LogError(ex, "{ExMessage}", ex.Message);
-            }
+        switch (eventType)
+        {
+            case "subscribe":
+                activity.Subscribes++;
+                break;
+            case "unsubscribe":
+                activity.Unsubscribes++;
+                break;
+            case "profile":
+                activity.ProfileUpdates++;
+                break;
+            case "cleaned":
+                activity.Cleaned++;
+                break;
+        }
 
-        return results;
+        activity.RecentEvents.Insert(0, new WebhookEvent
+        {
+            Timestamp = DateTimeOffset.UtcNow,
+            Type = eventType,
+            Email = email
+        });
+
+        if (activity.RecentEvents.Count > maxRecentEvents)
+            activity.RecentEvents.RemoveRange(maxRecentEvents, activity.RecentEvents.Count - maxRecentEvents);
+
+        await PutObjectString(_userPrefsBucket, "system.userSync.json",
+            JsonSerializer.Serialize(activity, _camelCaseIgnoreCaseOptions));
     }
 
-    public async Task StoreHighScore(int year, HighScore highScore, string? typePrefix = null)
+    public async Task<string?> GetUserSyncResults()
     {
-        var dataString = JsonSerializer.Serialize(highScore, _camelCaseIgnoreCaseOptions);
-        var blob = _highScoresClient.GetBlobClient($"{year}-{typePrefix}{highScore.Type}-{highScore.Level}.json");
-        await blob.UploadAsync(BinaryData.FromString(dataString), overwrite: true);
+        return await GetObjectStringOrNull(_userPrefsBucket, "system.userSync.json");
     }
 
     public async Task SaveUserSyncResults(int fullUsers, int readOnlyUsers, int deletedUsers)
     {
         var timestamp = DateTimeOffset.UtcNow;
-        var blob = _userPrefsClient.GetBlobClient("system.userSync.json");
-        var data = new
-        {
-            timestamp,
-            fullUsers,
-            readOnlyUsers,
-            deletedUsers
-        };
-        await using var stream = await blob.OpenWriteAsync(true);
-        await using var writer = new StreamWriter(stream);
-        await writer.WriteAsync(JsonSerializer.Serialize(data, _camelCaseIgnoreCaseOptions));
+        var data = new { timestamp, fullUsers, readOnlyUsers, deletedUsers };
+        await PutObjectString(_userPrefsBucket, "system.userSync.json",
+            JsonSerializer.Serialize(data, _camelCaseIgnoreCaseOptions));
     }
 
-    public async Task<string?> GetUserSyncResults()
+    public class WebhookActivityLog
     {
-        var blob = _userPrefsClient.GetBlobClient("system.userSync.json");
-        var content = await blob.DownloadAsync();
-        if (!content.HasValue) return null;
-        var reader = new StreamReader(content.Value.Content);
-        return await reader.ReadToEndAsync();
+        public DateTimeOffset LastUpdated { get; set; }
+        public int TotalEvents { get; set; }
+        public int Subscribes { get; set; }
+        public int Unsubscribes { get; set; }
+        public int ProfileUpdates { get; set; }
+        public int Cleaned { get; set; }
+        public List<WebhookEvent> RecentEvents { get; set; } = [];
+    }
+
+    public class WebhookEvent
+    {
+        public DateTimeOffset Timestamp { get; set; }
+        public string Type { get; set; } = "";
+        public string Email { get; set; } = "";
+    }
+
+    private async Task<string?> GetObjectStringOrNull(string bucket, string key)
+    {
+        try
+        {
+            var response = await s3Client.GetObjectAsync(bucket, key);
+            using var reader = new StreamReader(response.ResponseStream);
+            return await reader.ReadToEndAsync();
+        }
+        catch (AmazonS3Exception ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+    }
+
+    private async Task PutObjectString(string bucket, string key, string content)
+    {
+        await s3Client.PutObjectAsync(new PutObjectRequest
+        {
+            BucketName = bucket,
+            Key = key,
+            ContentBody = content,
+            ContentType = "application/json"
+        });
+    }
+
+    /// <summary>
+    ///     Lists all object keys with a given prefix, handling S3 pagination.
+    /// </summary>
+    private async Task<List<string>> ListAllKeys(string bucket, string prefix)
+    {
+        var keys = new List<string>();
+        string? continuationToken = null;
+
+        do
+        {
+            var response = await s3Client.ListObjectsV2Async(new ListObjectsV2Request
+            {
+                BucketName = bucket,
+                Prefix = prefix,
+                ContinuationToken = continuationToken
+            });
+
+            keys.AddRange(response.S3Objects.Select(o => o.Key));
+            continuationToken = response.IsTruncated == true ? response.NextContinuationToken : null;
+        } while (continuationToken != null);
+
+        return keys;
     }
 }

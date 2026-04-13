@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Exceptions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
@@ -13,14 +12,14 @@ public class FTCApiService : IApiService
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public FTCApiService(HttpClient httpClient, SecretClient keyVaultClient)
+    public FTCApiService(HttpClient httpClient, ISecretProvider secretProvider)
     {
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri("https://ftc-api.firstinspires.org/v2.0/");
         _httpClient.DefaultRequestHeaders.Add(
             HeaderNames.Accept, "application/json");
         _httpClient.DefaultRequestHeaders.Add(
-            HeaderNames.Authorization, keyVaultClient.GetSecret("FTCApiKey").Value.Value);
+            HeaderNames.Authorization, secretProvider.GetSecret("FTCApiKey"));
 
         // Configure case-insensitive JSON options
         _jsonOptions = new JsonSerializerOptions

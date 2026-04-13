@@ -1,5 +1,4 @@
 using System.Text.Json;
-using Azure.Security.KeyVault.Secrets;
 using GAToolAPI.Exceptions;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Net.Http.Headers;
@@ -12,14 +11,14 @@ public class TBAApiService
     private readonly HttpClient _httpClient;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public TBAApiService(HttpClient httpClient, SecretClient keyVaultClient)
+    public TBAApiService(HttpClient httpClient, ISecretProvider secretProvider)
     {
         _httpClient = httpClient;
         _httpClient.BaseAddress = new Uri("https://www.thebluealliance.com/api/v3/");
         _httpClient.DefaultRequestHeaders.Add(
             HeaderNames.Accept, "application/json");
         _httpClient.DefaultRequestHeaders.Add(
-            "X-TBA-Auth-Key", keyVaultClient.GetSecret("TBAApiKey").Value.Value);
+            "X-TBA-Auth-Key", secretProvider.GetSecret("TBAApiKey"));
 
         _jsonOptions = new JsonSerializerOptions
         {

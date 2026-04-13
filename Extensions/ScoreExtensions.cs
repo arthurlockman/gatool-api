@@ -5,11 +5,13 @@ namespace GAToolAPI.Extensions;
 
 public static class ScoreExtensions
 {
-    public static async Task StoreHighScores(this IEnumerable<HighScore> highScores, UserStorageService storage,
-        int year,
-        string? typePrefix = null)
+    public static async Task StoreHighScores(this IEnumerable<HighScore> highScores, HighScoreRepository repository,
+        int year, ScoreProgram program, ScoreScope scope, params string[] segments)
     {
-        await Task.WhenAll(highScores.Select(highScore => storage.StoreHighScore(year, highScore, typePrefix)));
+        foreach (var highScore in highScores)
+        {
+            await repository.StoreHighScore(year, highScore, program, scope, segments);
+        }
     }
 
     public static List<HighScore> CalculateHighScores(this IEnumerable<HybridMatch> matches, int year,

@@ -1,0 +1,48 @@
+name: CDK Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      diff-only:
+        description: 'Only show diff (no deploy)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  cdk-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install AWS CDK CLI
+        run: npm install -g aws-cdk
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: CDK Diff
+        working-directory: infra-cdk
+        run: cdk diff
+
+      - name: CDK Deploy
+        if: ${{ !inputs.diff-only }}
+        working-directory: infra-cdk
+        run: cdk deploy --require-approval never

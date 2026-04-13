@@ -11,7 +11,7 @@ namespace GAToolAPI.Controllers;
 
 [Route("v3/{year:int}/highscores")]
 [OpenApiTag("High Scores")]
-public class HighScoresController(FRCApiService frcApi, ScheduleService schedule, UserStorageService storageService)
+public class HighScoresController(FRCApiService frcApi, ScheduleService schedule, HighScoreRepository highScoreRepository)
     : ControllerBase
 {
     /// <summary>
@@ -24,9 +24,7 @@ public class HighScoresController(FRCApiService frcApi, ScheduleService schedule
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScores(int year)
     {
-        var allScores = await storageService.GetHighScores(year);
-        // Exclude FTC high scores from the FRC endpoint
-        var frcScores = allScores.Where(s => !s.YearType.Contains("FTC")).ToList();
+        var frcScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FRC, ScoreScope.Global);
         return Ok(frcScores);
     }
 

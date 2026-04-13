@@ -19,8 +19,8 @@ fi
 
 # Check if .NET is installed
 if ! command -v dotnet &> /dev/null; then
-    echo "❌ .NET SDK is not installed. Please install .NET 9.0 SDK first."
-    echo "   Download from: https://dotnet.microsoft.com/download/dotnet/9.0"
+    echo "❌ .NET SDK is not installed. Please install .NET 10.0 SDK first."
+    echo "   Download from: https://dotnet.microsoft.com/download/dotnet/10.0"
     exit 1
 fi
 
@@ -41,29 +41,31 @@ else
 fi
 
 echo ""
-echo "🔍 Checking Azure authentication..."
+echo "🔍 Checking AWS authentication..."
 
-# Check if Azure CLI is installed
-if ! command -v az &> /dev/null; then
-    echo "⚠️  Azure CLI not installed. Install with: brew install azure-cli"
-    echo "   The API will fail to start without Azure authentication."
+# Check if AWS CLI is installed
+if ! command -v aws &> /dev/null; then
+    echo "⚠️  AWS CLI not installed. Install with: brew install awscli"
+    echo "   The API will fail to start without AWS authentication."
     read -p "Continue anyway? (y/n) " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Yy]$ ]]; then
         exit 1
     fi
 else
-    # Check if logged into Azure
-    if ! az account show &> /dev/null; then
-        echo "⚠️  Not logged into Azure. Logging in..."
-        az login --scope "https://vault.azure.net/.default"
+    # Check if logged into AWS
+    if ! aws sts get-caller-identity &> /dev/null; then
+        echo "⚠️  Not authenticated with AWS. Run 'aws configure' to set up credentials."
+        read -p "Continue anyway? (y/n) " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
     else
-        echo "✅ Authenticated with Azure"
-        SUBSCRIPTION=$(az account show --query name -o tsv)
-        echo "   Using subscription: $SUBSCRIPTION"
-        echo ""
-        echo "💡 If you get authentication errors, your token may have expired."
-        echo "   Run: az logout && az login --scope \"https://vault.azure.net/.default\""
+        echo "✅ Authenticated with AWS"
+        ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+        REGION=$(aws configure get region)
+        echo "   Account: $ACCOUNT, Region: $REGION"
     fi
 fi
 
@@ -75,9 +77,8 @@ echo ""
 echo "🚀 Starting the API..."
 echo ""
 echo "📋 The API will be available at:"
-echo "   - Swagger UI: http://localhost:5000/swagger"
-echo "   - HTTP:       http://localhost:5000"
-echo "   - HTTPS:      https://localhost:5001"
+echo "   - Swagger UI: http://localhost:8080/swagger"
+echo "   - HTTP:       http://localhost:8080"
 echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""

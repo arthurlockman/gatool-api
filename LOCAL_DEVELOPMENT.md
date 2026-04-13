@@ -4,9 +4,9 @@ This guide will help you run the GATool API locally for testing and development.
 
 ## Prerequisites
 
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (for Redis)
-- Azure CLI (for Key Vault access) - `brew install azure-cli` on macOS
+- AWS CLI (for Secrets Manager access) - `brew install awscli` on macOS
 
 ## Quick Start
 
@@ -36,28 +36,24 @@ To start it again later:
 docker start redis
 ```
 
-### 2. Azure Authentication
+### 2. AWS Authentication
 
-The API uses Azure Key Vault to retrieve secrets. You must be signed in with an account that exists in the **Gorham-Falmouth Alliance for Robotics** Azure tenant.
-
-If you see `AADSTS50020: User account ... does not exist in tenant 'Gorham-Falmouth Alliance for Robotics'`:
+The API uses AWS Secrets Manager to retrieve secrets. You must have AWS credentials configured with access to the Secrets Manager secrets.
 
 ```bash
-# Log out of any current Azure account
-az logout
+# Configure AWS CLI with your credentials
+aws configure
 
-# Log in to the correct tenant (with Key Vault scope)
-az login --tenant "c8c6d255-9e1a-4560-aa0e-8e61501ab304" --scope "https://vault.azure.net/.default"
+# Or set environment variables
+export AWS_ACCESS_KEY_ID=your-access-key
+export AWS_SECRET_ACCESS_KEY=your-secret-key
+export AWS_REGION=us-east-2
 ```
 
-For normal login (if your account is already in the right tenant):
+Verify your credentials are working:
 
 ```bash
-# Login to Azure
-az login
-
-# Set your Azure subscription (if you have multiple)
-az account set --subscription "your-subscription-id"
+aws sts get-caller-identity
 ```
 
 ### 3. Run the API
@@ -74,9 +70,8 @@ dotnet run
 
 The API will start at:
 
-- **HTTP**: http://localhost:5000
-- **HTTPS**: https://localhost:5001
-- **Swagger UI**: http://localhost:5000/swagger
+- **HTTP**: http://localhost:8080
+- **Swagger UI**: http://localhost:8080/swagger
 
 ## Alternative: Using Visual Studio / Rider
 
@@ -96,30 +91,33 @@ Used when `ASPNETCORE_ENVIRONMENT=Development`. This is automatically loaded and
 - Console logging configuration
 - Local Redis settings (localhost:6379)
 
-### appsettings.Local.json (Optional)
+## Required Secrets in AWS Secrets Manager
 
-Created for you with placeholder values. This file contains:
-
-- Local Redis configuration
-- Placeholders for API keys (if you want to bypass Key Vault in the future)
-
-**Note**: `appsettings.Local.json` is not currently used by the application. The app requires Azure Key Vault access.
-
-## Required Secrets in Azure Key Vault
-
-The application retrieves these secrets from Azure Key Vault (`https://GAToolApiKeys.vault.azure.net`):
+The application retrieves these secrets from AWS Secrets Manager (prefix: `gatool/`):
 
 | Secret Name                   | Description                 | Required For            |
 |-------------------------------|-----------------------------|-------------------------|
-| `Auth0Issuer`                 | Auth0 domain URL            | Authentication          |
-| `Auth0Audience`               | Auth0 API audience          | Authentication          |
-| `UserStorageConnectionString` | Azure Blob Storage          | User data endpoints     |
-| `FRCApiKey`                   | FIRST API key               | FRC data endpoints      |
-| `TBAApiKey`                   | The Blue Alliance API key   | TBA/offseason endpoints |
-| `StatboticsApiKey`            | Statbotics API key          | Statistical data        |
-| `FTCApiKey`                   | FTC API key                 | FTC data endpoints      |
-| `TOAApiKey`                   | The Orange Alliance API key | FTC data endpoints      |
-| `CasterstoolApiKey`          | Casterstool API key         | Matchup connections     |
+| `gatool/Auth0Issuer`          | Auth0 domain URL            | Authentication          |
+| `gatool/Auth0Audience`        | Auth0 API audience          | Authentication          |
+| `gatool/FRCApiKey`            | FIRST API key               | FRC data endpoints      |
+| `gatool/TBAApiKey`            | The Blue Alliance API key   | TBA/offseason endpoints |
+| `gatool/FTCApiKey`            | FTC API key                 | FTC data endpoints      |
+| `gatool/TOAApiKey`            | The Orange Alliance API key | FTC data endpoints      |
+| `gatool/CasterstoolApiKey`    | Casterstool API key         | Matchup connections     |
+| `gatool/FRCCurrentSeason`     | Current FRC season year     | Season filtering        |
+| `gatool/FTCCurrentSeason`     | Current FTC season year     | Season filtering        |
+| `gatool/MailChimpAPIKey`      | MailChimp API key           | User sync               |
+| `gatool/MailchimpAPIURL`      | MailChimp API URL           | User sync               |
+| `gatool/MailchimpListID`      | MailChimp list ID           | User sync               |
+| `gatool/Auth0AdminClientId`   | Auth0 Management client ID  | User sync               |
+| `gatool/Auth0AdminClientSecret` | Auth0 Management secret   | User sync               |
+| `gatool/NewRelicLicenseKey`   | New Relic license key       | Monitoring              |
+
+To create all secrets at once, use the provided script:
+
+```bash
+AWS_REGION=us-east-2 ./scripts/create-secrets.sh
+```
 
 ## Testing Without Authentication
 
@@ -131,18 +129,18 @@ Many endpoints don't require authentication. Try these:
 
 ```bash
 # Get offseason events
-curl http://localhost:5000/v3/2025/offseason/events
+curl http://localhost:8080/v3/2025/offseason/events
 
 # Get team data  
-curl http://localhost:5000/v3/2025/offseason/teams/cc
+curl http://localhost:8080/v3/2025/offseason/teams/cc
 
 # Get match schedule
-curl http://localhost:5000/v3/2025/offseason/schedule/hybrid/cc
+curl http://localhost:8080/v3/2025/offseason/schedule/hybrid/cc
 ```
 
 ### Option 2: Use Swagger UI
 
-1. Navigate to http://localhost:5000/swagger
+1. Navigate to http://localhost:8080/swagger
 2. Expand any endpoint
 3. Click "Try it out"
 4. Fill in parameters and click "Execute"
@@ -158,21 +156,24 @@ export Redis__Host=your-redis-host
 # Override Redis port
 export Redis__Port=6380
 
+# Override AWS region
+export AWS__Region=us-east-2
+
 # Run the application
 dotnet run
 ```
 
 ## Troubleshooting
 
-### "Key Vault URL required to start up"
+### "Unable to retrieve secrets from AWS"
 
-**Problem**: The application can't find the Key Vault configuration.
+**Problem**: The application can't access AWS Secrets Manager.
 
-**Solution**: Ensure you're authenticated with Azure CLI:
+**Solution**: Ensure you're authenticated with the AWS CLI:
 
 ```bash
-az login
-az account show
+aws sts get-caller-identity
+aws secretsmanager list-secrets --filter Key=name,Values=gatool/
 ```
 
 ### "Unable to connect to Redis"
@@ -192,38 +193,14 @@ docker start redis
 docker run -d --name redis -p 6379:6379 redis:latest
 ```
 
-### "Access denied to Azure Key Vault"
-
-**Problem**: Your Azure account doesn't have permission to read secrets from the Key Vault.
-
-**Solution**: Contact the Azure administrator to grant you "Key Vault Secrets User" role on the Key Vault.
-
-### "The refresh token has expired due to inactivity" (AADSTS700082)
-
-**Problem**: Your Azure CLI token has expired (typically after 90 days of inactivity).
-
-**Solution**:
-
-```bash
-az logout
-az login --tenant "c8c6d255-9e1a-4560-aa0e-8e61501ab304" --scope "https://vault.azure.net/.default"
-```
-
-Or simply:
-
-```bash
-az logout
-az login --scope "https://vault.azure.net/.default"
-```
-
 ### Port already in use
 
-**Problem**: Port 5000 or 5001 is already in use.
+**Problem**: Port 8080 is already in use.
 
 **Solution**: Stop the other application or specify different ports:
 
 ```bash
-dotnet run --urls "http://localhost:5050;https://localhost:5051"
+dotnet run --urls "http://localhost:5050"
 ```
 
 ## API Keys for Testing
@@ -269,13 +246,15 @@ gatool-api/
 ├── Models/              # Data models
 ├── Middleware/          # Request/response middleware
 ├── Jobs/                # Background jobs
+├── infra-cdk/           # AWS CDK infrastructure (C#)
+├── scripts/             # Migration and setup scripts
 ├── Properties/          # Launch settings
 └── appsettings*.json    # Configuration files
 ```
 
 ## Next Steps
 
-1. **Review the Swagger UI** at http://localhost:5000/swagger to see all available endpoints
+1. **Review the Swagger UI** at http://localhost:8080/swagger to see all available endpoints
 2. **Test the offseason endpoints** you've been working on:
     - `/v3/{year}/offseason/events`
     - `/v3/{year}/offseason/teams/{eventCode}`
@@ -293,15 +272,15 @@ If you need to test with real data and don't have API keys:
 1. Go to https://www.thebluealliance.com/account
 2. Sign in or create an account
 3. Generate an API key
-4. Store it in Azure Key Vault as `TBAApiKey`
+4. Store it in AWS Secrets Manager as `gatool/TBAApiKey`
 
 ### FIRST API (Required for Official Events)
 
 1. Go to https://frc-events.firstinspires.org/services/API
 2. Request API access
-3. Store the credentials in Azure Key Vault
+3. Store the credentials in AWS Secrets Manager as `gatool/FRCApiKey`
 
 ## Contact
 
-If you have issues accessing Azure resources or need permissions, contact the project administrator.
+If you have issues accessing AWS resources or need permissions, contact the project administrator.
 

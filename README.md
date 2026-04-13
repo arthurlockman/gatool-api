@@ -33,10 +33,10 @@ The fastest way to run the API locally:
 This script will automatically:
 
 - Start Redis in Docker
-- Check Azure authentication
+- Check AWS authentication
 - Build and run the API
 
-The API will be available at http://localhost:5000/swagger
+The API will be available at http://localhost:8080/swagger
 
 ### Detailed Setup
 
@@ -47,9 +47,9 @@ For detailed local development instructions, see:
 
 ### Prerequisites
 
-- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (for Redis)
-- Azure CLI: `brew install azure-cli` (macOS)
+- AWS CLI: `brew install awscli` (macOS)
 
 ## API Documentation
 
