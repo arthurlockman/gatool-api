@@ -363,6 +363,64 @@ public class FrcApiController(
     }
 
     /// <summary>
+    ///     Gets Statbotics data for multiple FRC teams.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="request">Request body containing list of team numbers.</param>
+    /// <returns>Dictionary of team number to Statbotics data.</returns>
+    /// <response code="200">Returns data for each requested team.</response>
+    /// <response code="400">Teams list is empty.</response>
+    [HttpPost("queryStatbotics")]
+    [OpenApiTag("FRC Team Data")]
+    [ProducesResponseType(typeof(Dictionary<int, StatboticsTeamData?>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    public async Task<IActionResult> QueryStatbotics(int year, [FromBody] TeamQueryRequest request)
+    {
+        if (request.Teams.Count == 0) return BadRequest("Teams list is required");
+
+        var results = new ConcurrentDictionary<int, object?>();
+
+        var tasks = request.Teams.Select(async team =>
+        {
+            var data = await GetStatboticsTeamData(year, team.ToString());
+            results[team] = data;
+        }).ToArray();
+
+        await Task.WhenAll(tasks);
+
+        return Ok(results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+    }
+
+    /// <summary>
+    ///     Gets competition history for multiple FRC teams from The Blue Alliance.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="request">Request body containing list of team numbers.</param>
+    /// <returns>Dictionary of team number to team history.</returns>
+    /// <response code="200">Returns history for each requested team.</response>
+    /// <response code="400">Teams list is empty.</response>
+    [HttpPost("queryHistory")]
+    [OpenApiTag("FRC Team Data")]
+    [ProducesResponseType(typeof(Dictionary<int, TBATeamHistory?>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    public async Task<IActionResult> QueryHistory(int year, [FromBody] TeamQueryRequest request)
+    {
+        if (request.Teams.Count == 0) return BadRequest("Teams list is required");
+
+        var results = new ConcurrentDictionary<int, object?>();
+
+        var tasks = request.Teams.Select(async team =>
+        {
+            var data = await GetTeamHistoryData(team);
+            results[team] = data;
+        }).ToArray();
+
+        await Task.WhenAll(tasks);
+
+        return Ok(results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+    }
+
+    /// <summary>
     ///     Gets competition history for an FRC team from The Blue Alliance.
     /// </summary>
     /// <param name="year">The competition year/season.</param>
@@ -379,17 +437,9 @@ public class FrcApiController(
     {
         Response.Headers.CacheControl = "s-maxage=604800"; // 1 week
 
-        try
-        {
-            var history = await tbaApiClient.Get<TBATeamHistory>($"team/frc{teamNumber}/history");
-            if (history == null) return NoContent();
-            return Ok(history);
-        }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Error fetching team history for team {TeamNumber}", teamNumber);
-            return NoContent();
-        }
+        var history = await GetTeamHistoryData(teamNumber);
+        if (history == null) return NoContent();
+        return Ok(history);
     }
 
     /// <summary>
@@ -498,10 +548,38 @@ public class FrcApiController(
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetRegionalTeamDetailByTeam(string year, int teamNumber)
     {
-        var query = new Dictionary<string, string?> { ["teamNumber"] = teamNumber.ToString() };
-        var result = await frcApiClient.Get<RegionalTeamDetailResponse>($"{year}/rankings/regional/teamdetail", query);
+        var result = await GetRegionalTeamDetailData(year, teamNumber);
         if (result == null) return NoContent();
         return Ok(result);
+    }
+
+    /// <summary>
+    ///     Gets championship ranking details for multiple FRC teams in a single request.
+    /// </summary>
+    /// <param name="year">The competition year/season (e.g. 2026).</param>
+    /// <param name="request">Request body containing list of team numbers.</param>
+    /// <returns>Dictionary of team number to regional team detail.</returns>
+    /// <response code="200">Returns regional detail for each requested team.</response>
+    /// <response code="400">Teams list is empty.</response>
+    [HttpPost("queryRegionalTeamDetail")]
+    [OpenApiTag("FRC Events")]
+    [ProducesResponseType(typeof(Dictionary<int, RegionalTeamDetailResponse?>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    public async Task<IActionResult> QueryRegionalTeamDetail(string year, [FromBody] TeamQueryRequest request)
+    {
+        if (request.Teams.Count == 0) return BadRequest("Teams list is required");
+
+        var results = new ConcurrentDictionary<int, object?>();
+
+        var tasks = request.Teams.Select(async team =>
+        {
+            var data = await GetRegionalTeamDetailData(year, team);
+            results[team] = data;
+        }).ToArray();
+
+        await Task.WhenAll(tasks);
+
+        return Ok(results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
     }
 
     /// <summary>
@@ -1165,7 +1243,7 @@ public class FrcApiController(
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetStatboticsData(int year, string teamNumber)
     {
-        var result = await statboticsApiClient.Get<StatboticsTeamData>($"team_year/{teamNumber}/{year}");
+        var result = await GetStatboticsTeamData(year, teamNumber);
         if (result == null) return NoContent();
         return Ok(result);
     }
@@ -1253,6 +1331,79 @@ public class FrcApiController(
         }
         catch
         {
+            return null;
+        }
+    }
+
+    private async Task<StatboticsTeamData?> GetStatboticsTeamData(int year, string teamNumber)
+    {
+        var cacheKey = $"statbotics:team-data:{teamNumber}:{year}";
+
+        var cachedResult = await _redis.StringGetAsync(cacheKey);
+        if (!string.IsNullOrEmpty(cachedResult))
+            return JsonSerializer.Deserialize<StatboticsTeamData?>(cachedResult.ToString());
+
+        try
+        {
+            var result = await statboticsApiClient.Get<StatboticsTeamData>($"team_year/{teamNumber}/{year}");
+
+            if (result != null)
+                await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), TimeSpan.FromMinutes(5));
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching statbotics data for team {TeamNumber} year {Year}", teamNumber, year);
+            return null;
+        }
+    }
+
+    private async Task<TBATeamHistory?> GetTeamHistoryData(int teamNumber)
+    {
+        var cacheKey = $"tbaapi:team/frc{teamNumber}/history";
+
+        var cachedResult = await _redis.StringGetAsync(cacheKey);
+        if (!string.IsNullOrEmpty(cachedResult))
+            return JsonSerializer.Deserialize<TBATeamHistory?>(cachedResult.ToString());
+
+        try
+        {
+            var result = await tbaApiClient.Get<TBATeamHistory>($"team/frc{teamNumber}/history");
+
+            if (result != null)
+                await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), TimeSpan.FromDays(1));
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching team history for team {TeamNumber}", teamNumber);
+            return null;
+        }
+    }
+
+    private async Task<RegionalTeamDetailResponse?> GetRegionalTeamDetailData(string year, int teamNumber)
+    {
+        var cacheKey = $"frcapi:regional:teamdetail:{year}:{teamNumber}";
+
+        var cachedResult = await _redis.StringGetAsync(cacheKey);
+        if (!string.IsNullOrEmpty(cachedResult))
+            return JsonSerializer.Deserialize<RegionalTeamDetailResponse?>(cachedResult.ToString());
+
+        try
+        {
+            var query = new Dictionary<string, string?> { ["teamNumber"] = teamNumber.ToString() };
+            var result = await frcApiClient.Get<RegionalTeamDetailResponse>($"{year}/rankings/regional/teamdetail", query);
+
+            if (result != null)
+                await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), TimeSpan.FromMinutes(5));
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching regional team detail for team {TeamNumber}", teamNumber);
             return null;
         }
     }

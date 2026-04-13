@@ -29,6 +29,21 @@ public class HighScoresController(FRCApiService frcApi, ScheduleService schedule
     }
 
     /// <summary>
+    ///     Gets FRC high scores for a specific district.
+    /// </summary>
+    /// <param name="year">The competition year/season.</param>
+    /// <param name="districtCode">The district code (e.g. "NE", "CA").</param>
+    /// <returns>List of high score entries for the district.</returns>
+    /// <response code="200">Returns the district high scores.</response>
+    [HttpGet("district/{districtCode}")]
+    [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
+    public async Task<IActionResult> GetHighScoresForDistrict(int year, string districtCode)
+    {
+        var districtScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FRC, ScoreScope.District, districtCode);
+        return Ok(districtScores);
+    }
+
+    /// <summary>
     ///     Gets calculated high scores (overall, penalty-free, etc.) for a specific FRC event.
     /// </summary>
     /// <param name="year">The competition year/season.</param>
