@@ -165,6 +165,7 @@ try
     }
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.UseMiddleware<UndefinedRouteParameterMiddleware>();
     app.UseSerilogRequestLogging();
     app.UseMiddleware<NewRelicRequestFilter>();
     app.UseMiddleware<NewRelicEcsEnricher>();
