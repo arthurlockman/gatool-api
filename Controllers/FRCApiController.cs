@@ -292,6 +292,7 @@ public class FrcApiController(
     /// <response code="200">Returns awards for each requested team.</response>
     /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryAwards")]
+    [RedisCache("frc:batch-awards", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<int, Dictionary<string, TeamAwardsResponse?>>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
@@ -371,6 +372,7 @@ public class FrcApiController(
     /// <response code="200">Returns data for each requested team.</response>
     /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryStatbotics")]
+    [RedisCache("statbotics:batch-team-data", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<int, StatboticsTeamData?>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
@@ -400,6 +402,7 @@ public class FrcApiController(
     /// <response code="200">Returns history for each requested team.</response>
     /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryHistory")]
+    [RedisCache("tbaapi:batch-teamhistory", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<int, TBATeamHistory?>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
@@ -562,6 +565,7 @@ public class FrcApiController(
     /// <response code="200">Returns regional detail for each requested team.</response>
     /// <response code="400">Teams list is empty.</response>
     [HttpPost("queryRegionalTeamDetail")]
+    [RedisCache("frcapi:batch-regional-teamdetail", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FRC Events")]
     [ProducesResponseType(typeof(Dictionary<int, RegionalTeamDetailResponse?>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
