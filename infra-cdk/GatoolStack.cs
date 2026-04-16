@@ -63,7 +63,8 @@ public class GatoolStack : Stack
         var cluster = new Cluster(this, "GatoolCluster", new ClusterProps
         {
             Vpc = vpc,
-            ClusterName = "gatool"
+            ClusterName = "gatool",
+            EnableFargateCapacityProviders = true
         });
 
         // Read the deployed image tag from SSM (written by CI/CD pipeline)
@@ -74,8 +75,8 @@ public class GatoolStack : Stack
         // ── Task Definition (API + Redis sidecar) ───────────────────────
         var taskDef = new FargateTaskDefinition(this, "GatoolApiTask", new FargateTaskDefinitionProps
         {
-            Cpu = 512,         // 0.5 vCPU
-            MemoryLimitMiB = 1024, // 1 GB (shared with Redis sidecar)
+            Cpu = 1024,         // 1 vCPU
+            MemoryLimitMiB = 2048, // 2 GB (shared with Redis sidecar)
             RuntimePlatform = new RuntimePlatform
             {
                 CpuArchitecture = CpuArchitecture.ARM64,
@@ -168,7 +169,12 @@ public class GatoolStack : Stack
                 RedirectHTTP = true,
                 TaskSubnets = new SubnetSelection { SubnetType = SubnetType.PUBLIC },
                 AssignPublicIp = true,
-                HealthCheckGracePeriod = Duration.Seconds(300)
+                HealthCheckGracePeriod = Duration.Seconds(300),
+                CapacityProviderStrategies =
+                [
+                    new CapacityProviderStrategy { CapacityProvider = "FARGATE_SPOT", Weight = 4 },
+                    new CapacityProviderStrategy { CapacityProvider = "FARGATE", Weight = 1, Base = 1 }
+                ]
             });
 
         // Configure health check on ALB target group
