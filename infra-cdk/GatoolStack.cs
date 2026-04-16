@@ -161,7 +161,7 @@ public class GatoolStack : Stack
                 Cluster = cluster,
                 TaskDefinition = taskDef,
                 ServiceName = "gatool-api",
-                DesiredCount = 1,
+                DesiredCount = 2,
                 PublicLoadBalancer = true,
                 ListenerPort = 443,
                 Certificate = certificate,
@@ -185,13 +185,13 @@ public class GatoolStack : Stack
         // Auto-scaling: 1 to 5 based on request count
         var scaling = fargateService.Service.AutoScaleTaskCount(new EnableScalingProps
         {
-            MinCapacity = 1,
-            MaxCapacity = 5
+            MinCapacity = 2,
+            MaxCapacity = 8
         });
         scaling.ScaleOnRequestCount("RequestScaling", new RequestCountScalingProps
         {
             TargetGroup = fargateService.TargetGroup,
-            RequestsPerTarget = 2000
+            RequestsPerTarget = 1000
         });
 
         // ── Scheduled Tasks ─────────────────────────────────────────────
