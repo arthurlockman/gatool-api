@@ -15,7 +15,8 @@ public class ScheduleService(FRCApiService frcApiClient)
         MatchResponse? matchesResponse;
         try
         {
-            matchesResponse = await frcApiClient.Get<MatchResponse>($"{year}/matches/{eventCode}/{tournamentLevel}");
+            matchesResponse = await frcApiClient.Get<MatchResponse>(
+                $"{year}/matches/{eventCode}/{tournamentLevel}");
         }
         catch
         {

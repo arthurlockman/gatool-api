@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NSwag.Annotations;
 using StackExchange.Redis;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace GAToolAPI.Controllers;
 
@@ -14,6 +15,7 @@ namespace GAToolAPI.Controllers;
 public class AdminController(
     UserStorageService userStorage,
     IConnectionMultiplexer redis,
+    IFusionCache fusionCache,
     ILogger<AdminController> logger) : ControllerBase
 {
     /// <summary>
@@ -79,7 +81,10 @@ public class AdminController(
             var database = redis.GetDatabase();
             var server = redis.GetServer(redis.GetEndPoints().First());
 
+            // Flush L2 (shared Redis) ...
             await server.FlushDatabaseAsync(database.Database);
+            // ... and clear FusionCache's per-task L1 across the fleet via the backplane.
+            await fusionCache.ClearAsync();
 
             logger.LogInformation("Redis cache cleared successfully");
             return NoContent();

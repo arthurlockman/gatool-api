@@ -9,12 +9,17 @@ using GAToolAPI.Middleware;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Caching.Distributed;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
 using NewRelic.LogEnrichers.Serilog;
 using NSwag;
 using NSwag.Generation.Processors.Security;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
+using ZiggyCreatures.Caching.Fusion;
+using ZiggyCreatures.Caching.Fusion.Backplane.StackExchangeRedis;
+using ZiggyCreatures.Caching.Fusion.Serialization.SystemTextJson;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -115,25 +120,85 @@ try
         },
         Password = builder.Configuration["Redis:Password"] ?? null,
         Ssl = builder.Configuration.GetValue<bool?>("Redis:UseTls") ?? false,
-        AllowAdmin = true
+        AllowAdmin = true,
+        // Don't crash on first connect failure: return a multiplexer that keeps
+        // retrying in the background. FusionCache will operate L1-only until
+        // Redis is reachable, then transparently re-engage L2 + backplane.
+        AbortOnConnectFail = false,
+        ConnectRetry = 5,
+        ConnectTimeout = 5000,
+        ReconnectRetryPolicy = new ExponentialRetry(500)
     };
     builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfig));
 
+    // FusionCache: shared L1 (memory) + L2 (Redis via shared multiplexer) + Redis backplane.
+    // L1 + single-flight factory provides intra-task stampede protection.
+    // L2 + backplane coordinate cache state across all ECS tasks so a popular key
+    // hits downstream APIs (FRC/TBA/Statbotics/etc.) at most once per fleet.
+    builder.Services.AddSingleton<IDistributedCache>(sp =>
+        new Microsoft.Extensions.Caching.StackExchangeRedis.RedisCache(new RedisCacheOptions
+        {
+            ConnectionMultiplexerFactory = () =>
+                Task.FromResult(sp.GetRequiredService<IConnectionMultiplexer>())
+        }));
+
+    builder.Services.AddFusionCache()
+        .WithDefaultEntryOptions(new FusionCacheEntryOptions
+        {
+            Duration = TimeSpan.FromMinutes(1),
+
+            // Fail-safe: when downstream errors and we have a stale value, return it.
+            // Critical for an announcer tool — better stale data than a broken broadcast.
+            IsFailSafeEnabled = true,
+            FailSafeMaxDuration = TimeSpan.FromHours(24),
+            FailSafeThrottleDuration = TimeSpan.FromSeconds(30),
+
+            // Soft timeout: if a factory takes longer than this AND we have stale data,
+            // return the stale data and let the factory finish in the background.
+            FactorySoftTimeout = TimeSpan.FromMilliseconds(500),
+            // Hard timeout: absolute ceiling for a factory call (no stale data path).
+            FactoryHardTimeout = TimeSpan.FromSeconds(10),
+
+            // Eager refresh: pro-actively refresh entries at 80% of duration to keep
+            // hot keys fresh without ever exposing a "real" miss to a request.
+            EagerRefreshThreshold = 0.8f,
+
+            // Allow background updates triggered by timeouts/eager-refresh to populate L2.
+            AllowBackgroundDistributedCacheOperations = true,
+            AllowBackgroundBackplaneOperations = true
+        })
+        .WithSerializer(new FusionCacheSystemTextJsonSerializer(new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+        }))
+        .WithRegisteredDistributedCache()
+        .WithBackplane(sp => new RedisBackplane(new RedisBackplaneOptions
+        {
+            ConnectionMultiplexerFactory = () =>
+                Task.FromResult(sp.GetRequiredService<IConnectionMultiplexer>())
+        }));
+
     builder.Services.AddHttpClient();
 
-    builder.Services.AddSingleton<FRCApiService>();
-    builder.Services.AddSingleton<FirstGlobalApiService>();
-    builder.Services.AddSingleton<TBAApiService>();
-    builder.Services.AddSingleton<StatboticsApiService>();
-    builder.Services.AddSingleton<CasterstoolApiService>();
-    builder.Services.AddSingleton<FTCApiService>();
-    builder.Services.AddSingleton<FTCScoutApiService>();
-    builder.Services.AddSingleton<TOAApiService>();
+    // Per-request holder for the desired downstream cache TTL. Populated by
+    // RedisCacheAttribute when an action runs; left null on background-job code paths
+    // (no controller -> no caching).
+    builder.Services.AddScoped<CacheTtlContext>();
+
+    builder.Services.AddScoped<FRCApiService>();
+    builder.Services.AddScoped<FirstGlobalApiService>();
+    builder.Services.AddScoped<TBAApiService>();
+    builder.Services.AddScoped<StatboticsApiService>();
+    builder.Services.AddScoped<CasterstoolApiService>();
+    builder.Services.AddScoped<FTCApiService>();
+    builder.Services.AddScoped<FTCScoutApiService>();
+    builder.Services.AddScoped<TOAApiService>();
     builder.Services.AddSingleton<UserStorageService>();
     builder.Services.AddSingleton<HighScoreRepository>();
-    builder.Services.AddSingleton<TeamDataService>();
-    builder.Services.AddSingleton<ScheduleService>();
-    builder.Services.AddSingleton<FTCScheduleService>();
+    builder.Services.AddScoped<TeamDataService>();
+    builder.Services.AddScoped<ScheduleService>();
+    builder.Services.AddScoped<FTCScheduleService>();
     builder.Services.AddSingleton<MailchimpWebhookService>();
 
     // Register job services
