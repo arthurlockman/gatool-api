@@ -68,15 +68,18 @@ public class GatoolStack : Stack
             EnableFargateCapacityProviders = true
         });
 
-        // ── ElastiCache (shared Redis) ──────────────────────────────────
+        // ── ElastiCache (shared Valkey) ─────────────────────────────────
         // Replaces the per-task Redis sidecar so FusionCache's L2 + backplane
         // coordinate cache state across every API/job task in the fleet.
+        // Valkey is a Redis OSS fork (RESP-compatible) — StackExchange.Redis
+        // and FusionCache work unchanged. ~20% cheaper than the Redis OSS engine
+        // on the same node type.
         // cache.t4g.micro single-node is intentional: the data is purely a cache
         // (loss/eviction is non-fatal, FusionCache absorbs it via L1 + factories).
         var cacheSecurityGroup = new SecurityGroup(this, "GatoolCacheSg", new SecurityGroupProps
         {
             Vpc = vpc,
-            Description = "Allow Redis (6379) from gatool ECS tasks",
+            Description = "Allow Valkey (6379) from gatool ECS tasks",
             AllowAllOutbound = true
         });
 
@@ -89,9 +92,10 @@ public class GatoolStack : Stack
 
         var cacheCluster = new CfnCacheCluster(this, "GatoolCacheCluster", new CfnCacheClusterProps
         {
-            ClusterName = "gatool-cache",
+            ClusterName = "gatool-valkey",
             CacheNodeType = "cache.t4g.micro",
-            Engine = "redis",
+            Engine = "valkey",
+            EngineVersion = "8.0",
             NumCacheNodes = 1,
             CacheSubnetGroupName = cacheSubnetGroup.CacheSubnetGroupName,
             VpcSecurityGroupIds = [cacheSecurityGroup.SecurityGroupId],
@@ -202,7 +206,7 @@ public class GatoolStack : Stack
             UnhealthyThresholdCount = 3
         });
 
-        // Allow API tasks to reach ElastiCache on Redis port
+        // Allow API tasks to reach ElastiCache on Valkey port
         cacheSecurityGroup.AddIngressRule(
             fargateService.Service.Connections.SecurityGroups[0],
             Port.Tcp(6379),
@@ -315,7 +319,7 @@ public class GatoolStack : Stack
         new CfnOutput(this, "CacheEndpoint", new CfnOutputProps
         {
             Value = $"{cacheEndpoint}:{cachePort}",
-            Description = "ElastiCache Redis primary endpoint (used by FusionCache L2 + backplane)"
+            Description = "ElastiCache Valkey primary endpoint (used by FusionCache L2 + backplane)"
         });
     }
 }

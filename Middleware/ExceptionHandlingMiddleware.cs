@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using GAToolAPI.Exceptions;
+using BadHttpRequestException = Microsoft.AspNetCore.Http.BadHttpRequestException;
 
 namespace GAToolAPI.Middleware;
 
@@ -30,6 +31,33 @@ public class ExceptionHandlingMiddleware(RequestDelegate next, ILogger<Exception
         catch (Exception ex) when (ex is IOException && context.RequestAborted.IsCancellationRequested)
         {
             logger.LogDebug("Request body read aborted by client: {Method} {Path}", context.Request.Method, context.Request.Path);
+        }
+        catch (BadHttpRequestException ex)
+        {
+            // Malformed request, slow upload, oversized body, etc. — caller's fault, not ours.
+            // Log at Warning (not Error) so it doesn't pollute alerts, and respond 400.
+            logger.LogWarning(
+                "Bad HTTP request: {Method} {Path} — {Reason}",
+                context.Request.Method, context.Request.Path, ex.Message);
+
+            if (!context.Response.HasStarted)
+            {
+                context.Response.ContentType = "application/json";
+                context.Response.StatusCode = ex.StatusCode == 0
+                    ? (int)HttpStatusCode.BadRequest
+                    : ex.StatusCode;
+
+                var response = new
+                {
+                    error = new
+                    {
+                        message = ex.Message,
+                        type = nameof(BadHttpRequestException),
+                        statusCode = context.Response.StatusCode
+                    }
+                };
+                await context.Response.WriteAsync(JsonSerializer.Serialize(response, _jsonSerializerOptions));
+            }
         }
         catch (Exception ex)
         {
