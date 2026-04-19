@@ -4,6 +4,7 @@ using Amazon.CDK.AWS.DynamoDB;
 using Amazon.CDK.AWS.EC2;
 using Amazon.CDK.AWS.ECS;
 using Amazon.CDK.AWS.ECS.Patterns;
+using Amazon.CDK.AWS.ElastiCache;
 using Amazon.CDK.AWS.Events;
 using Amazon.CDK.AWS.Events.Targets;
 using Amazon.CDK.AWS.IAM;
@@ -67,6 +68,40 @@ public class GatoolStack : Stack
             EnableFargateCapacityProviders = true
         });
 
+        // ── ElastiCache (shared Redis) ──────────────────────────────────
+        // Replaces the per-task Redis sidecar so FusionCache's L2 + backplane
+        // coordinate cache state across every API/job task in the fleet.
+        // cache.t4g.micro single-node is intentional: the data is purely a cache
+        // (loss/eviction is non-fatal, FusionCache absorbs it via L1 + factories).
+        var cacheSecurityGroup = new SecurityGroup(this, "GatoolCacheSg", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            Description = "Allow Redis (6379) from gatool ECS tasks",
+            AllowAllOutbound = true
+        });
+
+        var cacheSubnetGroup = new CfnSubnetGroup(this, "GatoolCacheSubnetGroup", new CfnSubnetGroupProps
+        {
+            Description = "Subnets for gatool ElastiCache",
+            SubnetIds = vpc.SelectSubnets(new SubnetSelection { SubnetType = SubnetType.PUBLIC }).SubnetIds,
+            CacheSubnetGroupName = "gatool-cache-subnets"
+        });
+
+        var cacheCluster = new CfnCacheCluster(this, "GatoolCacheCluster", new CfnCacheClusterProps
+        {
+            ClusterName = "gatool-cache",
+            CacheNodeType = "cache.t4g.micro",
+            Engine = "redis",
+            NumCacheNodes = 1,
+            CacheSubnetGroupName = cacheSubnetGroup.CacheSubnetGroupName,
+            VpcSecurityGroupIds = [cacheSecurityGroup.SecurityGroupId],
+            AutoMinorVersionUpgrade = true
+        });
+        cacheCluster.AddDependency(cacheSubnetGroup);
+
+        var cacheEndpoint = cacheCluster.AttrRedisEndpointAddress;
+        var cachePort = cacheCluster.AttrRedisEndpointPort;
+
         // Read the deployed image tag from SSM (written by CI/CD pipeline)
         var imageTag = StringParameter.ValueForStringParameter(this, "/gatool/image-tag");
         var appImage = ContainerImage.FromRegistry(
@@ -104,8 +139,8 @@ public class GatoolStack : Stack
             },
             Environment = new Dictionary<string, string>
             {
-                ["Redis__Host"] = "localhost",
-                ["Redis__Port"] = "6379",
+                ["Redis__Host"] = cacheEndpoint,
+                ["Redis__Port"] = cachePort,
                 ["Redis__UseTls"] = "false",
                 ["Redis__Password"] = "",
                 ["NEW_RELIC_APP_NAME"] = "gatool-api",
@@ -115,27 +150,6 @@ public class GatoolStack : Stack
             {
                 ["NEW_RELIC_LICENSE_KEY"] = Secret.FromSecretsManager(
                     Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "NewRelicSecret", "NewRelicLicenseKey"))
-            }
-        });
-
-        // Redis sidecar
-        taskDef.AddContainer("redis", new ContainerDefinitionOptions
-        {
-            Image = ContainerImage.FromRegistry("redis:7-alpine"),
-            Logging = LogDriver.AwsLogs(new AwsLogDriverProps
-            {
-                StreamPrefix = "redis",
-                LogRetention = RetentionDays.ONE_WEEK
-            }),
-            Command = ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"],
-            Essential = false,
-            HealthCheck = new Amazon.CDK.AWS.ECS.HealthCheck
-            {
-                Command = ["CMD", "redis-cli", "ping"],
-                Interval = Duration.Seconds(30),
-                Timeout = Duration.Seconds(5),
-                Retries = 3,
-                StartPeriod = Duration.Seconds(10)
             }
         });
 
@@ -188,6 +202,12 @@ public class GatoolStack : Stack
             UnhealthyThresholdCount = 3
         });
 
+        // Allow API tasks to reach ElastiCache on Redis port
+        cacheSecurityGroup.AddIngressRule(
+            fargateService.Service.Connections.SecurityGroups[0],
+            Port.Tcp(6379),
+            "Redis from gatool-api ECS tasks");
+
         // Auto-scaling: 1 to 5 based on request count
         var scaling = fargateService.Service.AutoScaleTaskCount(new EnableScalingProps
         {
@@ -223,8 +243,8 @@ public class GatoolStack : Stack
             }),
             Environment = new Dictionary<string, string>
             {
-                ["Redis__Host"] = "localhost",
-                ["Redis__Port"] = "6379",
+                ["Redis__Host"] = cacheEndpoint,
+                ["Redis__Port"] = cachePort,
                 ["Redis__UseTls"] = "false",
                 ["Redis__Password"] = "",
                 ["NEW_RELIC_APP_NAME"] = "gatool-api",
@@ -237,20 +257,24 @@ public class GatoolStack : Stack
             }
         });
 
-        // Redis sidecar for jobs
-        jobTaskDef.AddContainer("redis", new ContainerDefinitionOptions
-        {
-            Image = ContainerImage.FromRegistry("redis:7-alpine"),
-            Command = ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "allkeys-lru"],
-            Essential = false
-        });
-
         // Grant same access to job task role
         foreach (var bucket in buckets)
             bucket.GrantReadWrite(jobTaskDef.TaskRole);
         highScoresTable.GrantReadWriteData(jobTaskDef.TaskRole);
         jobTaskDef.TaskRole.AddManagedPolicy(
             ManagedPolicy.FromAwsManagedPolicyName("SecretsManagerReadWrite"));
+
+        // Dedicated SG for one-shot job tasks (lets us grant cache ingress explicitly)
+        var jobSecurityGroup = new SecurityGroup(this, "GatoolJobSg", new SecurityGroupProps
+        {
+            Vpc = vpc,
+            Description = "Security group for gatool scheduled job ECS tasks",
+            AllowAllOutbound = true
+        });
+        cacheSecurityGroup.AddIngressRule(
+            jobSecurityGroup,
+            Port.Tcp(6379),
+            "Redis from gatool job ECS tasks");
 
         // UpdateGlobalHighScores - every 15 minutes
         new Rule(this, "HighScoresSchedule", new RuleProps
@@ -264,6 +288,7 @@ public class GatoolStack : Stack
             TaskDefinition = jobTaskDef,
             SubnetSelection = new SubnetSelection { SubnetType = SubnetType.PUBLIC },
             AssignPublicIp = true,
+            SecurityGroups = [jobSecurityGroup],
             ContainerOverrides =
             [
                 new ContainerOverride
@@ -285,6 +310,12 @@ public class GatoolStack : Stack
         {
             Value = cluster.ClusterName,
             Description = "ECS cluster name"
+        });
+
+        new CfnOutput(this, "CacheEndpoint", new CfnOutputProps
+        {
+            Value = $"{cacheEndpoint}:{cachePort}",
+            Description = "ElastiCache Redis primary endpoint (used by FusionCache L2 + backplane)"
         });
     }
 }

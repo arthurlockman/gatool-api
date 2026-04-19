@@ -5,7 +5,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
-using StackExchange.Redis;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace GAToolAPI.Attributes;
 
@@ -52,10 +52,16 @@ public static class ServiceLocator
     public static IServiceProvider? ServiceProvider { get; set; }
 }
 
+/// <summary>
+///     Caches successful <see cref="OkObjectResult" /> responses for the configured duration.
+///     Backed by FusionCache so all per-endpoint TTLs participate in the same L1 + L2 + backplane
+///     setup as service-layer caching: stampede protection, fail-safe stale fallback, and
+///     cross-task coherence are all inherited automatically.
+/// </summary>
 [AttributeUsage(AttributeTargets.Method)]
 public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : ActionFilterAttribute
 {
-    private readonly JsonSerializerOptions _jsonOptions = new()
+    private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -63,31 +69,72 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
 
     public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
     {
-        var redis = context.HttpContext.RequestServices.GetRequiredService<IConnectionMultiplexer>().GetDatabase();
+        // Honor explicit opt-out: bypass cache entirely (read and write).
+        if (RedisCache.ShouldIgnoreCurrentRequest(context.HttpContext))
+        {
+            await next();
+            return;
+        }
 
+        // Signal the desired downstream cache TTL to any service called during this request.
+        // This is what enables service-layer FusionCache writes — without this attribute the
+        // request-scoped CacheTtlContext.Duration stays null and CachedHttpGet bypasses cache.
+        var ttlContext = context.HttpContext.RequestServices.GetRequiredService<Services.CacheTtlContext>();
+        ttlContext.Duration = TimeSpan.FromMinutes(durationMinutes);
+
+        var cache = context.HttpContext.RequestServices.GetRequiredService<IFusionCache>();
         var cacheKey = BuildCacheKey(context);
 
-        // Check if caching is ignored for this request
-        if (!RedisCache.ShouldIgnoreCurrentRequest(context.HttpContext))
+        var entryOptions = new FusionCacheEntryOptions
         {
-            var cachedResult = await redis.StringGetAsync(cacheKey);
-            if (!string.IsNullOrEmpty(cachedResult))
+            Duration = TimeSpan.FromMinutes(durationMinutes),
+            IsFailSafeEnabled = true,
+            FailSafeMaxDuration = TimeSpan.FromDays(1),
+            FailSafeThrottleDuration = TimeSpan.FromSeconds(30),
+            // EagerRefreshThreshold is intentionally NOT set at the response layer.
+            // Eager refresh would fire the captured factory in a background task after
+            // the request scope has been disposed; the factory invokes next() on the
+            // MVC pipeline, which depends on scoped services that are no longer
+            // available. The service layer (CachedHttpGet) still benefits from the
+            // global EagerRefreshThreshold — the response cache simply refreshes
+            // synchronously on real expiry.
+            AllowBackgroundDistributedCacheOperations = true,
+            AllowBackgroundBackplaneOperations = true
+        };
+
+        ActionExecutedContext? executedCtx = null;
+
+        var cachedJson = await cache.GetOrSetAsync<string?>(
+            cacheKey,
+            async (ctx, _) =>
             {
-                var cachedObject = JsonSerializer.Deserialize<object>(cachedResult.ToString());
-                context.Result = new OkObjectResult(cachedObject);
-                return;
-            }
-        }
+                executedCtx = await next();
 
-        var executedContext = await next();
+                // If the action invoked RedisCache.IgnoreCurrentRequest() (e.g. empty result),
+                // skip persisting to L1 + L2 so we don't poison the cache.
+                if (RedisCache.ShouldIgnoreCurrentRequest(context.HttpContext))
+                {
+                    ctx.Options.SetSkipMemoryCache();
+                    ctx.Options.SetSkipDistributedCache(true, true);
+                    return null;
+                }
 
-        // Only cache if not ignored and result is valid
-        if (!RedisCache.ShouldIgnoreCurrentRequest(context.HttpContext) &&
-            executedContext.Result is OkObjectResult { Value: not null } okResult)
-        {
-            var serializedResult = JsonSerializer.Serialize(okResult.Value, _jsonOptions);
-            await redis.StringSetAsync(cacheKey, serializedResult, TimeSpan.FromMinutes(durationMinutes));
-        }
+                if (executedCtx.Result is OkObjectResult { Value: not null } ok)
+                    return JsonSerializer.Serialize(ok.Value, JsonOptions);
+
+                // Non-OK result: don't cache, but FusionCache requires we return something.
+                ctx.Options.SetSkipMemoryCache();
+                ctx.Options.SetSkipDistributedCache(true, true);
+                return null;
+            },
+            entryOptions);
+
+        // If the factory ran, the inner pipeline already populated context.Result via next().
+        if (executedCtx != null) return;
+
+        // Cache hit: short-circuit the action and replay the serialized OK payload.
+        if (!string.IsNullOrEmpty(cachedJson))
+            context.Result = new OkObjectResult(JsonSerializer.Deserialize<object>(cachedJson, JsonOptions));
     }
 
     private string BuildCacheKey(ActionExecutingContext context)
@@ -111,7 +158,7 @@ public class RedisCacheAttribute(string keyPrefix, int durationMinutes = 60) : A
         if (fromBodyParams.Count <= 0) return string.Join(":", keyParts);
         // Serialize body parameters and create a hash for the cache key
         // Sort lists within objects to ensure consistent hashing regardless of order
-        var bodyJson = JsonSerializer.Serialize(fromBodyParams, _jsonOptions);
+        var bodyJson = JsonSerializer.Serialize(fromBodyParams, JsonOptions);
         var bodyHash = ComputeHash(bodyJson);
         keyParts.Add($"body:{bodyHash}");
 
