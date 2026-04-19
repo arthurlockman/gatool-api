@@ -90,21 +90,33 @@ public class GatoolStack : Stack
             CacheSubnetGroupName = "gatool-cache-subnets"
         });
 
-        var cacheCluster = new CfnCacheCluster(this, "GatoolCacheCluster", new CfnCacheClusterProps
+        // Valkey requires CfnReplicationGroup (the legacy CfnCacheCluster API
+        // does not support the Valkey engine). A single-node replication group
+        // (NumCacheClusters = 1, no replicas) is the equivalent of the previous
+        // single-node Redis cache cluster.
+        // NOTE: logical ID is intentionally different from the prior CfnCacheCluster
+        // ("GatoolCacheCluster") because CloudFormation cannot change a resource's type
+        // in place. New logical ID + new physical name = create-then-delete.
+        var cacheCluster = new CfnReplicationGroup(this, "GatoolValkeyCluster", new CfnReplicationGroupProps
         {
-            ClusterName = "gatool-valkey",
+            ReplicationGroupId = "gatool-valkey",
+            ReplicationGroupDescription = "gatool Valkey cache (FusionCache L2 + backplane)",
             CacheNodeType = "cache.t4g.micro",
             Engine = "valkey",
             EngineVersion = "8.0",
-            NumCacheNodes = 1,
+            NumCacheClusters = 1,
+            AutomaticFailoverEnabled = false,
+            MultiAzEnabled = false,
+            AtRestEncryptionEnabled = false,
+            TransitEncryptionEnabled = false,
             CacheSubnetGroupName = cacheSubnetGroup.CacheSubnetGroupName,
-            VpcSecurityGroupIds = [cacheSecurityGroup.SecurityGroupId],
+            SecurityGroupIds = [cacheSecurityGroup.SecurityGroupId],
             AutoMinorVersionUpgrade = true
         });
         cacheCluster.AddDependency(cacheSubnetGroup);
 
-        var cacheEndpoint = cacheCluster.AttrRedisEndpointAddress;
-        var cachePort = cacheCluster.AttrRedisEndpointPort;
+        var cacheEndpoint = cacheCluster.AttrPrimaryEndPointAddress;
+        var cachePort = cacheCluster.AttrPrimaryEndPointPort;
 
         // Read the deployed image tag from SSM (written by CI/CD pipeline)
         var imageTag = StringParameter.ValueForStringParameter(this, "/gatool/image-tag");
@@ -154,6 +166,39 @@ public class GatoolStack : Stack
             {
                 ["NEW_RELIC_LICENSE_KEY"] = Secret.FromSecretsManager(
                     Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "NewRelicSecret", "NewRelicLicenseKey"))
+            }
+        });
+
+        // ── New Relic Infrastructure sidecar ────────────────────────────
+        // Reports container CPU / memory / network for the Fargate task to New Relic
+        // so we can see resource usage alongside APM and logs without leaving NR.
+        // Uses the Fargate task metadata v4 endpoint (no host access needed).
+        // https://docs.newrelic.com/docs/infrastructure/elastic-container-service-integration/install-ecs-integration/
+        taskDef.AddContainer("newrelic-infra", new ContainerDefinitionOptions
+        {
+            Image = ContainerImage.FromRegistry("newrelic/nri-ecs:1.11.7"),
+            Essential = false,
+            Cpu = 128,                  // 0.125 vCPU — well below the 1 vCPU task budget
+            MemoryLimitMiB = 128,       // 128 MiB out of the 2 GiB task budget
+            Logging = LogDriver.AwsLogs(new AwsLogDriverProps
+            {
+                StreamPrefix = "newrelic-infra",
+                LogRetention = RetentionDays.ONE_MONTH
+            }),
+            Environment = new Dictionary<string, string>
+            {
+                ["NRIA_OVERRIDE_HOST_ROOT"] = "",
+                ["NRIA_IS_SECURE_FORWARD_ONLY"] = "true",
+                ["NRIA_PASSTHROUGH_ENVIRONMENT"] =
+                    "ECS_CONTAINER_METADATA_URI,ECS_CONTAINER_METADATA_URI_V4,FARGATE",
+                ["FARGATE"] = "true",
+                ["NRIA_CUSTOM_ATTRIBUTES"] = "{\"clusterName\":\"gatool\",\"service\":\"gatool-api\"}"
+            },
+            Secrets = new Dictionary<string, Secret>
+            {
+                ["NRIA_LICENSE_KEY"] = Secret.FromSecretsManager(
+                    Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(
+                        this, "NewRelicSecretInfra", "NewRelicLicenseKey"))
             }
         });
 
