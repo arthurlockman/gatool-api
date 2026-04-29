@@ -34,6 +34,12 @@ public class MailchimpWebhookService
 
     // Lazy-initialized clients (need secrets from async provider)
     private ManagementApiClient? _auth0Client;
+    private DateTimeOffset _auth0TokenExpiresAt = DateTimeOffset.MinValue;
+    private string? _auth0ClientId;
+    private string? _auth0ClientSecret;
+    private readonly SemaphoreSlim _auth0TokenLock = new(1, 1);
+    private static readonly TimeSpan Auth0TokenRefreshSkew = TimeSpan.FromMinutes(5);
+
     private MailChimpManager? _mailChimpClient;
     private string? _mailChimpListId;
 
@@ -53,6 +59,7 @@ public class MailchimpWebhookService
         _logger.LogInformation("Processing Mailchimp webhook: type={EventType}, email={Email}", eventType, email);
 
         await EnsureClientsInitializedAsync(cancellationToken);
+        await EnsureAuth0TokenFreshAsync(cancellationToken);
 
         switch (eventType)
         {
@@ -164,27 +171,47 @@ public class MailchimpWebhookService
 
     private async Task EnsureClientsInitializedAsync(CancellationToken cancellationToken)
     {
-        if (_auth0Client != null) return;
+        if (_mailChimpClient != null) return;
 
-        var auth0ClientId = await _secretProvider.GetSecretAsync("Auth0AdminClientId", cancellationToken);
-        var auth0ClientSecret = await _secretProvider.GetSecretAsync("Auth0AdminClientSecret", cancellationToken);
+        _auth0ClientId = await _secretProvider.GetSecretAsync("Auth0AdminClientId", cancellationToken);
+        _auth0ClientSecret = await _secretProvider.GetSecretAsync("Auth0AdminClientSecret", cancellationToken);
         var mailChimpApiKey = await _secretProvider.GetSecretAsync("MailChimpAPIKey", cancellationToken);
         var mailChimpApiUrl = await _secretProvider.GetSecretAsync("MailchimpAPIURL", cancellationToken);
         _mailChimpListId = await _secretProvider.GetSecretAsync("MailchimpListID", cancellationToken);
 
-        var authClient = new AuthenticationApiClient(Auth0Domain);
-        var token = await authClient.GetTokenAsync(new ClientCredentialsTokenRequest
-        {
-            Audience = $"https://{Auth0Domain}/api/v2/",
-            ClientId = auth0ClientId,
-            ClientSecret = auth0ClientSecret
-        }, cancellationToken);
-
-        _auth0Client = new ManagementApiClient(token.AccessToken, Auth0Domain);
         _mailChimpClient = new MailChimpManager(new MailChimpOptions
         {
             ApiKey = mailChimpApiKey,
             DataCenter = mailChimpApiUrl
         });
+    }
+
+    private async Task EnsureAuth0TokenFreshAsync(CancellationToken cancellationToken)
+    {
+        if (_auth0Client != null && DateTimeOffset.UtcNow < _auth0TokenExpiresAt - Auth0TokenRefreshSkew)
+            return;
+
+        await _auth0TokenLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_auth0Client != null && DateTimeOffset.UtcNow < _auth0TokenExpiresAt - Auth0TokenRefreshSkew)
+                return;
+
+            _logger.LogInformation("Refreshing Auth0 management API token");
+            var authClient = new AuthenticationApiClient(Auth0Domain);
+            var token = await authClient.GetTokenAsync(new ClientCredentialsTokenRequest
+            {
+                Audience = $"https://{Auth0Domain}/api/v2/",
+                ClientId = _auth0ClientId!,
+                ClientSecret = _auth0ClientSecret!
+            }, cancellationToken);
+
+            _auth0Client = new ManagementApiClient(token.AccessToken, Auth0Domain);
+            _auth0TokenExpiresAt = DateTimeOffset.UtcNow.AddSeconds(token.ExpiresIn);
+        }
+        finally
+        {
+            _auth0TokenLock.Release();
+        }
     }
 }
