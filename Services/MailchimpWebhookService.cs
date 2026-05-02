@@ -111,6 +111,9 @@ public class MailchimpWebhookService
         var isOptedIn = gatoolMergeField == OptInText;
 
         // === New auth (DynamoDB) ===
+        // "Opted in" gets the full "user" role (read + write).
+        // "Not opted in" gets no roles (record exists but no API access — equivalent
+        // to the previous Auth0 read-only role, since all gated endpoints require "user").
         var roles = isOptedIn ? new[] { "user" } : Array.Empty<string>();
 
         var existing = await _authRepository.GetUserAsync(email, cancellationToken);
@@ -162,6 +165,8 @@ public class MailchimpWebhookService
             _logger.LogError(ex, "Auth0 mirror failed for {Email} during subscribe/profile — continuing", email);
         }
 
+        // Tag for welcome only the first time we see this user in EITHER system,
+        // so resubscribers don't get re-welcomed.
         if (newAuthCreated || auth0Created)
         {
             await TagSubscriberForWelcomeAsync(email, cancellationToken);
@@ -281,4 +286,3 @@ public class MailchimpWebhookService
         }
     }
 }
-
