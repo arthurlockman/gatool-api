@@ -60,6 +60,27 @@ public class GatoolStack : Stack
             RemovalPolicy = RemovalPolicy.RETAIN
         });
 
+        // ── Auth Table (single-table design for users, OTPs, passkeys, refresh tokens) ──
+        // PK / SK patterns:
+        //   USER#{email}        / PROFILE                   — user record (roles, createdAt)
+        //   USER#{email}        / PASSKEY#{credentialId}    — registered passkey (publicKey, counter, …)
+        //   OTP#{email}         / CODE#{hash}               — one-time login code (TTL ~10 min)
+        //   REFRESH#{tokenHash} / TOKEN                     — refresh token (TTL ~30 days)
+        // TTL on `expiresAt` (epoch seconds) prunes OTPs and refresh tokens automatically.
+        var authTable = new Table(this, "AuthTable", new TableProps
+        {
+            TableName = "gatool-auth",
+            PartitionKey = new Attribute { Name = "PK", Type = AttributeType.STRING },
+            SortKey = new Attribute { Name = "SK", Type = AttributeType.STRING },
+            BillingMode = BillingMode.PAY_PER_REQUEST,
+            TimeToLiveAttribute = "expiresAt",
+            RemovalPolicy = RemovalPolicy.RETAIN,
+            PointInTimeRecoverySpecification = new PointInTimeRecoverySpecification
+            {
+                PointInTimeRecoveryEnabled = true
+            }
+        });
+
         // ── ECS Cluster ─────────────────────────────────────────────────
         var cluster = new Cluster(this, "GatoolCluster", new ClusterProps
         {
@@ -208,6 +229,15 @@ public class GatoolStack : Stack
 
         // Grant DynamoDB access
         highScoresTable.GrantReadWriteData(taskDef.TaskRole);
+        authTable.GrantReadWriteData(taskDef.TaskRole);
+
+        // Grant SES access (for sending OTP login codes from auth.gatool.org / gatool.org)
+        taskDef.TaskRole.AddToPrincipalPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = ["ses:SendEmail", "ses:SendRawEmail"],
+            Resources = ["*"]
+        }));
 
         // Grant Secrets Manager access
         taskDef.TaskRole.AddManagedPolicy(
@@ -310,6 +340,13 @@ public class GatoolStack : Stack
         foreach (var bucket in buckets)
             bucket.GrantReadWrite(jobTaskDef.TaskRole);
         highScoresTable.GrantReadWriteData(jobTaskDef.TaskRole);
+        authTable.GrantReadWriteData(jobTaskDef.TaskRole);
+        jobTaskDef.TaskRole.AddToPrincipalPolicy(new PolicyStatement(new PolicyStatementProps
+        {
+            Effect = Effect.ALLOW,
+            Actions = ["ses:SendEmail", "ses:SendRawEmail"],
+            Resources = ["*"]
+        }));
         jobTaskDef.TaskRole.AddManagedPolicy(
             ManagedPolicy.FromAwsManagedPolicyName("SecretsManagerReadWrite"));
 

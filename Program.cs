@@ -1,12 +1,15 @@
 using Amazon.DynamoDBv2;
 using Amazon.S3;
 using Amazon.SecretsManager;
+using Amazon.SimpleEmailV2;
+using Fido2NetLib;
 using GAToolAPI.Attributes;
 using GAToolAPI.AuthExtensions;
 using GAToolAPI.Helpers;
 using GAToolAPI.Jobs;
 using GAToolAPI.Middleware;
 using GAToolAPI.Services;
+using GAToolAPI.Services.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
@@ -43,11 +46,10 @@ try
     var smClient = new AmazonSecretsManagerClient();
     var secretNames = new[]
     {
-        "Auth0Issuer", "Auth0Audience",
+        "Auth0Issuer", "Auth0Audience", // kept during migration window for legacy token validation
         "FRCApiKey", "TBAApiKey", "FTCApiKey", "CasterstoolApiKey", "TOAApiKey",
         "FRCCurrentSeason", "FTCCurrentSeason",
         "MailChimpAPIKey", "MailchimpAPIURL", "MailchimpListID",
-        "Auth0AdminClientId", "Auth0AdminClientSecret",
         "NewRelicLicenseKey",
         "MailchimpWebhookSecret"
     };
@@ -62,26 +64,100 @@ try
         .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
         .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning));
 
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+    builder.Services.AddAuthentication(options =>
         {
+            // Default scheme is our self-issued ES256 JWT. We also keep the Auth0 scheme
+            // around during the migration window (see AuthenticationSchemes on policies).
+            options.DefaultAuthenticateScheme = "GatoolJwt";
+            options.DefaultChallengeScheme = "GatoolJwt";
+        })
+        .AddJwtBearer("GatoolJwt", options =>
+        {
+            // Self-issued JWT: ECDSA P-256 signing key from Secrets Manager.
+            // Configured asynchronously below once the DI container is built.
+            options.RequireHttpsMetadata = false;
+            options.SaveToken = true;
+            options.Events = new JwtBearerEvents
+            {
+                OnMessageReceived = async ctx =>
+                {
+                    if (ctx.Options.TokenValidationParameters.IssuerSigningKey == null)
+                    {
+                        var tokenSvc = ctx.HttpContext.RequestServices
+                            .GetRequiredService<TokenService>();
+                        var key = await tokenSvc.GetValidationKeyAsync(ctx.HttpContext.RequestAborted);
+                        ctx.Options.TokenValidationParameters = tokenSvc.BuildValidationParameters(key);
+                    }
+                }
+            };
+        })
+        .AddJwtBearer("Auth0", options =>
+        {
+            // Legacy Auth0 tokens — accepted during migration window.
             options.Authority = secretProvider.GetSecret("Auth0Issuer");
             options.Audience = secretProvider.GetSecret("Auth0Audience");
         });
+
     builder.Services.AddAuthorizationBuilder()
-        .AddPolicy("user", policy => policy.Requirements.Add(new HasRoleRequirement("user")))
-        .AddPolicy("admin", policy => policy.Requirements.Add(new HasRoleRequirement("admin")));
+        .AddPolicy("user", policy =>
+        {
+            policy.AuthenticationSchemes = ["GatoolJwt", "Auth0"];
+            policy.Requirements.Add(new HasRoleRequirement("user"));
+        })
+        .AddPolicy("admin", policy =>
+        {
+            policy.AuthenticationSchemes = ["GatoolJwt", "Auth0"];
+            policy.Requirements.Add(new HasRoleRequirement("admin"));
+        });
     builder.Services.AddSingleton<IAuthorizationHandler, HasRoleHandler>();
 
     builder.Services.AddSingleton<ISecretProvider>(secretProvider);
     builder.Services.AddSingleton<IAmazonSecretsManager>(smClient);
     builder.Services.AddAWSService<IAmazonS3>();
     builder.Services.AddAWSService<IAmazonDynamoDB>();
+    builder.Services.AddAWSService<IAmazonSimpleEmailServiceV2>();
+
+    // Custom auth services (email OTP + WebAuthn passkeys, replaces Auth0)
+    builder.Services.AddSingleton<AuthSigningKeyProvider>();
+    builder.Services.AddSingleton<OtpPepperProvider>();
+    builder.Services.AddSingleton<AuthRepository>();
+    builder.Services.AddSingleton<AuthEmailService>();
+    builder.Services.AddSingleton<RedisRateLimiter>();
+    builder.Services.AddSingleton<TokenService>();
+    builder.Services.AddSingleton<OtpService>();
+    builder.Services.AddSingleton<PasskeyService>();
+
+    // Fido2 / WebAuthn server. ServerDomain is the WebAuthn rpId — must be an apex
+    // domain or registrable suffix shared by all origins. gatool.org covers
+    // gatool.org + beta.gatool.org. Localhost dev gets its own override via env.
+    var fidoConfig = new Fido2Configuration
+    {
+        ServerDomain = builder.Configuration["WebAuthn:ServerDomain"] ?? "gatool.org",
+        ServerName = "gatool",
+        Origins = (builder.Configuration["WebAuthn:Origins"]
+                       ?? "https://gatool.org,https://beta.gatool.org,http://localhost:3000")
+                   .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                   .ToHashSet(),
+            TimestampDriftTolerance = 300_000
+    };
+    builder.Services.AddSingleton<IFido2>(_ => new Fido2(fidoConfig));
 
     builder.Services.AddCors(options =>
     {
         options.AddDefaultPolicy(b => b
             .AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader());
+
+        // Auth endpoints (login, OTP, passkey, refresh) are restricted to the
+        // first-party UI origins. Other origins can still hit the public read
+        // endpoints (covered by the default policy above) but cannot initiate
+        // a login flow against this API.
+        options.AddPolicy("AuthOrigins", b => b
+            .WithOrigins(
+                "https://gatool.org",
+                "https://beta.gatool.org",
+                "http://localhost:3000")
             .AllowAnyMethod()
             .AllowAnyHeader());
     });
