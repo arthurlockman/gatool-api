@@ -206,7 +206,7 @@ public class PasskeyService
 
         var origOptions = AssertionOptions.FromJson(blob.Value.OptionsJson);
 
-        var credentialIdB64 = Base64UrlEncoder.Encode(assertion.Id);
+        var credentialIdB64 = Base64UrlEncoder.Encode(assertion.RawId);
         var stored = await _repo.GetPasskeyByCredentialIdAsync(credentialIdB64, ct);
         if (stored == null)
         {
