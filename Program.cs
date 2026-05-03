@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.IdentityModel.Tokens;
 using NewRelic.LogEnrichers.Serilog;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -77,6 +78,39 @@ try
             // Configured asynchronously below once the DI container is built.
             options.RequireHttpsMetadata = false;
             options.SaveToken = true;
+            // During the Auth0 migration window we accept tokens from two issuers.
+            // Without forwarding, every request would be tried against BOTH schemes,
+            // producing noisy "kid not found" log entries from the scheme that doesn't
+            // own the token. Forward to the Auth0 scheme when we see an Auth0-issued
+            // token so each token is validated exactly once by the right handler.
+            options.ForwardDefaultSelector = ctx =>
+            {
+                var auth = ctx.Request.Headers.Authorization.ToString();
+                if (string.IsNullOrEmpty(auth) || !auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                    return null;
+                var token = auth["Bearer ".Length..].Trim();
+                var dot1 = token.IndexOf('.');
+                var dot2 = dot1 < 0 ? -1 : token.IndexOf('.', dot1 + 1);
+                if (dot2 < 0) return null;
+                try
+                {
+                    var payload = token.Substring(dot1 + 1, dot2 - dot1 - 1);
+                    var json = System.Text.Encoding.UTF8.GetString(Base64UrlEncoder.DecodeBytes(payload));
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("iss", out var iss))
+                    {
+                        var issuer = iss.GetString();
+                        var auth0Issuer = ctx.RequestServices.GetRequiredService<ISecretProvider>().GetSecret("Auth0Issuer");
+                        if (!string.IsNullOrEmpty(issuer) && !string.IsNullOrEmpty(auth0Issuer) &&
+                            issuer.TrimEnd('/').Equals(auth0Issuer.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
+                        {
+                            return "Auth0";
+                        }
+                    }
+                }
+                catch { /* malformed token — let the default scheme reject it */ }
+                return null;
+            };
             options.Events = new JwtBearerEvents
             {
                 OnMessageReceived = async ctx =>
@@ -125,22 +159,31 @@ try
     builder.Services.AddSingleton<RedisRateLimiter>();
     builder.Services.AddSingleton<TokenService>();
     builder.Services.AddSingleton<OtpService>();
-    builder.Services.AddSingleton<PasskeyService>();
+    builder.Services.AddScoped<PasskeyService>();
+    builder.Services.AddMemoryCache();
+    builder.Services.AddHttpClient();
+    builder.Services.AddSingleton<CommunityAaguidService>();
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<CommunityAaguidService>());
 
     // Fido2 / WebAuthn server. ServerDomain is the WebAuthn rpId — must be an apex
     // domain or registrable suffix shared by all origins. gatool.org covers
     // gatool.org + beta.gatool.org. Localhost dev gets its own override via env.
-    var fidoConfig = new Fido2Configuration
-    {
-        ServerDomain = builder.Configuration["WebAuthn:ServerDomain"] ?? "gatool.org",
-        ServerName = "gatool",
-        Origins = (builder.Configuration["WebAuthn:Origins"]
-                       ?? "https://gatool.org,https://beta.gatool.org,http://localhost:3000")
-                   .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                   .ToHashSet(),
-            TimestampDriftTolerance = 300_000
-    };
-    builder.Services.AddSingleton<IFido2>(_ => new Fido2(fidoConfig));
+    //
+    // We also wire up the FIDO Metadata Service so we can resolve AAGUIDs to
+    // human-readable authenticator names (e.g. "iCloud Keychain", "1Password",
+    // "YubiKey 5") on passkey registration. Metadata is fetched from
+    // mds3.fidoalliance.org and cached in Redis (via IDistributedCache below).
+    builder.Services.AddFido2(o =>
+        {
+            o.ServerDomain = builder.Configuration["WebAuthn:ServerDomain"] ?? "gatool.org";
+            o.ServerName = "gatool";
+            o.Origins = (builder.Configuration["WebAuthn:Origins"]
+                            ?? "https://gatool.org,https://beta.gatool.org,http://localhost:3000")
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToHashSet();
+            o.TimestampDriftTolerance = 300_000;
+        })
+        .AddCachedMetadataService(b => b.AddFidoMetadataRepository());
 
     builder.Services.AddCors(options =>
     {

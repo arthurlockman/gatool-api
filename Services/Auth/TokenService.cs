@@ -94,7 +94,35 @@ public class TokenService
     public async Task<SecurityKey> GetValidationKeyAsync(CancellationToken ct = default)
     {
         var ec = await _keyProvider.GetKeyAsync(ct);
-        return new ECDsaSecurityKey(ec);
+        return new ECDsaSecurityKey(ec) { KeyId = await GetKeyIdAsync(ct) };
+    }
+
+    /// <summary>
+    /// Stable key identifier — the RFC 7638 JWK thumbprint of the public key.
+    /// Survives restarts (deterministic from the key material) and changes if the
+    /// signing key is ever rotated.
+    /// </summary>
+    public async Task<string> GetKeyIdAsync(CancellationToken ct = default)
+    {
+        var ec = await _keyProvider.GetKeyAsync(ct);
+        var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(ec));
+        return Base64UrlEncoder.Encode(jwk.ComputeJwkThumbprint());
+    }
+
+    /// <summary>
+    /// Returns the public half of the signing key as a JWK suitable for serving
+    /// from a JWKS endpoint. The private parameters (D) are stripped.
+    /// </summary>
+    public async Task<JsonWebKey> GetPublicJwkAsync(CancellationToken ct = default)
+    {
+        var ec = await _keyProvider.GetKeyAsync(ct);
+        var pubParams = ec.ExportParameters(includePrivateParameters: false);
+        using var pubOnly = ECDsa.Create(pubParams);
+        var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(pubOnly));
+        jwk.Use = "sig";
+        jwk.Alg = SecurityAlgorithms.EcdsaSha256;
+        jwk.KeyId = await GetKeyIdAsync(ct);
+        return jwk;
     }
 
     public TokenValidationParameters BuildValidationParameters(SecurityKey key) => new()
@@ -114,7 +142,7 @@ public class TokenService
     private async Task<string> CreateAccessTokenAsync(UserRecord user, CancellationToken ct)
     {
         var ec = await _keyProvider.GetKeyAsync(ct);
-        var key = new ECDsaSecurityKey(ec);
+        var key = new ECDsaSecurityKey(ec) { KeyId = await GetKeyIdAsync(ct) };
         var creds = new SigningCredentials(key, SecurityAlgorithms.EcdsaSha256);
 
         var claims = new List<Claim>

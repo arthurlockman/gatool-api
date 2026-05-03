@@ -20,14 +20,19 @@ public class PasskeyService
     private static readonly TimeSpan ChallengeLifetime = TimeSpan.FromMinutes(5);
 
     private readonly IFido2 _fido2;
+    private readonly IMetadataService _metadataService;
+    private readonly CommunityAaguidService _communityAaguids;
     private readonly AuthRepository _repo;
     private readonly IFusionCache _cache;
     private readonly ILogger<PasskeyService> _logger;
 
-    public PasskeyService(IFido2 fido2, AuthRepository repo, IFusionCache cache,
-        ILogger<PasskeyService> logger)
+    public PasskeyService(IFido2 fido2, IMetadataService metadataService,
+        CommunityAaguidService communityAaguids, AuthRepository repo,
+        IFusionCache cache, ILogger<PasskeyService> logger)
     {
         _fido2 = fido2;
+        _metadataService = metadataService;
+        _communityAaguids = communityAaguids;
         _repo = repo;
         _cache = cache;
         _logger = logger;
@@ -54,17 +59,19 @@ public class PasskeyService
         var authenticatorSelection = new AuthenticatorSelection
         {
             // Discoverable credentials so users can sign in without typing their email
-            RequireResidentKey = true,
+            ResidentKey = ResidentKeyRequirement.Required,
             // Required: passkeys replace passwords/OTP, so we always want UV (biometric/PIN)
             UserVerification = UserVerificationRequirement.Required
         };
 
-        var options = _fido2.RequestNewCredential(
-            user,
-            exclude,
-            authenticatorSelection,
-            AttestationConveyancePreference.None,
-            new AuthenticationExtensionsClientInputs());
+        var options = _fido2.RequestNewCredential(new RequestNewCredentialParams
+        {
+            User = user,
+            ExcludeCredentials = exclude,
+            AuthenticatorSelection = authenticatorSelection,
+            AttestationPreference = AttestationConveyancePreference.None,
+            Extensions = new AuthenticationExtensionsClientInputs()
+        });
 
         var sessionId = NewSessionId();
         await _cache.SetAsync(CachePrefix + sessionId,
@@ -93,36 +100,63 @@ public class PasskeyService
 
         var origOptions = CredentialCreateOptions.FromJson(blob.Value.OptionsJson);
 
-        var result = await _fido2.MakeNewCredentialAsync(
-            attestation,
-            origOptions,
-            async (args, innerCt) =>
+        var result = await _fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
+        {
+            AttestationResponse = attestation,
+            OriginalOptions = origOptions,
+            IsCredentialIdUniqueToUserCallback = async (args, innerCt) =>
             {
                 var existing = await _repo.GetPasskeyByCredentialIdAsync(
                     Base64UrlEncoder.Encode(args.CredentialId), innerCt);
                 return existing == null;
-            },
-            requestTokenBindingId: null,
-            cancellationToken: ct);
+            }
+        }, ct);
 
-        var credentialIdB64 = Base64UrlEncoder.Encode(result.Result!.CredentialId);
+        var credentialIdB64 = Base64UrlEncoder.Encode(result.Id);
+        var resolvedNickname = !string.IsNullOrWhiteSpace(nickname)
+            ? nickname.Trim()
+            : (await ResolveAuthenticatorNameAsync(result.AaGuid, ct) ?? "Passkey");
         var record = new PasskeyRecord
         {
             Email = normalized,
             CredentialId = credentialIdB64,
-            PublicKey = result.Result.PublicKey,
-            SignCount = result.Result.Counter,
-            AaGuid = result.Result.Aaguid,
-            Nickname = nickname,
+            PublicKey = result.PublicKey,
+            SignCount = result.SignCount,
+            AaGuid = result.AaGuid,
+            Nickname = resolvedNickname,
             CreatedAt = DateTimeOffset.UtcNow,
-            // Transports aren't surfaced by Fido2 v3's AttestationVerificationSuccess.
+            // Transports aren't surfaced by Fido2's RegisteredPublicKeyCredential.
             // The browser may send them at registration time but we don't persist here;
             // they'd primarily be used to populate allowCredentials during authentication.
             Transports = []
         };
         await _repo.SavePasskeyAsync(record, ct);
-        _logger.LogInformation("Registered passkey {CredentialId} for {Email}", credentialIdB64, normalized);
+        _logger.LogInformation("Registered passkey {CredentialId} for {Email} ({Authenticator})",
+            credentialIdB64, normalized, resolvedNickname);
         return record;
+    }
+
+    /// <summary>
+    /// Resolves an authenticator's human-readable name using a two-tier lookup:
+    /// (1) the FIDO Metadata Service (covers most certified hardware authenticators)
+    /// and (2) the passkeydeveloper community list (covers the major passkey
+    /// providers like iCloud Keychain, 1Password, Bitwarden). Returns null if
+    /// the AAGUID is empty or unknown to both sources.
+    /// </summary>
+    private async Task<string?> ResolveAuthenticatorNameAsync(Guid aaguid, CancellationToken ct)
+    {
+        if (aaguid == Guid.Empty) return null;
+        try
+        {
+            var entry = await _metadataService.GetEntryAsync(aaguid, ct);
+            var description = entry?.MetadataStatement?.Description;
+            if (!string.IsNullOrWhiteSpace(description)) return description;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "FIDO MDS lookup failed for AAGUID {Aaguid}", aaguid);
+        }
+        return _communityAaguids.Lookup(aaguid);
     }
 
     // ── Authentication ─────────────────────────────────────────────────────
@@ -142,10 +176,12 @@ public class PasskeyService
             allowed.AddRange(creds.Select(c => new PublicKeyCredentialDescriptor(Base64UrlEncoder.DecodeBytes(c.CredentialId))));
         }
 
-        var options = _fido2.GetAssertionOptions(
-            allowed,
-            UserVerificationRequirement.Required,
-            new AuthenticationExtensionsClientInputs());
+        var options = _fido2.GetAssertionOptions(new GetAssertionOptionsParams
+        {
+            AllowedCredentials = allowed,
+            UserVerification = UserVerificationRequirement.Required,
+            Extensions = new AuthenticationExtensionsClientInputs()
+        });
 
         var sessionId = NewSessionId();
         await _cache.SetAsync(CachePrefix + sessionId,
@@ -190,22 +226,22 @@ public class PasskeyService
             return null;
         }
 
-        var verifyResult = await _fido2.MakeAssertionAsync(
-            assertion,
-            origOptions,
-            stored.PublicKey,
-            stored.SignCount,
-            async (args, innerCt) =>
+        var verifyResult = await _fido2.MakeAssertionAsync(new MakeAssertionParams
+        {
+            AssertionResponse = assertion,
+            OriginalOptions = origOptions,
+            StoredPublicKey = stored.PublicKey,
+            StoredSignatureCounter = stored.SignCount,
+            IsUserHandleOwnerOfCredentialIdCallback = (args, innerCt) =>
             {
                 // userHandle is the email bytes we set during registration
-                if (args.UserHandle == null) return true; // username-first flow has no userHandle
+                if (args.UserHandle == null) return Task.FromResult(true); // username-first flow has no userHandle
                 var handleEmail = System.Text.Encoding.UTF8.GetString(args.UserHandle);
-                return string.Equals(handleEmail, stored.Email, StringComparison.OrdinalIgnoreCase);
-            },
-            requestTokenBindingId: null,
-            cancellationToken: ct);
+                return Task.FromResult(string.Equals(handleEmail, stored.Email, StringComparison.OrdinalIgnoreCase));
+            }
+        }, ct);
 
-        await _repo.UpdatePasskeyCounterAsync(stored.Email, credentialIdB64, verifyResult.Counter, ct);
+        await _repo.UpdatePasskeyCounterAsync(stored.Email, credentialIdB64, verifyResult.SignCount, ct);
 
         var user = await _repo.GetUserAsync(stored.Email, ct);
         if (user == null)
