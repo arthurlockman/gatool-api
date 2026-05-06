@@ -323,6 +323,7 @@ try
     // Register job services
     builder.Services.AddScoped<JobRunnerService>();
     builder.Services.AddScoped<UpdateGlobalHighScoresJob>();
+    builder.Services.AddScoped<BackfillUsersFromAuth0Job>();
 
     var app = builder.Build();
 

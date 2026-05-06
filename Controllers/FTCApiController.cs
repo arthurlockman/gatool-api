@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -17,7 +16,8 @@ public class FtcApiController(
     FTCApiService ftcApi,
     FTCScoutApiService ftcScoutApi,
     TeamDataService teamDataService,
-    IConnectionMultiplexer connectionMultiplexer)
+    IConnectionMultiplexer connectionMultiplexer,
+    IConfiguration configuration)
     : ControllerBase
 {
     private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
@@ -345,17 +345,12 @@ public class FtcApiController(
     {
         if (request.Teams.Count == 0) return BadRequest("Teams list is required");
 
-        var awards = new ConcurrentDictionary<int, object?>();
+        var awards = await request.Teams.BatchToDictionaryAsync(
+            team => GetLast3YearAwards(year, team),
+            configuration.BatchMaxConcurrency(),
+            HttpContext.RequestAborted);
 
-        var tasks = request.Teams.Select(async team =>
-        {
-            var teamAwards = await GetLast3YearAwards(year, team);
-            awards[team] = teamAwards;
-        }).ToArray();
-
-        await Task.WhenAll(tasks);
-
-        return Ok(awards.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Ok(awards);
     }
 
     /// <summary>

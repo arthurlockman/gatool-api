@@ -1,8 +1,8 @@
-using System.Collections.Concurrent;
 using System.Net;
 using System.Text.Json;
 using GAToolAPI.Attributes;
 using GAToolAPI.Extensions;
+using GAToolAPI.Helpers;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -21,7 +21,8 @@ public class FrcApiController(
     CasterstoolApiService casterstoolApiClient,
     IConnectionMultiplexer connectionMultiplexer,
     TeamDataService teamDataService,
-    ScheduleService scheduleService)
+    ScheduleService scheduleService,
+    IConfiguration configuration)
     : ControllerBase
 {
     private readonly IDatabase _redis = connectionMultiplexer.GetDatabase();
@@ -300,17 +301,12 @@ public class FrcApiController(
     {
         if (request.Teams.Count == 0) return BadRequest("Teams list is required");
 
-        var awards = new ConcurrentDictionary<int, object?>();
+        var awards = await request.Teams.BatchToDictionaryAsync(
+            team => GetLast3YearAwards(year, team),
+            configuration.BatchMaxConcurrency(),
+            HttpContext.RequestAborted);
 
-        var tasks = request.Teams.Select(async team =>
-        {
-            var teamAwards = await GetLast3YearAwards(year, team);
-            awards[team] = teamAwards;
-        }).ToArray();
-
-        await Task.WhenAll(tasks);
-
-        return Ok(awards.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Ok(awards);
     }
 
     /// <summary>
@@ -350,17 +346,12 @@ public class FrcApiController(
     {
         if (request.Teams.Count == 0) return BadRequest("Teams list is required");
 
-        var media = new ConcurrentDictionary<int, object?>();
+        var media = await request.Teams.BatchToDictionaryAsync(
+            team => GetTeamMediaData(year, team),
+            configuration.BatchMaxConcurrency(),
+            HttpContext.RequestAborted);
 
-        var tasks = request.Teams.Select(async team =>
-        {
-            var teamMedia = await GetTeamMediaData(year, team);
-            media[team] = teamMedia;
-        }).ToArray();
-
-        await Task.WhenAll(tasks);
-
-        return Ok(media.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Ok(media);
     }
 
     /// <summary>
@@ -380,17 +371,12 @@ public class FrcApiController(
     {
         if (request.Teams.Count == 0) return BadRequest("Teams list is required");
 
-        var results = new ConcurrentDictionary<int, object?>();
+        var results = await request.Teams.BatchToDictionaryAsync(
+            team => GetStatboticsTeamData(year, team.ToString()),
+            configuration.BatchMaxConcurrency(),
+            HttpContext.RequestAborted);
 
-        var tasks = request.Teams.Select(async team =>
-        {
-            var data = await GetStatboticsTeamData(year, team.ToString());
-            results[team] = data;
-        }).ToArray();
-
-        await Task.WhenAll(tasks);
-
-        return Ok(results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Ok(results);
     }
 
     /// <summary>
@@ -410,17 +396,12 @@ public class FrcApiController(
     {
         if (request.Teams.Count == 0) return BadRequest("Teams list is required");
 
-        var results = new ConcurrentDictionary<int, object?>();
+        var results = await request.Teams.BatchToDictionaryAsync(
+            team => GetTeamHistoryData(team),
+            configuration.BatchMaxConcurrency(),
+            HttpContext.RequestAborted);
 
-        var tasks = request.Teams.Select(async team =>
-        {
-            var data = await GetTeamHistoryData(team);
-            results[team] = data;
-        }).ToArray();
-
-        await Task.WhenAll(tasks);
-
-        return Ok(results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Ok(results);
     }
 
     /// <summary>
@@ -573,17 +554,12 @@ public class FrcApiController(
     {
         if (request.Teams.Count == 0) return BadRequest("Teams list is required");
 
-        var results = new ConcurrentDictionary<int, object?>();
+        var results = await request.Teams.BatchToDictionaryAsync(
+            team => GetRegionalTeamDetailData(year, team),
+            configuration.BatchMaxConcurrency(),
+            HttpContext.RequestAborted);
 
-        var tasks = request.Teams.Select(async team =>
-        {
-            var data = await GetRegionalTeamDetailData(year, team);
-            results[team] = data;
-        }).ToArray();
-
-        await Task.WhenAll(tasks);
-
-        return Ok(results.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+        return Ok(results);
     }
 
     /// <summary>

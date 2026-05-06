@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using GAToolAPI.Helpers;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,10 @@ namespace GAToolAPI.Controllers;
 
 [Route("ftc/v2")]
 [OpenApiTag("Community Updates")]
-public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataService teamData) : ControllerBase
+public class FtcTeamUpdatesController(
+    UserStorageService userStorage,
+    TeamDataService teamData,
+    IConfiguration configuration) : ControllerBase
 {
     /// <summary>
     ///     Gets community updates (pit display data) for an FTC team.
@@ -88,7 +92,7 @@ public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
 
         var teamNumbers = teamList["teams"]?.AsArray()?.Select(t => t?["teamNumber"]?.ToString());
         if (teamNumbers == null) return NoContent();
-        var tasks = teamNumbers.Select(async t =>
+        var data = await teamNumbers.BatchSelectAsync(async t =>
         {
             if (t == null) return null;
             var update = await userStorage.GetTeamUpdates(t, true);
@@ -99,8 +103,7 @@ public class FtcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
                     teamNumber = t,
                     updates = JsonSerializer.Deserialize<JsonObject>(update)
                 };
-        });
-        var data = await Task.WhenAll(tasks);
+        }, configuration.BatchMaxConcurrency(), HttpContext.RequestAborted);
         return Ok(data.Where(d => d != null));
     }
 }

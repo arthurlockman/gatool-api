@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using GAToolAPI.Helpers;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,10 @@ namespace GAToolAPI.Controllers;
 
 [Route("v3/")]
 [OpenApiTag("Community Updates")]
-public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataService teamData) : ControllerBase
+public class FrcTeamUpdatesController(
+    UserStorageService userStorage,
+    TeamDataService teamData,
+    IConfiguration configuration) : ControllerBase
 {
     /// <summary>
     ///     Gets community updates (pit display data) for an FRC team.
@@ -86,7 +90,7 @@ public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
         var teamList = await teamData.GetFrcTeamData(year, eventCode);
         var teamNumbers = teamList?.Teams?.Select(t => t.TeamNumber.ToString());
         if (teamNumbers == null) return NoContent();
-        var tasks = teamNumbers.Select(async t =>
+        var data = await teamNumbers.BatchSelectAsync(async t =>
         {
             var update = await userStorage.GetTeamUpdates(t);
             return string.IsNullOrWhiteSpace(update)
@@ -96,8 +100,7 @@ public class FrcTeamUpdatesController(UserStorageService userStorage, TeamDataSe
                     teamNumber = t,
                     updates = JsonSerializer.Deserialize<JsonObject>(update)
                 };
-        });
-        var data = await Task.WhenAll(tasks);
+        }, configuration.BatchMaxConcurrency(), HttpContext.RequestAborted);
         return Ok(data.Where(d => d != null));
     }
 }
