@@ -63,7 +63,13 @@ try
         .Enrich.With(new EcsSerilogEnricher(ecsMetadata))
         .MinimumLevel.Override("Microsoft.AspNetCore.Hosting", LogEventLevel.Warning)
         .MinimumLevel.Override("Microsoft.AspNetCore.Mvc", LogEventLevel.Warning)
-        .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning));
+        .MinimumLevel.Override("Microsoft.AspNetCore.Routing", LogEventLevel.Warning)
+        // CORS logs "CORS policy execution successful." at Information for every
+        // preflight + cross-origin request. Drop to Warning so failures still surface.
+        .MinimumLevel.Override("Microsoft.AspNetCore.Cors", LogEventLevel.Warning)
+        // FusionCache emits a lot of Information/Debug per cache op (factory,
+        // backplane, distributed cache). Warning is enough in production.
+        .MinimumLevel.Override("ZiggyCreatures.Caching.Fusion", LogEventLevel.Warning));
 
     builder.Services.AddAuthentication(options =>
         {
@@ -205,7 +211,10 @@ try
             .AllowAnyHeader());
     });
 
-    builder.Services.AddControllers();
+    builder.Services.AddControllers(options =>
+    {
+        options.Filters.Add<BulkRequestEnrichmentFilter>();
+    });
 
     // Add HttpContextAccessor for RedisCache.IgnoreCurrentRequest() functionality
     builder.Services.AddHttpContextAccessor();
@@ -351,7 +360,22 @@ try
 
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseMiddleware<UndefinedRouteParameterMiddleware>();
-    app.UseSerilogRequestLogging();
+    app.UseSerilogRequestLogging(options =>
+    {
+        // Demote noisy, expected requests to Verbose so they're filtered out of
+        // production sinks but still available locally if MinimumLevel is lowered.
+        // - /livecheck: ALB target group health check (every 30s per task)
+        // - OPTIONS preflight: every cross-origin request fires one
+        options.GetLevel = (httpContext, _, ex) =>
+        {
+            if (ex != null) return LogEventLevel.Error;
+            if (httpContext.Response.StatusCode >= 500) return LogEventLevel.Error;
+            if (HttpMethods.IsOptions(httpContext.Request.Method)) return LogEventLevel.Verbose;
+            var path = httpContext.Request.Path.Value;
+            if (path is "/livecheck" or "/version") return LogEventLevel.Verbose;
+            return LogEventLevel.Information;
+        };
+    });
     app.UseMiddleware<NewRelicRequestFilter>();
     app.UseMiddleware<NewRelicEcsEnricher>();
     app.UseOpenApi();
