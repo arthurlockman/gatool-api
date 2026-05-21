@@ -14,8 +14,6 @@ VAULT_NAME="GAToolApiKeys"
 REGION="${AWS_REGION:-us-east-2}"
 
 SECRETS=(
-  "Auth0Issuer"
-  "Auth0Audience"
   "FRCApiKey"
   "TBAApiKey"
   "FTCApiKey"
@@ -26,8 +24,6 @@ SECRETS=(
   "MailChimpAPIKey"
   "MailchimpAPIURL"
   "MailchimpListID"
-  "Auth0AdminClientId"
-  "Auth0AdminClientSecret"
   "NewRelicLicenseKey"
 )
 

@@ -14,7 +14,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
-using Microsoft.IdentityModel.Tokens;
 using NewRelic.LogEnrichers.Serilog;
 using NSwag;
 using NSwag.Generation.Processors.Security;
@@ -47,7 +46,6 @@ try
     var smClient = new AmazonSecretsManagerClient();
     var secretNames = new[]
     {
-        "Auth0Issuer", "Auth0Audience", // kept during migration window for legacy token validation
         "FRCApiKey", "TBAApiKey", "FTCApiKey", "CasterstoolApiKey", "TOAApiKey",
         "FRCCurrentSeason", "FTCCurrentSeason",
         "MailChimpAPIKey", "MailchimpAPIURL", "MailchimpListID",
@@ -73,8 +71,7 @@ try
 
     builder.Services.AddAuthentication(options =>
         {
-            // Default scheme is our self-issued ES256 JWT. We also keep the Auth0 scheme
-            // around during the migration window (see AuthenticationSchemes on policies).
+            // Self-issued ES256 JWT is the only accepted scheme.
             options.DefaultAuthenticateScheme = "GatoolJwt";
             options.DefaultChallengeScheme = "GatoolJwt";
         })
@@ -84,39 +81,6 @@ try
             // Configured asynchronously below once the DI container is built.
             options.RequireHttpsMetadata = false;
             options.SaveToken = true;
-            // During the Auth0 migration window we accept tokens from two issuers.
-            // Without forwarding, every request would be tried against BOTH schemes,
-            // producing noisy "kid not found" log entries from the scheme that doesn't
-            // own the token. Forward to the Auth0 scheme when we see an Auth0-issued
-            // token so each token is validated exactly once by the right handler.
-            options.ForwardDefaultSelector = ctx =>
-            {
-                var auth = ctx.Request.Headers.Authorization.ToString();
-                if (string.IsNullOrEmpty(auth) || !auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                    return null;
-                var token = auth["Bearer ".Length..].Trim();
-                var dot1 = token.IndexOf('.');
-                var dot2 = dot1 < 0 ? -1 : token.IndexOf('.', dot1 + 1);
-                if (dot2 < 0) return null;
-                try
-                {
-                    var payload = token.Substring(dot1 + 1, dot2 - dot1 - 1);
-                    var json = System.Text.Encoding.UTF8.GetString(Base64UrlEncoder.DecodeBytes(payload));
-                    using var doc = System.Text.Json.JsonDocument.Parse(json);
-                    if (doc.RootElement.TryGetProperty("iss", out var iss))
-                    {
-                        var issuer = iss.GetString();
-                        var auth0Issuer = ctx.RequestServices.GetRequiredService<ISecretProvider>().GetSecret("Auth0Issuer");
-                        if (!string.IsNullOrEmpty(issuer) && !string.IsNullOrEmpty(auth0Issuer) &&
-                            issuer.TrimEnd('/').Equals(auth0Issuer.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
-                        {
-                            return "Auth0";
-                        }
-                    }
-                }
-                catch { /* malformed token — let the default scheme reject it */ }
-                return null;
-            };
             options.Events = new JwtBearerEvents
             {
                 OnMessageReceived = async ctx =>
@@ -130,23 +94,17 @@ try
                     }
                 }
             };
-        })
-        .AddJwtBearer("Auth0", options =>
-        {
-            // Legacy Auth0 tokens — accepted during migration window.
-            options.Authority = secretProvider.GetSecret("Auth0Issuer");
-            options.Audience = secretProvider.GetSecret("Auth0Audience");
         });
 
     builder.Services.AddAuthorizationBuilder()
         .AddPolicy("user", policy =>
         {
-            policy.AuthenticationSchemes = ["GatoolJwt", "Auth0"];
+            policy.AuthenticationSchemes = ["GatoolJwt"];
             policy.Requirements.Add(new HasRoleRequirement("user"));
         })
         .AddPolicy("admin", policy =>
         {
-            policy.AuthenticationSchemes = ["GatoolJwt", "Auth0"];
+            policy.AuthenticationSchemes = ["GatoolJwt"];
             policy.Requirements.Add(new HasRoleRequirement("admin"));
         });
     builder.Services.AddSingleton<IAuthorizationHandler, HasRoleHandler>();
@@ -157,7 +115,7 @@ try
     builder.Services.AddAWSService<IAmazonDynamoDB>();
     builder.Services.AddAWSService<IAmazonSimpleEmailServiceV2>();
 
-    // Custom auth services (email OTP + WebAuthn passkeys, replaces Auth0)
+    // Custom auth services (email OTP + WebAuthn passkeys)
     builder.Services.AddSingleton<AuthSigningKeyProvider>();
     builder.Services.AddSingleton<OtpPepperProvider>();
     builder.Services.AddSingleton<AuthRepository>();
@@ -332,7 +290,6 @@ try
     // Register job services
     builder.Services.AddScoped<JobRunnerService>();
     builder.Services.AddScoped<UpdateGlobalHighScoresJob>();
-    builder.Services.AddScoped<BackfillUsersFromAuth0Job>();
 
     var app = builder.Build();
 
