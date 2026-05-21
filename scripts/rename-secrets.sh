@@ -10,8 +10,6 @@ REGION="${AWS_REGION:-us-east-2}"
 PROFILE="${AWS_PROFILE:-gatool}"
 
 SECRETS=(
-  "Auth0Issuer"
-  "Auth0Audience"
   "FRCApiKey"
   "TBAApiKey"
   "FTCApiKey"
@@ -22,8 +20,6 @@ SECRETS=(
   "MailChimpAPIKey"
   "MailchimpAPIURL"
   "MailchimpListID"
-  "Auth0AdminClientId"
-  "Auth0AdminClientSecret"
   "NewRelicLicenseKey"
 )
 

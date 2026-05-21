@@ -97,8 +97,6 @@ The application retrieves these secrets from AWS Secrets Manager (prefix: `gatoo
 
 | Secret Name                   | Description                 | Required For            |
 |-------------------------------|-----------------------------|-------------------------|
-| `gatool/Auth0Issuer`          | Auth0 domain URL            | Authentication          |
-| `gatool/Auth0Audience`        | Auth0 API audience          | Authentication          |
 | `gatool/FRCApiKey`            | FIRST API key               | FRC data endpoints      |
 | `gatool/TBAApiKey`            | The Blue Alliance API key   | TBA/offseason endpoints |
 | `gatool/FTCApiKey`            | FTC API key                 | FTC data endpoints      |
@@ -109,8 +107,6 @@ The application retrieves these secrets from AWS Secrets Manager (prefix: `gatoo
 | `gatool/MailChimpAPIKey`      | MailChimp API key           | User sync               |
 | `gatool/MailchimpAPIURL`      | MailChimp API URL           | User sync               |
 | `gatool/MailchimpListID`      | MailChimp list ID           | User sync               |
-| `gatool/Auth0AdminClientId`   | Auth0 Management client ID  | User sync               |
-| `gatool/Auth0AdminClientSecret` | Auth0 Management secret   | User sync               |
 | `gatool/NewRelicLicenseKey`   | New Relic license key       | Monitoring              |
 
 To create all secrets at once, use the provided script:
@@ -121,7 +117,7 @@ AWS_REGION=us-east-2 ./scripts/create-secrets.sh
 
 ## Testing Without Authentication
 
-Some endpoints require authentication. To test without setting up Auth0:
+Some endpoints require authentication. To test without a signed-in user:
 
 ### Option 1: Test Public Endpoints
 

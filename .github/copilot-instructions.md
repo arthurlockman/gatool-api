@@ -47,7 +47,7 @@ GATool API is a .NET 10 API service that provides game announcer data for FIRST 
   ```
 
 ### Secrets Management
-- Secrets are stored in **AWS Secrets Manager** with plain names (no prefix): `Auth0Issuer`, `FRCApiKey`, `TBAApiKey`, etc.
+- Secrets are stored in **AWS Secrets Manager** with plain names (no prefix): `FRCApiKey`, `TBAApiKey`, etc.
 - `Program.cs` preloads all secrets at startup via `AwsSecretProvider.PreloadSecretsAsync()`
 - `GetSecret()` and `GetSecretAsync()` calls throughout the codebase use these plain names
 - `NEW_RELIC_LICENSE_KEY` is injected as an ECS container secret (from Secrets Manager → env var), not loaded by the app
@@ -119,7 +119,7 @@ aws ecs describe-services --cluster gatool --services gatool-api --profile gatoo
 ## Common Patterns
 
 ### Authentication/Authorization
-- JWT-based auth using Auth0
+- JWT-based auth using the in-house `GatoolJwt` bearer scheme (see `Program.cs`)
 - Role-based access control via policies:
   - "user": Basic access
   - "admin": Administrative functions
@@ -151,7 +151,6 @@ public async Task<IActionResult> GetExample()
 - The Blue Alliance API
 - Statbotics.io
 - FTC Scout
-- Auth0 (authentication)
 - AWS Secrets Manager (secrets)
 - AWS S3 (storage for user data, high scores, team updates)
 - Redis (caching, runs as ECS sidecar)
