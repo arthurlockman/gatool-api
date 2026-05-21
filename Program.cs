@@ -149,24 +149,25 @@ try
         })
         .AddCachedMetadataService(b => b.AddFidoMetadataRepository());
 
+    // CORS allowlist: only the first-party UI origins (prod, beta, local dev)
+    // are permitted to call the API from a browser. Swagger UI is hosted on
+    // the same origin as the API so it doesn't need an entry (browsers omit
+    // the Origin header on same-origin requests). Non-browser clients (curl,
+    // server-to-server) are unaffected — CORS is a browser-enforced policy.
+    //
+    // Configurable via the Cors:AllowedOrigins env var (comma-separated) so
+    // the list can be adjusted without a redeploy.
+    var corsOrigins = (builder.Configuration["Cors:AllowedOrigins"]
+                       ?? "https://gatool.org,https://beta.gatool.org,http://localhost:3000")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
     builder.Services.AddCors(options =>
     {
         options.AddDefaultPolicy(b => b
-            .AllowAnyOrigin()
+            .WithOrigins(corsOrigins)
             .AllowAnyMethod()
-            .AllowAnyHeader());
-
-        // Auth endpoints (login, OTP, passkey, refresh) are restricted to the
-        // first-party UI origins. Other origins can still hit the public read
-        // endpoints (covered by the default policy above) but cannot initiate
-        // a login flow against this API.
-        options.AddPolicy("AuthOrigins", b => b
-            .WithOrigins(
-                "https://gatool.org",
-                "https://beta.gatool.org",
-                "http://localhost:3000")
-            .AllowAnyMethod()
-            .AllowAnyHeader());
+            .AllowAnyHeader()
+            .AllowCredentials());
     });
 
     builder.Services.AddControllers(options =>

@@ -4,7 +4,6 @@ using Fido2NetLib;
 using GAToolAPI.Models;
 using GAToolAPI.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
 using NSwag.Annotations;
 
@@ -13,7 +12,6 @@ namespace GAToolAPI.Controllers;
 [ApiController]
 [Route("v3/auth")]
 [OpenApiTag("Authentication")]
-[EnableCors("AuthOrigins")]
 public class AuthController(
     OtpService otp,
     TokenService tokens,
