@@ -50,7 +50,8 @@ try
         "FRCCurrentSeason", "FTCCurrentSeason",
         "MailChimpAPIKey", "MailchimpAPIURL", "MailchimpListID",
         "NewRelicLicenseKey",
-        "MailchimpWebhookSecret"
+        "MailchimpWebhookSecret",
+        "NexusApiKey"
     };
     var preloadedSecrets = await AwsSecretProvider.PreloadSecretsAsync(smClient, secretNames);
     var secretProvider = new AwsSecretProvider(smClient, preloadedSecrets);
@@ -281,6 +282,7 @@ try
     builder.Services.AddScoped<FTCApiService>();
     builder.Services.AddScoped<FTCScoutApiService>();
     builder.Services.AddScoped<TOAApiService>();
+    builder.Services.AddScoped<NexusApiService>();
     builder.Services.AddSingleton<UserStorageService>();
     builder.Services.AddSingleton<HighScoreRepository>();
     builder.Services.AddScoped<TeamDataService>();
