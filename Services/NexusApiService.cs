@@ -24,8 +24,8 @@ public class NexusApiService : IApiService
         _ttlContext = ttlContext;
         _httpClient.BaseAddress = new Uri("https://frc.nexus/api/v1/event/");
         _httpClient.DefaultRequestHeaders.Add(HeaderNames.Accept, "application/json");
-        // FRC Nexus API authentication — see https://frc.nexus/api/v1/docs
-        _httpClient.DefaultRequestHeaders.Add("X-Nexus-Auth", secretProvider.GetSecret("NexusApiKey"));
+        // FRC Nexus API authentication — see https://frc.nexus/api
+        _httpClient.DefaultRequestHeaders.Add("Nexus-Api-Key", secretProvider.GetSecret("NexusApiKey"));
 
         _jsonOptions = new JsonSerializerOptions
         {
