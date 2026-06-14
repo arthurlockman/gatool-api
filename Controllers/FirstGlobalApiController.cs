@@ -1,5 +1,7 @@
 using System.Net;
 using GAToolAPI.Attributes;
+using GAToolAPI.Helpers;
+using GAToolAPI.Models;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Mvc;
 using NSwag.Annotations;
@@ -10,9 +12,12 @@ namespace GAToolAPI.Controllers;
 ///     Proxy for the FIRST Global Challenge API (https://api.first.global/v1).
 ///     Year is required in the path. The current season starts October 1; for the current season
 ///     the API is called without a year parameter; for prior seasons the API is called with ?year=YYYY.
+///     Responses are converted to FRC-compatible shapes (teams, matches, rankings, alliances).
 /// </summary>
 /// <remarks>
-///     Tournament levels: t2 = RankLevel, t3 = RoundRobinLevel, t4 = FinalsLevel (see /tournaments for mappings).
+///     Tournament levels: t2 = Qualification, t3 = Playoff (Round Robin), t4 = Finals.
+///     In t2: 3 teams per alliance (stations 11-13 = Red, 21-23 = Blue).
+///     In t3/t4: 4 teams per alliance (stations 11-14 = Red, 21-24 = Blue).
 ///     Alliances are only available for t3 and t4.
 /// </remarks>
 [ApiController]
@@ -43,6 +48,18 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
             return null;
         return new Dictionary<string, string?> { ["year"] = year };
     }
+
+    /// <summary>
+    ///     Translates public-facing tournament level names to FIRST Global API keys.
+    ///     Accepts either the raw key (t2/t3/t4) or the FRC-style aliases (qual/playoff/final).
+    /// </summary>
+    private static string NormalizeTournamentKey(string tournamentKey) => tournamentKey.ToLowerInvariant() switch
+    {
+        "qual" => "t2",
+        "playoff" or "playoffs" => "t3",
+        "final" or "finals" => "t4",
+        _ => tournamentKey
+    };
 
     /// <summary>
     ///     Merges optional year query with additional query parameters (e.g. tournamentKey).
@@ -86,24 +103,25 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     }
 
     /// <summary>
-    ///     All teams at the FIRST Global event.
+    ///     All teams at the FIRST Global event, converted to FRC team format.
+    ///     Each team's <c>teamKey</c> maps to <c>TeamNumber</c> and the country name to <c>NameFull</c>/<c>Country</c>.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <returns>Array of team objects (teamKey, country, name, etc.).</returns>
+    /// <returns>FRC-format teams response with team list and counts.</returns>
     /// <response code="200">Returns the team list.</response>
     /// <response code="204">No teams found for the season.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/teams")]
     [RedisCache("firstglobal:teams", RedisCacheTime.OneHour)]
-    [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(FgTeamsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeams(string year)
     {
         try
         {
             var query = YearQuery(year);
-            var result = await firstGlobalApi.Get<object>("teams", query);
+            var result = await firstGlobalApi.Get<List<FgTeam>>("teams", query);
             if (result == null) return NoContent();
-            return Ok(result);
+            return Ok(FirstGlobalConverter.ToFrcTeams(result));
         }
         catch (Exception ex)
         {
@@ -113,14 +131,15 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     }
 
     /// <summary>
-    ///     All matches for all tournaments.
+    ///     All matches for all tournaments, converted to FRC match format.
+    ///     Stations are mapped to FRC-style strings (Red1/Blue1 etc.) and tournament keys to level names.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <returns>Array of match objects across all tournament levels.</returns>
+    /// <returns>FRC-format matches response.</returns>
     /// <response code="200">Returns the match list.</response>
     /// <response code="204">No matches found for the season.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/matches")]
-    [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetMatches(string year)
     {
@@ -128,9 +147,9 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         try
         {
             var query = YearQuery(year);
-            var result = await firstGlobalApi.Get<object>("matches", query);
+            var result = await firstGlobalApi.Get<List<FgMatch>>("matches", query);
             if (result == null) return NoContent();
-            return Ok(result);
+            return Ok(FirstGlobalConverter.ToFrcMatches(result));
         }
         catch (Exception ex)
         {
@@ -140,25 +159,26 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     }
 
     /// <summary>
-    ///     All matches for a given tournament level (t2 = RankLevel, t3 = RoundRobinLevel, t4 = FinalsLevel).
+    ///     All matches for a given tournament level, converted to FRC match format.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <param name="tournamentKey">Tournament level: t2, t3, or t4.</param>
-    /// <returns>Array of match objects for the specified tournament level.</returns>
+    /// <param name="tournamentKey">Tournament level: t2 (Qualification), t3 (Playoff), or t4 (Finals).</param>
+    /// <returns>FRC-format matches response for the specified tournament level.</returns>
     /// <response code="200">Returns the match list for the tournament level.</response>
     /// <response code="204">No matches found.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/matches/{tournamentKey:regex(^t[[234]]$)}")]
-    [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
+    [HttpGet("{year:regex(^\\d{{4}}$)}/matches/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetMatchesByTournament(string year, string tournamentKey)
     {
         Response.Headers.CacheControl = "no-cache";
         try
         {
-            var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = tournamentKey });
-            var result = await firstGlobalApi.Get<object>("matches", query);
+            var key = NormalizeTournamentKey(tournamentKey);
+            var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
+            var result = await firstGlobalApi.Get<List<FgMatch>>("matches", query);
             if (result == null) return NoContent();
-            return Ok(result);
+            return Ok(FirstGlobalConverter.ToFrcMatches(result));
         }
         catch (Exception ex)
         {
@@ -169,14 +189,74 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     }
 
     /// <summary>
-    ///     All rankings for all tournaments.
+    ///     Score breakdowns for all matches across all tournament levels.
+    ///     Extracts game-specific details (biodiversity, barriers, parking, etc.) from each match.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <returns>Array of ranking entries across all tournament levels.</returns>
-    /// <response code="200">Returns the rankings list.</response>
+    /// <returns>FRC-style MatchScores response with per-alliance game detail breakdowns.</returns>
+    /// <response code="200">Returns the match scores.</response>
+    /// <response code="204">No scores found for the season.</response>
+    [HttpGet("{year:regex(^\\d{{4}}$)}/scores")]
+    [ProducesResponseType(typeof(FgMatchScoresResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetScores(string year)
+    {
+        Response.Headers.CacheControl = "no-cache";
+        try
+        {
+            var query = YearQuery(year);
+            var result = await firstGlobalApi.Get<List<FgMatch>>("matches", query);
+            if (result == null) return NoContent();
+            return Ok(FirstGlobalConverter.ToFgScores(result));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching FIRST Global scores for year {Year}", year);
+            return NoContent();
+        }
+    }
+
+    /// <summary>
+    ///     Score breakdowns for a given tournament level.
+    ///     Accepts t2/qual, t3/playoff, t4/final.
+    /// </summary>
+    /// <param name="year">Season year (e.g. 2025). Required.</param>
+    /// <param name="tournamentKey">Tournament level: t2/qual, t3/playoff, or t4/final.</param>
+    /// <returns>FRC-style MatchScores response for the specified level.</returns>
+    /// <response code="200">Returns the match scores for the tournament level.</response>
+    /// <response code="204">No scores found.</response>
+    [HttpGet("{year:regex(^\\d{{4}}$)}/scores/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [ProducesResponseType(typeof(FgMatchScoresResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetScoresByTournament(string year, string tournamentKey)
+    {
+        Response.Headers.CacheControl = "no-cache";
+        try
+        {
+            var key = NormalizeTournamentKey(tournamentKey);
+            var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
+            var result = await firstGlobalApi.Get<List<FgMatch>>("matches", query);
+            if (result == null) return NoContent();
+            return Ok(FirstGlobalConverter.ToFgScores(result));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching FIRST Global scores for year {Year}, tournamentKey {TournamentKey}",
+                year, tournamentKey);
+            return NoContent();
+        }
+    }
+
+    /// <summary>
+    ///     All rankings for all tournaments, converted to FRC rankings format.
+    ///     SortOrder1 = ranking score, SortOrder2 = highest score, SortOrder3 = protection points.
+    /// </summary>
+    /// <param name="year">Season year (e.g. 2025). Required.</param>
+    /// <returns>FRC-format rankings response.</returns>
+    /// <response code="200">Returns the rankings.</response>
     /// <response code="204">No rankings found for the season.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/rankings")]
-    [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetRankings(string year)
     {
@@ -184,9 +264,9 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         try
         {
             var query = YearQuery(year);
-            var result = await firstGlobalApi.Get<object>("rankings", query);
+            var result = await firstGlobalApi.Get<List<FgRanking>>("rankings", query);
             if (result == null) return NoContent();
-            return Ok(result);
+            return Ok(FirstGlobalConverter.ToFrcRankings(result));
         }
         catch (Exception ex)
         {
@@ -196,25 +276,26 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     }
 
     /// <summary>
-    ///     Rankings for a given tournament level (t2 = RankLevel, t3 = RoundRobinLevel, t4 = FinalsLevel).
+    ///     Rankings for a given tournament level, converted to FRC rankings format.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
     /// <param name="tournamentKey">Tournament level: t2, t3, or t4.</param>
-    /// <returns>Array of ranking entries for the specified tournament level.</returns>
+    /// <returns>FRC-format rankings response for the specified tournament level.</returns>
     /// <response code="200">Returns the rankings for the tournament level.</response>
     /// <response code="204">No rankings found.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/rankings/{tournamentKey:regex(^t[[234]]$)}")]
-    [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
+    [HttpGet("{year:regex(^\\d{{4}}$)}/rankings/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetRankingsByTournament(string year, string tournamentKey)
     {
         Response.Headers.CacheControl = "no-cache";
         try
         {
-            var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = tournamentKey });
-            var result = await firstGlobalApi.Get<object>("rankings", query);
+            var key = NormalizeTournamentKey(tournamentKey);
+            var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
+            var result = await firstGlobalApi.Get<List<FgRanking>>("rankings", query);
             if (result == null) return NoContent();
-            return Ok(result);
+            return Ok(FirstGlobalConverter.ToFrcRankings(result));
         }
         catch (Exception ex)
         {
@@ -225,25 +306,28 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     }
 
     /// <summary>
-    ///     All alliances for a given tournament level. Only available for RoundRobinLevel (t3) and FinalsLevel (t4).
+    ///     All alliances for a given tournament level, converted to FRC alliance format.
+    ///     Only available for Playoff (t3) and Finals (t4).
+    ///     Captain and picks map to FRC Captain/Round1/Round2/Round3 fields.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <param name="tournamentKey">Tournament level: t3 (RoundRobin) or t4 (Finals).</param>
-    /// <returns>Array of alliance objects (captain, picks, rankingScore, etc.).</returns>
+    /// <param name="tournamentKey">Tournament level: t3 (Playoff) or t4 (Finals).</param>
+    /// <returns>FRC-format alliances response.</returns>
     /// <response code="200">Returns the alliance list for the tournament level.</response>
     /// <response code="204">No alliances found.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/alliances/{tournamentKey:regex(^t[[34]]$)}")]
-    [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
+    [HttpGet("{year:regex(^\\d{{4}}$)}/alliances/{tournamentKey:regex(^(t[34]|playoffs?|finals?)$)}")]
+    [ProducesResponseType(typeof(AlliancesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetAlliances(string year, string tournamentKey)
     {
         Response.Headers.CacheControl = "no-cache";
         try
         {
-            var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = tournamentKey });
-            var result = await firstGlobalApi.Get<object>("alliances", query);
+            var key = NormalizeTournamentKey(tournamentKey);
+            var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
+            var result = await firstGlobalApi.Get<List<FgAlliance>>("alliances", query);
             if (result == null) return NoContent();
-            return Ok(result);
+            return Ok(FirstGlobalConverter.ToFrcAlliances(result));
         }
         catch (Exception ex)
         {
