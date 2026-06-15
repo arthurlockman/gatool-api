@@ -139,11 +139,11 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <response code="200">Returns the match list.</response>
     /// <response code="204">No matches found for the season.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/matches")]
+    [RedisCache("firstglobal:matches", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetMatches(string year)
     {
-        Response.Headers.CacheControl = "no-cache";
         try
         {
             var query = YearQuery(year);
@@ -167,11 +167,11 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <response code="200">Returns the match list for the tournament level.</response>
     /// <response code="204">No matches found.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/matches/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [RedisCache("firstglobal:matches", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetMatchesByTournament(string year, string tournamentKey)
     {
-        Response.Headers.CacheControl = "no-cache";
         try
         {
             var key = NormalizeTournamentKey(tournamentKey);
@@ -256,11 +256,11 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <response code="200">Returns the rankings.</response>
     /// <response code="204">No rankings found for the season.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/rankings")]
+    [RedisCache("firstglobal:rankings", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetRankings(string year)
     {
-        Response.Headers.CacheControl = "no-cache";
         try
         {
             var query = YearQuery(year);
@@ -284,11 +284,11 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <response code="200">Returns the rankings for the tournament level.</response>
     /// <response code="204">No rankings found.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/rankings/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [RedisCache("firstglobal:rankings", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetRankingsByTournament(string year, string tournamentKey)
     {
-        Response.Headers.CacheControl = "no-cache";
         try
         {
             var key = NormalizeTournamentKey(tournamentKey);
@@ -316,11 +316,11 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <response code="200">Returns the alliance list for the tournament level.</response>
     /// <response code="204">No alliances found.</response>
     [HttpGet("{year:regex(^\\d{{4}}$)}/alliances/{tournamentKey:regex(^(t[34]|playoffs?|finals?)$)}")]
+    [RedisCache("firstglobal:alliances", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(AlliancesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetAlliances(string year, string tournamentKey)
     {
-        Response.Headers.CacheControl = "no-cache";
         try
         {
             var key = NormalizeTournamentKey(tournamentKey);
