@@ -371,3 +371,4 @@ terraform.rc
 # planout
 # CDK
 cdk.out/
+/.cursor
