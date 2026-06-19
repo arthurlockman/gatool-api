@@ -149,7 +149,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <response code="204">No matches found for the season.</response>
     [HttpGet("{year:int}/matches")]
     [RedisCache("firstglobal:matches", RedisCacheTime.FiveMinutes)]
-    [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(FgMatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetMatches(string year)
     {
@@ -177,7 +177,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <response code="204">No matches found.</response>
     [HttpGet("{year:int}/matches/{tournamentKey}")]
     [RedisCache("firstglobal:matches", RedisCacheTime.FiveMinutes)]
-    [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(FgMatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetMatchesByTournament(string year, string tournamentKey)
     {
