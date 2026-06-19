@@ -86,9 +86,9 @@ public static class FirstGlobalConverter
     ///     <c>ScoreRedFoul</c> carries foul points awarded to Red (i.e. from Blue's fouls),
     ///     and vice-versa for <c>ScoreBlueFoul</c>.
     /// </summary>
-    public static MatchesResponse ToFrcMatches(List<FgMatch> matches)
+    public static FgMatchesResponse ToFrcMatches(List<FgMatch> matches)
     {
-        var frcMatches = matches.Select(m =>
+        var fgMatches = matches.Select(m =>
         {
             var matchNumber = ExtractMatchNumber(m);
             var tournamentLevel = TournamentKeyToLevel(m.TournamentKey);
@@ -99,7 +99,7 @@ public static class FirstGlobalConverter
                 Dq: p.Disqualified != 0
             )).ToList();
 
-            return new MatchResult(
+            return new FgMatchResult(
                 IsReplay: false,
                 MatchVideoLink: null,
                 Description: $"{tournamentLevel} {matchNumber}",
@@ -114,11 +114,12 @@ public static class FirstGlobalConverter
                 ActualStartTime: string.IsNullOrEmpty(m.StartTime) ? null : m.StartTime,
                 TournamentLevel: tournamentLevel,
                 PostResultTime: null,
+                FieldNumber: m.FieldNumber,
                 Teams: teams
             );
         }).ToList();
 
-        return new MatchesResponse(frcMatches);
+        return new FgMatchesResponse(fgMatches);
     }
 
     /// <summary>

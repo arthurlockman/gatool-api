@@ -172,6 +172,29 @@ public record FgMatchScore(
     double ApproximateBiodiversityCenterEcosystem,
     List<FgAllianceScore> Alliances);
 
+/// <summary>FRC-compatible match result extended with FIRST Global field number.</summary>
+[UsedImplicitly]
+public record FgMatchResult(
+    bool IsReplay,
+    string? MatchVideoLink,
+    string? Description,
+    int MatchNumber,
+    int? ScoreRedFinal,
+    int? ScoreRedFoul,
+    int? ScoreRedAuto,
+    int? ScoreBlueFinal,
+    int? ScoreBlueFoul,
+    int? ScoreBlueAuto,
+    string? AutoStartTime,
+    string? ActualStartTime,
+    string? TournamentLevel,
+    string? PostResultTime,
+    int FieldNumber,
+    List<MatchTeam>? Teams);
+
+[UsedImplicitly]
+public record FgMatchesResponse(List<FgMatchResult>? Matches);
+
 [UsedImplicitly]
 public record FgMatchScoresResponse(
     [property: JsonPropertyName("MatchScores")]
