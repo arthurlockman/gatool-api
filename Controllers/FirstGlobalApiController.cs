@@ -53,12 +53,21 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     ///     Translates public-facing tournament level names to FIRST Global API keys.
     ///     Accepts either the raw key (t2/t3/t4) or the FRC-style aliases (qual/playoff/final).
     /// </summary>
-    private static string NormalizeTournamentKey(string tournamentKey) => tournamentKey.ToLowerInvariant() switch
+    private static string? NormalizeTournamentKey(string tournamentKey) => tournamentKey.ToLowerInvariant() switch
     {
         "qual" => "t2",
         "playoff" or "playoffs" => "t3",
         "final" or "finals" => "t4",
-        _ => tournamentKey
+        "t2" or "t3" or "t4" => tournamentKey.ToLowerInvariant(),
+        _ => null
+    };
+
+    private static string? NormalizeAllianceTournamentKey(string tournamentKey) => tournamentKey.ToLowerInvariant() switch
+    {
+        "playoff" or "playoffs" => "t3",
+        "final" or "finals" => "t4",
+        "t3" or "t4" => tournamentKey.ToLowerInvariant(),
+        _ => null
     };
 
     /// <summary>
@@ -82,7 +91,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>Combined object with teams, matches, rankings, alliances, tournaments, and fieldsets for the season.</returns>
     /// <response code="200">Returns the combined data object.</response>
     /// <response code="204">No data available for the season.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}")]
+    [HttpGet("{year:int}")]
     [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetAll(string year)
@@ -110,7 +119,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-format teams response with team list and counts.</returns>
     /// <response code="200">Returns the team list.</response>
     /// <response code="204">No teams found for the season.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/teams")]
+    [HttpGet("{year:int}/teams")]
     [RedisCache("firstglobal:teams", RedisCacheTime.OneHour)]
     [ProducesResponseType(typeof(FgTeamsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -138,7 +147,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-format matches response.</returns>
     /// <response code="200">Returns the match list.</response>
     /// <response code="204">No matches found for the season.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/matches")]
+    [HttpGet("{year:int}/matches")]
     [RedisCache("firstglobal:matches", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -166,7 +175,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-format matches response for the specified tournament level.</returns>
     /// <response code="200">Returns the match list for the tournament level.</response>
     /// <response code="204">No matches found.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/matches/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [HttpGet("{year:int}/matches/{tournamentKey}")]
     [RedisCache("firstglobal:matches", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(MatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -175,6 +184,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         try
         {
             var key = NormalizeTournamentKey(tournamentKey);
+            if (key == null) return NotFound();
             var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
             var result = await firstGlobalApi.Get<List<FgMatch>>("matches", query);
             if (result == null) return NoContent();
@@ -196,7 +206,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-style MatchScores response with per-alliance game detail breakdowns.</returns>
     /// <response code="200">Returns the match scores.</response>
     /// <response code="204">No scores found for the season.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/scores")]
+    [HttpGet("{year:int}/scores")]
     [ProducesResponseType(typeof(FgMatchScoresResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetScores(string year)
@@ -225,7 +235,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-style MatchScores response for the specified level.</returns>
     /// <response code="200">Returns the match scores for the tournament level.</response>
     /// <response code="204">No scores found.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/scores/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [HttpGet("{year:int}/scores/{tournamentKey}")]
     [ProducesResponseType(typeof(FgMatchScoresResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetScoresByTournament(string year, string tournamentKey)
@@ -234,6 +244,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         try
         {
             var key = NormalizeTournamentKey(tournamentKey);
+            if (key == null) return NotFound();
             var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
             var result = await firstGlobalApi.Get<List<FgMatch>>("matches", query);
             if (result == null) return NoContent();
@@ -255,7 +266,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-format rankings response.</returns>
     /// <response code="200">Returns the rankings.</response>
     /// <response code="204">No rankings found for the season.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/rankings")]
+    [HttpGet("{year:int}/rankings")]
     [RedisCache("firstglobal:rankings", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -283,7 +294,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-format rankings response for the specified tournament level.</returns>
     /// <response code="200">Returns the rankings for the tournament level.</response>
     /// <response code="204">No rankings found.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/rankings/{tournamentKey:regex(^(t[234]|qual|playoffs?|finals?)$)}")]
+    [HttpGet("{year:int}/rankings/{tournamentKey}")]
     [RedisCache("firstglobal:rankings", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -292,6 +303,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         try
         {
             var key = NormalizeTournamentKey(tournamentKey);
+            if (key == null) return NotFound();
             var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
             var result = await firstGlobalApi.Get<List<FgRanking>>("rankings", query);
             if (result == null) return NoContent();
@@ -315,7 +327,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>FRC-format alliances response.</returns>
     /// <response code="200">Returns the alliance list for the tournament level.</response>
     /// <response code="204">No alliances found.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/alliances/{tournamentKey:regex(^(t[34]|playoffs?|finals?)$)}")]
+    [HttpGet("{year:int}/alliances/{tournamentKey}")]
     [RedisCache("firstglobal:alliances", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(AlliancesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -323,7 +335,8 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     {
         try
         {
-            var key = NormalizeTournamentKey(tournamentKey);
+            var key = NormalizeAllianceTournamentKey(tournamentKey);
+            if (key == null) return NotFound();
             var query = MergeQuery(YearQuery(year), new Dictionary<string, string?> { ["tournamentKey"] = key });
             var result = await firstGlobalApi.Get<List<FgAlliance>>("alliances", query);
             if (result == null) return NoContent();
@@ -344,7 +357,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>Object mapping level names (RankLevel, RoundRobinLevel, FinalsLevel) to keys (t2, t3, t4).</returns>
     /// <response code="200">Returns the tournament key mappings.</response>
     /// <response code="204">No tournament data for the season.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/tournaments")]
+    [HttpGet("{year:int}/tournaments")]
     [RedisCache("firstglobal:tournaments", RedisCacheTime.OneDay)]
     [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -371,7 +384,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>2D array of integers representing field groupings.</returns>
     /// <response code="200">Returns the fieldset groupings.</response>
     /// <response code="204">No fieldsets for the season.</response>
-    [HttpGet("{year:regex(^\\d{{4}}$)}/fieldsets")]
+    [HttpGet("{year:int}/fieldsets")]
     [RedisCache("firstglobal:fieldsets", RedisCacheTime.OneDay)]
     [ProducesResponseType(typeof(object), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
