@@ -44,5 +44,21 @@ jobs:
 
       - name: CDK Deploy
         if: ${{ !inputs.diff-only }}
+        timeout-minutes: 10
         working-directory: infra-cdk
         run: cdk deploy --require-approval never
+
+      - name: Roll back timed-out deploy
+        if: ${{ failure() && !inputs.diff-only }}
+        run: |
+          status=$(aws cloudformation describe-stacks \
+            --stack-name GatoolStack \
+            --query 'Stacks[0].StackStatus' \
+            --output text)
+
+          if [ "$status" = "UPDATE_IN_PROGRESS" ]; then
+            aws cloudformation cancel-update-stack --stack-name GatoolStack
+            aws cloudformation wait stack-update-rollback-complete --stack-name GatoolStack
+          elif [ "$status" = "UPDATE_ROLLBACK_IN_PROGRESS" ] || [ "$status" = "UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS" ]; then
+            aws cloudformation wait stack-update-rollback-complete --stack-name GatoolStack
+          fi

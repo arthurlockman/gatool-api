@@ -262,7 +262,10 @@ public class GatoolStack : Stack
                 RedirectHTTP = true,
                 TaskSubnets = new SubnetSelection { SubnetType = SubnetType.PUBLIC },
                 AssignPublicIp = true,
-                HealthCheckGracePeriod = Duration.Seconds(300),
+                // Fail deployments that cannot reach steady state and roll back to
+                // the previous task definition instead of letting CloudFormation wait.
+                CircuitBreaker = new DeploymentCircuitBreaker { Rollback = true },
+                HealthCheckGracePeriod = Duration.Seconds(60),
                 CapacityProviderStrategies =
                 [
                     new CapacityProviderStrategy { CapacityProvider = "FARGATE_SPOT", Weight = 4 },
