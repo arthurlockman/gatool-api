@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using GAToolAPI.AuthExtensions;
 
 namespace GAToolAPI.Models;
 
@@ -24,6 +25,12 @@ public record MeResponse(
     string[] Roles,
     PasskeyInfo[] Passkeys);
 
+public record UserSummary(
+    string Email,
+    string[] Roles,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? LastLoginAt);
+
 public record PasskeyInfo(
     string CredentialId,
     string? Nickname,
@@ -46,7 +53,7 @@ public record PasskeyAuthCompleteBody(
 public class UserRecord
 {
     public string Email { get; set; } = "";
-    public string[] Roles { get; set; } = ["user"];
+    public string[] Roles { get; set; } = [AuthRoles.User];
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? LastLoginAt { get; set; }
 }

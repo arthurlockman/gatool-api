@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using GAToolAPI.AuthExtensions;
 using GAToolAPI.Services.Auth;
 using MailChimp.Net;
 using MailChimp.Net.Core;
@@ -76,24 +77,17 @@ public class MailchimpWebhookService
     {
         var isOptedIn = gatoolMergeField == OptInText;
 
-        // "Opted in" gets the full "user" role (read + write).
-        // "Not opted in" gets no roles (record exists but no API access — all
-        // gated endpoints require "user").
-        var roles = isOptedIn ? new[] { "user" } : Array.Empty<string>();
-
+        // Mailchimp owns only the user role. Admin and manually assigned roles
+        // are preserved when a subscriber's opt-in state changes.
         var existing = await _authRepository.GetUserAsync(email, cancellationToken);
         var newAuthCreated = existing == null;
-        if (newAuthCreated)
-        {
-            await _authRepository.UpsertUserAsync(email, roles, cancellationToken);
-            _logger.LogInformation("Created auth user for {Email} with roles=[{Roles}]",
-                email, string.Join(",", roles));
-        }
-        else
-        {
-            await _authRepository.SetRolesAsync(email, roles, cancellationToken);
-            _logger.LogInformation("Updated roles for {Email} to [{Roles}]", email, string.Join(",", roles));
-        }
+        var user = newAuthCreated
+            ? await _authRepository.UpsertUserAsync(
+                email, isOptedIn ? [AuthRoles.User] : [], cancellationToken)
+            : await _authRepository.SetRolePresenceAsync(
+                email, AuthRoles.User, isOptedIn, cancellationToken);
+        _logger.LogInformation("Updated Mailchimp-managed user role for {Email}; roles=[{Roles}]",
+            email, string.Join(",", user?.Roles ?? []));
 
         // Tag for welcome only the first time we see this user, so resubscribers
         // don't get re-welcomed.

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using Fido2NetLib;
+using GAToolAPI.AuthExtensions;
 using GAToolAPI.Models;
 using GAToolAPI.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
@@ -95,7 +96,7 @@ public class AuthController(
 
     /// <summary>Get the currently-authenticated user's email, roles, and registered passkeys.</summary>
     [HttpGet("me")]
-    [Authorize("user")]
+    [Authorize(AuthPolicies.User)]
     [ProducesResponseType(typeof(MeResponse), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> Me(CancellationToken ct)
     {
@@ -117,7 +118,7 @@ public class AuthController(
 
     /// <summary>Begin passkey registration. Returns WebAuthn creation options + a session id.</summary>
     [HttpPost("passkey/register-options")]
-    [Authorize("user")]
+    [Authorize(AuthPolicies.User)]
     public async Task<IActionResult> PasskeyRegisterOptions(CancellationToken ct)
     {
         var email = User.FindFirst("name")?.Value;
@@ -138,7 +139,7 @@ public class AuthController(
 
     /// <summary>Complete passkey registration with the browser's attestation response.</summary>
     [HttpPost("passkey/register")]
-    [Authorize("user")]
+    [Authorize(AuthPolicies.User)]
     public async Task<IActionResult> PasskeyRegister([FromBody] PasskeyRegisterCompleteRequest body,
         CancellationToken ct)
     {
@@ -154,7 +155,7 @@ public class AuthController(
 
     /// <summary>Remove a registered passkey from the current user.</summary>
     [HttpDelete("passkey/{credentialId}")]
-    [Authorize("user")]
+    [Authorize(AuthPolicies.User)]
     public async Task<IActionResult> PasskeyDelete(string credentialId, CancellationToken ct)
     {
         var email = User.FindFirst("name")?.Value;

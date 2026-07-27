@@ -80,6 +80,14 @@ public class GatoolStack : Stack
                 PointInTimeRecoveryEnabled = true
             }
         });
+        authTable.AddGlobalSecondaryIndex(new GlobalSecondaryIndexProps
+        {
+            IndexName = "UserEmailIndex",
+            PartitionKey = new Attribute { Name = "SK", Type = AttributeType.STRING },
+            SortKey = new Attribute { Name = "email", Type = AttributeType.STRING },
+            ProjectionType = ProjectionType.INCLUDE,
+            NonKeyAttributes = ["roles", "createdAt", "lastLoginAt"]
+        });
 
         // ── ECS Cluster ─────────────────────────────────────────────────
         var cluster = new Cluster(this, "GatoolCluster", new ClusterProps

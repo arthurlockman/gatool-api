@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using GAToolAPI.AuthExtensions;
 using GAToolAPI.Models;
 using Microsoft.IdentityModel.Tokens;
 
@@ -26,7 +27,7 @@ public class TokenService
 {
     public const string Issuer = "https://api.gatool.org/auth";
     public const string Audience = "gatool";
-    public const string RolesClaim = "https://gatool.org/roles";
+    public const string RolesClaim = AuthRoles.ClaimType;
     public static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
 
