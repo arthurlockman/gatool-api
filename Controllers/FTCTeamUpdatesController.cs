@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using GAToolAPI.AuthExtensions;
 using GAToolAPI.Helpers;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +15,7 @@ namespace GAToolAPI.Controllers;
 public class FtcTeamUpdatesController(
     UserStorageService userStorage,
     TeamDataService teamData,
+    IAuthorizationService authorizationService,
     IConfiguration configuration) : ControllerBase
 {
     /// <summary>
@@ -65,9 +67,16 @@ public class FtcTeamUpdatesController(
     /// <response code="400">Missing user email in token.</response>
     [HttpPut("team/{teamNumber}/updates")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
-    [Authorize("user")]
+    [Authorize]
     public async Task<IActionResult> StoreTeamUpdatesForTeam([FromBody] JsonObject updates, string teamNumber)
     {
+        var policy = teamNumber.StartsWith("FG", StringComparison.OrdinalIgnoreCase)
+            ? AuthPolicies.FirstGlobalWrite
+            : AuthPolicies.User;
+        var authorization = await authorizationService.AuthorizeAsync(User, policy);
+        if (!authorization.Succeeded)
+            return User.Identity?.IsAuthenticated == true ? Forbid() : Challenge();
+
         var email = User.FindFirst("name")?.Value;
         if (email == null) return BadRequest("Missing user email address in token");
         await userStorage.StoreTeamUpdates(teamNumber, updates, email, true);
