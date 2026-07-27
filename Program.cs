@@ -98,15 +98,25 @@ try
         });
 
     builder.Services.AddAuthorizationBuilder()
-        .AddPolicy("user", policy =>
+        .AddPolicy(AuthPolicies.User, policy =>
         {
             policy.AuthenticationSchemes = ["GatoolJwt"];
-            policy.Requirements.Add(new HasRoleRequirement("user"));
+            policy.Requirements.Add(new HasRoleRequirement(AuthRoles.User));
         })
-        .AddPolicy("admin", policy =>
+        .AddPolicy(AuthPolicies.Admin, policy =>
         {
             policy.AuthenticationSchemes = ["GatoolJwt"];
-            policy.Requirements.Add(new HasRoleRequirement("admin"));
+            policy.Requirements.Add(new HasRoleRequirement(AuthRoles.Admin));
+        })
+        .AddPolicy(AuthPolicies.FirstGlobalWrite, policy =>
+        {
+            policy.AuthenticationSchemes = ["GatoolJwt"];
+            policy.RequireAssertion(context =>
+            {
+                var roles = context.User.FindAll(AuthRoles.ClaimType).Select(claim => claim.Value).ToHashSet();
+                return roles.Contains(AuthRoles.Admin) ||
+                       roles.Contains(AuthRoles.User) && roles.Contains(AuthRoles.FirstGlobalWrite);
+            });
         });
     builder.Services.AddSingleton<IAuthorizationHandler, HasRoleHandler>();
 

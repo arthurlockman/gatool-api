@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using GAToolAPI.AuthExtensions;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -22,7 +23,7 @@ public class UserDataController(UserStorageService userStorage) : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
-    [Authorize("user")]
+    [Authorize(AuthPolicies.User)]
     public async Task<IActionResult> GetUserData()
     {
         Response.Headers.CacheControl = "no-cache";
@@ -42,7 +43,7 @@ public class UserDataController(UserStorageService userStorage) : ControllerBase
     [HttpPut]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
-    [Authorize("user")]
+    [Authorize(AuthPolicies.User)]
     public async Task<IActionResult> StoreUserPreferences([FromBody] JsonObject preferences)
     {
         var email = User.FindFirst("name")?.Value;

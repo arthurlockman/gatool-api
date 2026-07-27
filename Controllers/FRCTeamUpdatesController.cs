@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using GAToolAPI.AuthExtensions;
 using GAToolAPI.Helpers;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -65,7 +66,7 @@ public class FrcTeamUpdatesController(
     /// <response code="400">Missing user email in token.</response>
     [HttpPut("team/{teamNumber}/updates")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
-    [Authorize("user")]
+    [Authorize(AuthPolicies.User)]
     public async Task<IActionResult> StoreTeamUpdatesForTeam([FromBody] JsonObject updates, string teamNumber)
     {
         var email = User.FindFirst("name")?.Value;

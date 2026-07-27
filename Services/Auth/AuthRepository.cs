@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Amazon.DynamoDBv2;
 using Amazon.DynamoDBv2.Model;
+using GAToolAPI.AuthExtensions;
 using GAToolAPI.Models;
 
 namespace GAToolAPI.Services.Auth;
@@ -20,6 +21,7 @@ namespace GAToolAPI.Services.Auth;
 public class AuthRepository
 {
     private const string TableName = "gatool-auth";
+    private const string UserEmailIndexName = "UserEmailIndex";
     private const string TtlAttribute = "expiresAt";
 
     private readonly IAmazonDynamoDB _ddb;
@@ -37,14 +39,35 @@ public class AuthRepository
 
     public async Task<UserRecord?> GetUserAsync(string email, CancellationToken ct = default)
     {
-        var resp = await _ddb.GetItemAsync(new GetItemRequest
+        var result = await GetUserWithRoleVersionAsync(email, ct);
+        return result?.User;
+    }
+
+    public async Task<List<UserRecord>> SearchUsersAsync(string query, int limit, CancellationToken ct = default)
+    {
+        var normalizedQuery = query.Trim().ToLowerInvariant();
+        var response = await _ddb.QueryAsync(new QueryRequest
         {
             TableName = TableName,
-            Key = Pk($"USER#{NormalizeEmail(email)}", "PROFILE"),
-            ConsistentRead = true
+            IndexName = UserEmailIndexName,
+            KeyConditionExpression = "#sk = :profile AND begins_with(#email, :query)",
+            ProjectionExpression = "#email, #roles, createdAt, lastLoginAt",
+            ExpressionAttributeNames = new Dictionary<string, string>
+            {
+                ["#sk"] = "SK",
+                ["#email"] = "email",
+                ["#roles"] = "roles"
+            },
+            ExpressionAttributeValues = new Dictionary<string, AttributeValue>
+            {
+                [":profile"] = new() { S = "PROFILE" },
+                [":query"] = new() { S = normalizedQuery }
+            },
+            Limit = limit,
+            ScanIndexForward = true
         }, ct);
 
-        return resp.Item is { Count: > 0 } ? UserFromItem(resp.Item) : null;
+        return response.Items.Select(UserFromItem).ToList();
     }
 
     public async Task<UserRecord> UpsertUserAsync(string email, string[]? rolesIfNew = null,
@@ -57,7 +80,7 @@ public class AuthRepository
         var record = new UserRecord
         {
             Email = normalized,
-            Roles = rolesIfNew ?? ["user"],
+            Roles = AuthRoleCatalog.Canonicalize(rolesIfNew ?? [AuthRoles.User]),
             CreatedAt = DateTimeOffset.UtcNow
         };
 
@@ -79,22 +102,64 @@ public class AuthRepository
         return record;
     }
 
-    public async Task SetRolesAsync(string email, string[] roles, CancellationToken ct = default)
+    public async Task<UserRecord?> SetRolePresenceAsync(string email, string role, bool enabled,
+        CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
+        const int maxAttempts = 8;
 
-        // Ensure the record exists first
-        await UpsertUserAsync(normalized, roles, ct);
-
-        var rolesAttr = new AttributeValue { L = roles.Select(r => new AttributeValue { S = r }).ToList() };
-        await _ddb.UpdateItemAsync(new UpdateItemRequest
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
         {
-            TableName = TableName,
-            Key = Pk($"USER#{normalized}", "PROFILE"),
-            UpdateExpression = "SET #r = :r",
-            ExpressionAttributeNames = new Dictionary<string, string> { ["#r"] = "roles" },
-            ExpressionAttributeValues = new Dictionary<string, AttributeValue> { [":r"] = rolesAttr }
-        }, ct);
+            var current = await GetUserWithRoleVersionAsync(normalized, ct);
+            if (current == null) return null;
+
+            var desiredRoles = AuthRoleCatalog.Canonicalize(enabled
+                ? current.User.Roles.Append(role)
+                : current.User.Roles.Where(existingRole =>
+                    !string.Equals(existingRole, role, StringComparison.Ordinal)));
+            var nextVersion = (current.RoleVersion ?? 0) + 1;
+
+            var values = new Dictionary<string, AttributeValue>
+            {
+                [":roles"] = RolesAttribute(desiredRoles),
+                [":nextVersion"] = new() { N = nextVersion.ToString() }
+            };
+            var condition = "attribute_exists(PK) AND attribute_not_exists(#roleVersion)";
+            if (current.RoleVersion.HasValue)
+            {
+                condition = "attribute_exists(PK) AND #roleVersion = :expectedVersion";
+                values[":expectedVersion"] = new AttributeValue { N = current.RoleVersion.Value.ToString() };
+            }
+
+            try
+            {
+                await _ddb.UpdateItemAsync(new UpdateItemRequest
+                {
+                    TableName = TableName,
+                    Key = Pk($"USER#{normalized}", "PROFILE"),
+                    UpdateExpression = "SET #roles = :roles, #roleVersion = :nextVersion",
+                    ConditionExpression = condition,
+                    ExpressionAttributeNames = new Dictionary<string, string>
+                    {
+                        ["#roles"] = "roles",
+                        ["#roleVersion"] = "roleVersion"
+                    },
+                    ExpressionAttributeValues = values
+                }, ct);
+
+                current.User.Roles = desiredRoles;
+                return current.User;
+            }
+            catch (ConditionalCheckFailedException ex)
+            {
+                // Another writer changed the role list. Re-read and reapply this one-role mutation.
+                if (attempt == maxAttempts)
+                    throw new InvalidOperationException(
+                        $"Unable to update roles for {normalized} after {maxAttempts} attempts", ex);
+            }
+        }
+
+        throw new InvalidOperationException("Role update retry loop exited unexpectedly");
     }
 
     public async Task TouchLoginAsync(string email, CancellationToken ct = default)
@@ -456,22 +521,47 @@ public class AuthRepository
 
     // ── Item <-> POCO mappers ───────────────────────────────────────────────
 
+    private async Task<UserWithRoleVersion?> GetUserWithRoleVersionAsync(string email,
+        CancellationToken ct)
+    {
+        var response = await _ddb.GetItemAsync(new GetItemRequest
+        {
+            TableName = TableName,
+            Key = Pk($"USER#{NormalizeEmail(email)}", "PROFILE"),
+            ConsistentRead = true
+        }, ct);
+
+        if (response.Item is not { Count: > 0 }) return null;
+        var roleVersion = response.Item.TryGetValue("roleVersion", out var version) && version.N != null
+            ? long.Parse(version.N)
+            : (long?)null;
+        return new UserWithRoleVersion(UserFromItem(response.Item), roleVersion);
+    }
+
+    private static AttributeValue RolesAttribute(IEnumerable<string> roles) => new()
+    {
+        L = roles.Select(role => new AttributeValue { S = role }).ToList()
+    };
+
     private static Dictionary<string, AttributeValue> UserToItem(UserRecord r) => new()
     {
         ["PK"] = new() { S = $"USER#{r.Email}" },
         ["SK"] = new() { S = "PROFILE" },
         ["email"] = new() { S = r.Email },
-        ["roles"] = new() { L = r.Roles.Select(role => new AttributeValue { S = role }).ToList() },
+        ["roles"] = RolesAttribute(AuthRoleCatalog.Canonicalize(r.Roles)),
         ["createdAt"] = new() { S = r.CreatedAt.ToString("O") }
     };
 
     private static UserRecord UserFromItem(Dictionary<string, AttributeValue> item) => new()
     {
         Email = item.GetValueOrDefault("email")?.S ?? "",
-        Roles = item.GetValueOrDefault("roles")?.L?.Select(av => av.S).ToArray() ?? ["user"],
+        Roles = AuthRoleCatalog.Canonicalize(
+            item.GetValueOrDefault("roles")?.L?.Select(av => av.S) ?? [AuthRoles.User]),
         CreatedAt = ParseDate(item.GetValueOrDefault("createdAt")?.S),
         LastLoginAt = item.TryGetValue("lastLoginAt", out var ll) && ll.S != null ? ParseDate(ll.S) : null
     };
+
+    private sealed record UserWithRoleVersion(UserRecord User, long? RoleVersion);
 
     private static Dictionary<string, AttributeValue> PasskeyToItem(PasskeyRecord r)
     {
