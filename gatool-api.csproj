@@ -25,6 +25,7 @@
         <PackageReference Include="MailChimp.Net.V3" Version="5.7.0" />
         <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+        <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
         <PackageReference Include="NewRelic.Agent.Api" Version="10.43.0" />
         <PackageReference Include="NewRelic.LogEnrichers.Serilog" Version="1.2.0" />
         <PackageReference Include="NSwag.AspNetCore" Version="14.5.0" />
