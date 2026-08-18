@@ -10,8 +10,7 @@ namespace GAToolAPI.Controllers;
 
 /// <summary>
 ///     Proxy for the FIRST Global Challenge API (https://api.first.global/v1).
-///     Year is required in the path. The current season starts October 1; for the current season
-///     the API is called without a year parameter; for prior seasons the API is called with ?year=YYYY.
+///     Year is required in the path and is always passed through to the remote API as ?year=YYYY.
 ///     Responses are converted to FRC-compatible shapes (teams, matches, rankings, alliances).
 /// </summary>
 /// <remarks>
@@ -27,27 +26,11 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     : ControllerBase
 {
     /// <summary>
-    ///     Season year that is considered "current" (season starts October 1 of that year).
+    ///     Builds the year query param for the external API. Always sent as ?year=YYYY so the
+    ///     remote API returns data for the requested season explicitly.
     /// </summary>
-    private static int CurrentSeasonYear
-    {
-        get
-        {
-            var now = DateTime.UtcNow;
-            return now.Month >= 10 ? now.Year : now.Year - 1;
-        }
-    }
-
-    /// <summary>
-    ///     Builds query params for the external API. For the current season, no year is sent.
-    ///     For prior seasons, adds year=YYYY so the API returns that season's data.
-    /// </summary>
-    private static Dictionary<string, string?>? YearQuery(string year)
-    {
-        if (int.TryParse(year, out var y) && y == CurrentSeasonYear)
-            return null;
-        return new Dictionary<string, string?> { ["year"] = year };
-    }
+    private static Dictionary<string, string?> YearQuery(string year) =>
+        new() { ["year"] = year };
 
     /// <summary>
     ///     Translates public-facing tournament level names to FIRST Global API keys.
