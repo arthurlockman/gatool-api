@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using GAToolAPI.Helpers;
 using JetBrains.Annotations;
 
 namespace GAToolAPI.Models;
@@ -37,7 +38,9 @@ public record FgTeamsResponse(
 [UsedImplicitly]
 public record FgTeam(
     int TeamKey,
+    [property: JsonConverter(typeof(FlexibleIntConverter))]
     int CardStatus,
+    [property: JsonConverter(typeof(FlexibleIntConverter))]
     int HasCard,
     string Country,
     string CountryCode,
@@ -139,6 +142,30 @@ public record FgAlliance(
     int Played,
     string? EventKey,
     int Rank);
+
+/// <summary>
+///     A single award recipient. Country-based awards populate <c>Country</c>/<c>CountryCode</c>;
+///     individual awards (e.g. mentor recognition) populate <c>RecipientName</c> instead.
+///     <c>Class</c> is only present on <c>other</c> entries and denotes which tier (gold/silver/bronze)
+///     the entry is tied to, if any.
+/// </summary>
+[UsedImplicitly]
+public record FgAwardRecipient(
+    string? Country,
+    string? CountryCode,
+    string? RecipientName,
+    string? Class);
+
+[UsedImplicitly]
+public record FgAward(
+    string Name,
+    string? Description,
+    FgAwardRecipient? Gold,
+    FgAwardRecipient? Silver,
+    FgAwardRecipient? Bronze,
+    List<FgAwardRecipient>? Other,
+    string? EventKey,
+    int SortOrder);
 
 // ---------------------------------------------------------------------------
 // Score output models (returned by the /scores endpoint)
