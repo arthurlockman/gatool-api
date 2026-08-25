@@ -229,4 +229,69 @@ public static class FirstGlobalConverter
 
         return new AlliancesResponse(frcAlliances, frcAlliances.Count);
     }
+
+    /// <summary>
+    ///     Maps a gold/silver/bronze tier name to the FRC-style <c>Series</c> value (1/2/3).
+    ///     Returns null for untiered recipients (e.g. Safety Award).
+    /// </summary>
+    private static int? ClassToSeries(string? tierClass) => tierClass?.ToLowerInvariant() switch
+    {
+        "gold" => 1,
+        "silver" => 2,
+        "bronze" => 3,
+        _ => null
+    };
+
+    /// <summary>
+    ///     Converts a list of FIRST Global awards to an FRC <see cref="EventAwardsResponse" />.
+    ///     Each gold/silver/bronze/other recipient becomes its own <see cref="Award" /> row, matching
+    ///     the FRC convention of one row per (award, recipient). <c>TeamNumber</c> is resolved by
+    ///     matching the recipient's country code against the season's teams; recipients without a
+    ///     matching team (e.g. individual mentor awards) get a null <c>TeamNumber</c>.
+    /// </summary>
+    public static EventAwardsResponse ToFrcAwards(List<FgAward> awards, List<FgTeam> teams)
+    {
+        var teamNumberByCountryCode = teams
+            .Where(t => !string.IsNullOrEmpty(t.CountryCode))
+            .GroupBy(t => t.CountryCode)
+            .ToDictionary(g => g.Key, g => g.First().TeamKey);
+
+        var result = new List<Award>();
+
+        foreach (var award in awards)
+        {
+            void AddRecipient(FgAwardRecipient recipient, int? series)
+            {
+                var teamNumber = recipient.CountryCode != null &&
+                                  teamNumberByCountryCode.TryGetValue(recipient.CountryCode, out var tn)
+                    ? tn
+                    : (int?)null;
+
+                result.Add(new Award(
+                    AwardId: award.SortOrder,
+                    TeamId: null,
+                    EventId: null,
+                    EventDivisionId: null,
+                    EventCode: award.EventKey,
+                    Name: award.Name,
+                    Series: series,
+                    TeamNumber: teamNumber,
+                    SchoolName: null,
+                    FullTeamName: recipient.Country,
+                    Person: recipient.RecipientName,
+                    CmpQualifying: null,
+                    CmpQualifyingReason: null
+                ));
+            }
+
+            if (award.Gold != null) AddRecipient(award.Gold, 1);
+            if (award.Silver != null) AddRecipient(award.Silver, 2);
+            if (award.Bronze != null) AddRecipient(award.Bronze, 3);
+
+            foreach (var other in award.Other ?? [])
+                AddRecipient(other, ClassToSeries(other.Class));
+        }
+
+        return new EventAwardsResponse(result);
+    }
 }

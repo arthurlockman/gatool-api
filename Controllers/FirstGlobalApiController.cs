@@ -10,8 +10,7 @@ namespace GAToolAPI.Controllers;
 
 /// <summary>
 ///     Proxy for the FIRST Global Challenge API (https://api.first.global/v1).
-///     Year is required in the path. The current season starts October 1; for the current season
-///     the API is called without a year parameter; for prior seasons the API is called with ?year=YYYY.
+///     Year is required in the path and is always passed through to the remote API as ?year=YYYY.
 ///     Responses are converted to FRC-compatible shapes (teams, matches, rankings, alliances).
 /// </summary>
 /// <remarks>
@@ -27,27 +26,11 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     : ControllerBase
 {
     /// <summary>
-    ///     Season year that is considered "current" (season starts October 1 of that year).
+    ///     Builds the year query param for the external API. Always sent as ?year=YYYY so the
+    ///     remote API returns data for the requested season explicitly.
     /// </summary>
-    private static int CurrentSeasonYear
-    {
-        get
-        {
-            var now = DateTime.UtcNow;
-            return now.Month >= 10 ? now.Year : now.Year - 1;
-        }
-    }
-
-    /// <summary>
-    ///     Builds query params for the external API. For the current season, no year is sent.
-    ///     For prior seasons, adds year=YYYY so the API returns that season's data.
-    /// </summary>
-    private static Dictionary<string, string?>? YearQuery(string year)
-    {
-        if (int.TryParse(year, out var y) && y == CurrentSeasonYear)
-            return null;
-        return new Dictionary<string, string?> { ["year"] = year };
-    }
+    private static Dictionary<string, string?> YearQuery(string year) =>
+        new() { ["year"] = year };
 
     /// <summary>
     ///     Translates public-facing tournament level names to FIRST Global API keys.
@@ -373,6 +356,42 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         catch (Exception ex)
         {
             logger.LogError(ex, "Error fetching FIRST Global tournaments for year {Year}", year);
+            return NoContent();
+        }
+    }
+
+    /// <summary>
+    ///     All awards for the season, converted to FRC award format.
+    ///     Each gold/silver/bronze/other recipient becomes its own award row; <c>TeamNumber</c> is
+    ///     resolved from the recipient's country against the season's teams.
+    ///     Medal tier is encoded in <c>Series</c>: 1 = gold, 2 = silver, 3 = bronze. An <c>other</c>
+    ///     recipient inherits the tier of its <c>class</c> field (e.g. a tied gold co-medalist also
+    ///     gets <c>Series = 1</c>); if <c>class</c> is absent, <c>Series</c> is <c>null</c>, meaning the
+    ///     award has no gold/silver/bronze ranking (e.g. the Safety Award).
+    /// </summary>
+    /// <param name="year">Season year (e.g. 2025). Required.</param>
+    /// <returns>FRC-format event awards response.</returns>
+    /// <response code="200">Returns the award list.</response>
+    /// <response code="204">No awards found for the season.</response>
+    [HttpGet("{year:int}/awards")]
+    [RedisCache("firstglobal:awards", RedisCacheTime.FiveMinutes)]
+    [ProducesResponseType(typeof(EventAwardsResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    public async Task<IActionResult> GetAwards(string year)
+    {
+        try
+        {
+            var query = YearQuery(year);
+            var awardsTask = firstGlobalApi.Get<List<FgAward>>("awards", query);
+            var teamsTask = firstGlobalApi.Get<List<FgTeam>>("teams", query);
+            var awards = await awardsTask;
+            if (awards == null) return NoContent();
+            var teams = await teamsTask ?? [];
+            return Ok(FirstGlobalConverter.ToFrcAwards(awards, teams));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching FIRST Global awards for year {Year}", year);
             return NoContent();
         }
     }
