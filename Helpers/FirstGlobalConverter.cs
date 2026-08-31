@@ -242,6 +242,37 @@ public static class FirstGlobalConverter
         _ => null
     };
 
+    private static IEnumerable<(FgAward Award, FgAwardRecipient Recipient, int? Series)> AwardRecipients(
+        IEnumerable<FgAward> awards)
+    {
+        foreach (var award in awards)
+        {
+            if (award.Gold != null) yield return (award, award.Gold, 1);
+            if (award.Silver != null) yield return (award, award.Silver, 2);
+            if (award.Bronze != null) yield return (award, award.Bronze, 3);
+
+            foreach (var other in award.Other ?? [])
+                yield return (award, other, ClassToSeries(other.Class));
+        }
+    }
+
+    private static Award ToFrcAward(FgAward award, FgAwardRecipient recipient, int? series, int? teamNumber) =>
+        new(
+            AwardId: award.SortOrder,
+            TeamId: null,
+            EventId: null,
+            EventDivisionId: null,
+            EventCode: award.EventKey,
+            Name: award.Name,
+            Series: series,
+            TeamNumber: teamNumber,
+            SchoolName: null,
+            FullTeamName: recipient.Country,
+            Person: recipient.RecipientName,
+            CmpQualifying: null,
+            CmpQualifyingReason: null
+        );
+
     /// <summary>
     ///     Converts a list of FIRST Global awards to an FRC <see cref="EventAwardsResponse" />.
     ///     Each gold/silver/bronze/other recipient becomes its own <see cref="Award" /> row, matching
@@ -253,45 +284,69 @@ public static class FirstGlobalConverter
     {
         var teamNumberByCountryCode = teams
             .Where(t => !string.IsNullOrEmpty(t.CountryCode))
-            .GroupBy(t => t.CountryCode)
-            .ToDictionary(g => g.Key, g => g.First().TeamKey);
+            .GroupBy(t => t.CountryCode, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.First().TeamKey, StringComparer.OrdinalIgnoreCase);
 
         var result = new List<Award>();
 
-        foreach (var award in awards)
+        foreach (var (award, recipient, series) in AwardRecipients(awards))
         {
-            void AddRecipient(FgAwardRecipient recipient, int? series)
-            {
-                var teamNumber = recipient.CountryCode != null &&
-                                  teamNumberByCountryCode.TryGetValue(recipient.CountryCode, out var tn)
-                    ? tn
-                    : (int?)null;
-
-                result.Add(new Award(
-                    AwardId: award.SortOrder,
-                    TeamId: null,
-                    EventId: null,
-                    EventDivisionId: null,
-                    EventCode: award.EventKey,
-                    Name: award.Name,
-                    Series: series,
-                    TeamNumber: teamNumber,
-                    SchoolName: null,
-                    FullTeamName: recipient.Country,
-                    Person: recipient.RecipientName,
-                    CmpQualifying: null,
-                    CmpQualifyingReason: null
-                ));
-            }
-
-            if (award.Gold != null) AddRecipient(award.Gold, 1);
-            if (award.Silver != null) AddRecipient(award.Silver, 2);
-            if (award.Bronze != null) AddRecipient(award.Bronze, 3);
-
-            foreach (var other in award.Other ?? [])
-                AddRecipient(other, ClassToSeries(other.Class));
+            var teamNumber = recipient.CountryCode != null &&
+                             teamNumberByCountryCode.TryGetValue(recipient.CountryCode, out var tn)
+                ? tn
+                : (int?)null;
+            result.Add(ToFrcAward(award, recipient, series, teamNumber));
         }
 
         return new EventAwardsResponse(result);
+    }
+
+    /// <summary>
+    ///     Returns the distinct country codes represented by country-based award recipients.
+    /// </summary>
+    public static IEnumerable<string> AwardCountryCodes(IEnumerable<FgAward> awards) =>
+        AwardRecipients(awards)
+            .Select(item => item.Recipient.CountryCode)
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code!.Trim().ToUpperInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    ///     Groups one season's awards by <c>countryCode</c> while resolving every award row to the
+    ///     team number used by that country code in the requested (display) season. The separate
+    ///     <c>country</c> value remains the human-readable name in <c>FullTeamName</c>.
+    /// </summary>
+    public static Dictionary<string, TeamAwardsResponse> ToFrcAwardsByCountryCode(
+        IEnumerable<FgAward> awards,
+        IEnumerable<FgTeam> requestedYearTeams,
+        IEnumerable<string> countryCodes)
+    {
+        var normalizedCodes = countryCodes
+            .Select(code => code.Trim().ToUpperInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        var selectedCodes = normalizedCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var teamNumberByCountryCode = requestedYearTeams
+            .Where(team => !string.IsNullOrWhiteSpace(team.CountryCode))
+            .GroupBy(team => team.CountryCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().TeamKey, StringComparer.OrdinalIgnoreCase);
+        var groupedAwards = normalizedCodes.ToDictionary(
+            code => code,
+            _ => new List<Award>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (award, recipient, series) in AwardRecipients(awards))
+        {
+            var countryCode = recipient.CountryCode?.Trim();
+            if (string.IsNullOrEmpty(countryCode) || !selectedCodes.Contains(countryCode)) continue;
+
+            var teamNumber = teamNumberByCountryCode.TryGetValue(countryCode, out var tn) ? tn : (int?)null;
+            groupedAwards[countryCode].Add(ToFrcAward(award, recipient, series, teamNumber));
+        }
+
+        return groupedAwards.ToDictionary(
+            pair => pair.Key,
+            pair => new TeamAwardsResponse(pair.Value),
+            StringComparer.OrdinalIgnoreCase);
     }
 }
