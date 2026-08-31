@@ -4,6 +4,7 @@ using GAToolAPI.Helpers;
 using GAToolAPI.Models;
 using GAToolAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using NSwag.Annotations;
 
 namespace GAToolAPI.Controllers;
@@ -392,6 +393,78 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         catch (Exception ex)
         {
             logger.LogError(ex, "Error fetching FIRST Global awards for year {Year}", year);
+            return NoContent();
+        }
+    }
+
+    /// <summary>
+    ///     Gets FIRST Global awards for the requested season and the two preceding seasons, grouped
+    ///     by stable two-letter <c>countryCode</c> instead of the season-specific team number.
+    ///     Historical award rows use the country's team number from the requested season.
+    /// </summary>
+    /// <param name="year">The requested competition year/season.</param>
+    /// <param name="request">
+    ///     Optional team filter containing two-letter <c>countryCode</c> values. Omit the body,
+    ///     use an empty body, or provide an empty <c>teams</c> array to return every country code
+    ///     represented in the three seasons.
+    /// </param>
+    /// <returns>Dictionary of country code to dictionary of year to awards.</returns>
+    /// <response code="200">Returns three seasons of awards grouped by country.</response>
+    /// <response code="400">One or more country codes are not two letters.</response>
+    [HttpPost("{year:int}/queryAwards")]
+    [RedisCache("firstglobal:batch-country-awards", RedisCacheTime.FiveMinutes)]
+    [ProducesResponseType(typeof(Dictionary<string, Dictionary<string, TeamAwardsResponse>>),
+        (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    public async Task<IActionResult> QueryAwards(int year,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] FgAwardsQueryRequest? request)
+    {
+        var requestedCountryCodes = request?.Teams?
+            .Where(code => !string.IsNullOrWhiteSpace(code))
+            .Select(code => code.Trim().ToUpperInvariant())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? [];
+
+        if (requestedCountryCodes.Any(code => code.Length != 2 || !code.All(char.IsLetter)))
+            return BadRequest("Teams values must be two-letter countryCode values");
+
+        try
+        {
+            var years = new[] { year, year - 1, year - 2 };
+            var awardsTasks = years.ToDictionary(
+                season => season,
+                season => firstGlobalApi.Get<List<FgAward>>("awards", YearQuery(season.ToString())));
+            var requestedYearTeamsTask = firstGlobalApi.Get<List<FgTeam>>("teams", YearQuery(year.ToString()));
+
+            await Task.WhenAll(awardsTasks.Values.Cast<Task>().Append(requestedYearTeamsTask));
+
+            var awardsByYear = awardsTasks.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value.Result ?? []);
+            var countryCodes = requestedCountryCodes.Count > 0
+                ? requestedCountryCodes
+                : awardsByYear.Values
+                    .SelectMany(FirstGlobalConverter.AwardCountryCodes)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Order(StringComparer.Ordinal)
+                    .ToList();
+            var requestedYearTeams = requestedYearTeamsTask.Result ?? [];
+            var groupedByYear = awardsByYear.ToDictionary(
+                pair => pair.Key,
+                pair => FirstGlobalConverter.ToFrcAwardsByCountryCode(pair.Value, requestedYearTeams, countryCodes));
+
+            var response = countryCodes.ToDictionary(
+                countryCode => countryCode,
+                countryCode => years.ToDictionary(
+                    season => season.ToString(),
+                    season => groupedByYear[season][countryCode]),
+                StringComparer.OrdinalIgnoreCase);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error fetching FIRST Global awards for year {Year} and prior seasons", year);
             return NoContent();
         }
     }

@@ -31,6 +31,16 @@ public record FgTeamsResponse(
     int PageTotal,
     List<FgFrcTeam>? Teams);
 
+/// <summary>
+///     Optional team filter for the FIRST Global multi-season awards endpoint.
+///     Team values are two-letter FIRST Global country codes (for example, AL).
+/// </summary>
+[UsedImplicitly]
+public class FgAwardsQueryRequest
+{
+    public List<string>? Teams { get; set; }
+}
+
 // ---------------------------------------------------------------------------
 // Raw FIRST Global API models (deserialized from api.first.global/v1)
 // ---------------------------------------------------------------------------
