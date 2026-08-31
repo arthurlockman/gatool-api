@@ -399,18 +399,20 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
 
     /// <summary>
     ///     Gets FIRST Global awards for the requested season and the two preceding seasons, grouped
-    ///     by stable two-letter <c>countryCode</c> instead of the season-specific team number.
+    ///     by stable two-character <c>countryCode</c> instead of the season-specific team number.
+    ///     FIRST Global also uses numeric codes for some teams (for example, <c>10</c> for Hope
+    ///     (Refugees) and <c>15</c> for Chinese Taipei).
     ///     Historical award rows use the country's team number from the requested season.
     /// </summary>
     /// <param name="year">The requested competition year/season.</param>
     /// <param name="request">
-    ///     Optional team filter containing two-letter <c>countryCode</c> values. Omit the body,
+    ///     Optional team filter containing two-character <c>countryCode</c> values. Omit the body,
     ///     use an empty body, or provide an empty <c>teams</c> array to return every country code
     ///     represented in the three seasons.
     /// </param>
     /// <returns>Dictionary of country code to dictionary of year to awards.</returns>
     /// <response code="200">Returns three seasons of awards grouped by country.</response>
-    /// <response code="400">One or more country codes are not two letters.</response>
+    /// <response code="400">One or more country codes are not two alphanumeric characters.</response>
     [HttpPost("{year:int}/queryAwards")]
     [RedisCache("firstglobal:batch-country-awards", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(Dictionary<string, Dictionary<string, TeamAwardsResponse>>),
@@ -425,8 +427,8 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList() ?? [];
 
-        if (requestedCountryCodes.Any(code => code.Length != 2 || !code.All(char.IsLetter)))
-            return BadRequest("Teams values must be two-letter countryCode values");
+        if (requestedCountryCodes.Any(code => code.Length != 2 || !code.All(char.IsLetterOrDigit)))
+            return BadRequest("Teams values must be two-character alphanumeric countryCode values");
 
         try
         {
