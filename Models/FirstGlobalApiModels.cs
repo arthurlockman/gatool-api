@@ -33,7 +33,8 @@ public record FgTeamsResponse(
 
 /// <summary>
 ///     Optional team filter for the FIRST Global multi-season awards endpoint.
-///     Team values are two-letter FIRST Global country codes (for example, AL).
+///     Team values are two-character FIRST Global country codes. Most are letters (for example,
+///     AL), but FIRST Global also assigns numeric codes to some teams (for example, 10 and 15).
 /// </summary>
 [UsedImplicitly]
 public class FgAwardsQueryRequest
