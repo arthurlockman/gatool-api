@@ -597,7 +597,7 @@ public class FrcApiController(
     {
         Response.Headers.CacheControl = "no-cache";
 
-        var result = await frcApiClient.Get<RankingsData>($"{year}/rankings/{eventCode}");
+        var result = await frcApiClient.Get<RankingsData?>($"{year}/rankings/{eventCode}");
         if (result == null) return NoContent();
 
         // Return rankings with headers structure like the TypeScript version

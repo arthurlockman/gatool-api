@@ -2,7 +2,6 @@ using System.Threading.RateLimiting;
 using GAToolAPI.AuthExtensions;
 using GAToolAPI.Services.Auth;
 using MailChimp.Net;
-using MailChimp.Net.Core;
 
 namespace GAToolAPI.Services;
 

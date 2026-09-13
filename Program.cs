@@ -2,7 +2,6 @@ using Amazon.DynamoDBv2;
 using Amazon.S3;
 using Amazon.SecretsManager;
 using Amazon.SimpleEmailV2;
-using Fido2NetLib;
 using GAToolAPI.Attributes;
 using GAToolAPI.AuthExtensions;
 using GAToolAPI.Helpers;
@@ -268,7 +267,8 @@ try
         .WithSerializer(new FusionCacheSystemTextJsonSerializer(new System.Text.Json.JsonSerializerOptions
         {
             PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase,
+            IncludeFields = true
         }))
         .WithRegisteredDistributedCache()
         .WithBackplane(sp => new RedisBackplane(new RedisBackplaneOptions
