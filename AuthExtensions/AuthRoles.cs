@@ -37,19 +37,22 @@ public static class AuthRoleCatalog
         return match != null;
     }
 
-    public static string[] Canonicalize(IEnumerable<string> roles) => roles
-        .Where(role => !string.IsNullOrWhiteSpace(role))
-        .Select(role => CanonicalizeKnownRole(role.Trim()))
-        .Distinct(StringComparer.OrdinalIgnoreCase)
-        .OrderBy(role => role, StringComparer.Ordinal)
-        .ToArray();
+    public static string[] Canonicalize(IEnumerable<string> roles)
+    {
+        return
+        [
+            .. roles
+                .Where(role => !string.IsNullOrWhiteSpace(role))
+                .Select(role => CanonicalizeKnownRole(role.Trim()))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(role => role, StringComparer.Ordinal)
+        ];
+    }
 
     private static string CanonicalizeKnownRole(string role)
     {
         if (string.Equals(role, AuthRoles.User, StringComparison.OrdinalIgnoreCase)) return AuthRoles.User;
         if (string.Equals(role, AuthRoles.Admin, StringComparison.OrdinalIgnoreCase)) return AuthRoles.Admin;
-        if (string.Equals(role, AuthRoles.FirstGlobalWrite, StringComparison.OrdinalIgnoreCase))
-            return AuthRoles.FirstGlobalWrite;
-        return role;
+        return string.Equals(role, AuthRoles.FirstGlobalWrite, StringComparison.OrdinalIgnoreCase) ? AuthRoles.FirstGlobalWrite : role;
     }
 }

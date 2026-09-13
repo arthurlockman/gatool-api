@@ -30,11 +30,15 @@ public class FTCScoutApiService : IApiService
         };
     }
 
-    public Task<JsonObject?> GetGeneric(string path, IDictionary<string, string?>? query = null) =>
-        CachedHttpGet.GetGeneric(_cache, _ttlContext, ServiceKey, path, query, FetchGeneric);
+    public Task<JsonObject?> GetGeneric(string path, IDictionary<string, string?>? query = null)
+    {
+        return CachedHttpGet.GetGeneric(_cache, _ttlContext, ServiceKey, path, query, FetchGeneric);
+    }
 
-    public Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null) =>
-        CachedHttpGet.Get<T>(_cache, _ttlContext, ServiceKey, path, query, FetchTyped<T>);
+    public Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null)
+    {
+        return CachedHttpGet.Get(_cache, _ttlContext, ServiceKey, path, query, FetchTyped<T>);
+    }
 
     private async Task<JsonObject?> FetchGeneric(string path, IDictionary<string, string?>? query)
     {

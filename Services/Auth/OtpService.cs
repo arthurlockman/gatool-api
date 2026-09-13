@@ -13,7 +13,12 @@ namespace GAToolAPI.Services.Auth;
 ///     - Stored hash: HMAC-SHA256(pepper, code) — pepper is in Secrets Manager,
 ///       so DynamoDB read access alone cannot brute-force a 6-digit code offline.
 /// </summary>
-public class OtpService
+public class OtpService(
+    AuthRepository repo,
+    AuthEmailService email,
+    OtpPepperProvider pepper,
+    RedisRateLimiter rateLimiter,
+    ILogger<OtpService> logger)
 {
     public static readonly TimeSpan OtpLifetime = TimeSpan.FromMinutes(10);
     public const int MaxVerifyAttempts = 5;
@@ -21,30 +26,19 @@ public class OtpService
     private const int IssueLimitPerWindow = 3;
     private static readonly TimeSpan IssueWindow = TimeSpan.FromMinutes(5);
 
-    private readonly AuthRepository _repo;
-    private readonly AuthEmailService _email;
-    private readonly OtpPepperProvider _pepper;
-    private readonly RedisRateLimiter _rateLimiter;
-    private readonly ILogger<OtpService> _logger;
-
-    public OtpService(AuthRepository repo, AuthEmailService email,
-        OtpPepperProvider pepper, RedisRateLimiter rateLimiter, ILogger<OtpService> logger)
+    public enum IssueResult
     {
-        _repo = repo;
-        _email = email;
-        _pepper = pepper;
-        _rateLimiter = rateLimiter;
-        _logger = logger;
+        Sent,
+        RateLimited,
+        EmailFailed
     }
 
-    public enum IssueResult { Sent, RateLimited, EmailFailed }
-
-    public async Task<IssueResult> IssueAsync(string email, CancellationToken ct = default)
+    public async Task<IssueResult> IssueAsync(string email1, CancellationToken ct = default)
     {
-        var normalized = email.Trim().ToLowerInvariant();
-        if (!await _rateLimiter.TryAcquireAsync("otp-issue", normalized, IssueLimitPerWindow, IssueWindow))
+        var normalized = email1.Trim().ToLowerInvariant();
+        if (!await rateLimiter.TryAcquireAsync("otp-issue", normalized, IssueLimitPerWindow, IssueWindow))
         {
-            _logger.LogInformation("Rate limited OTP request for {Email}", normalized);
+            logger.LogInformation("Rate limited OTP request for {Email}", normalized);
             return IssueResult.RateLimited;
         }
 
@@ -57,22 +51,29 @@ public class OtpService
             ExpiresAt = DateTimeOffset.UtcNow.Add(OtpLifetime),
             AttemptsRemaining = MaxVerifyAttempts
         };
-        await _repo.SaveOtpAsync(record, ct);
+        await repo.SaveOtpAsync(record, ct);
 
         try
         {
-            await _email.SendOtpAsync(normalized, code, OtpLifetime, ct);
+            await email.SendOtpAsync(normalized, code, OtpLifetime, ct);
             return IssueResult.Sent;
         }
         catch
         {
             // Email failed — clean up the unsendable code so the user isn't locked out
-            await _repo.DeleteOtpAsync(normalized, ct);
+            await repo.DeleteOtpAsync(normalized, ct);
             return IssueResult.EmailFailed;
         }
     }
 
-    public enum VerifyResult { Ok, NotFound, Expired, InvalidCode, NoAttemptsLeft }
+    public enum VerifyResult
+    {
+        Ok,
+        NotFound,
+        Expired,
+        InvalidCode,
+        NoAttemptsLeft
+    }
 
     /// <summary>
     /// Verify a submitted code. On success the OTP is atomically consumed (deleted under
@@ -83,12 +84,12 @@ public class OtpService
     public async Task<VerifyResult> VerifyAsync(string email, string code, CancellationToken ct = default)
     {
         var normalized = email.Trim().ToLowerInvariant();
-        var record = await _repo.GetOtpAsync(normalized, ct);
+        var record = await repo.GetOtpAsync(normalized, ct);
         if (record == null) return VerifyResult.NotFound;
         if (record.ExpiresAt < DateTimeOffset.UtcNow) return VerifyResult.Expired;
         if (record.AttemptsRemaining <= 0)
         {
-            await _repo.DeleteOtpAsync(normalized, ct);
+            await repo.DeleteOtpAsync(normalized, ct);
             return VerifyResult.NoAttemptsLeft;
         }
 
@@ -98,13 +99,13 @@ public class OtpService
                 System.Text.Encoding.ASCII.GetBytes(submittedHash),
                 System.Text.Encoding.ASCII.GetBytes(record.CodeHash)))
         {
-            await _repo.DecrementOtpAttemptsAsync(normalized, ct);
+            await repo.DecrementOtpAttemptsAsync(normalized, ct);
             return VerifyResult.InvalidCode;
         }
 
         // Conditional delete: only consume if the code we hashed matches what's still stored.
         // Prevents a concurrent successful verification from double-spending the same code.
-        if (!await _repo.TryConsumeOtpAsync(normalized, record.CodeHash, ct))
+        if (!await repo.TryConsumeOtpAsync(normalized, record.CodeHash, ct))
             return VerifyResult.NotFound;
 
         return VerifyResult.Ok;
@@ -112,8 +113,8 @@ public class OtpService
 
     private async Task<string> HashAsync(string code, CancellationToken ct)
     {
-        var pepper = await _pepper.GetAsync(ct);
-        var hash = HMACSHA256.HashData(pepper, System.Text.Encoding.UTF8.GetBytes(code));
+        var pepper1 = await pepper.GetAsync(ct);
+        var hash = HMACSHA256.HashData(pepper1, System.Text.Encoding.UTF8.GetBytes(code));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 

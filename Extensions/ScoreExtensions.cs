@@ -9,9 +9,7 @@ public static class ScoreExtensions
         int year, ScoreProgram program, ScoreScope scope, params string[] segments)
     {
         foreach (var highScore in highScores)
-        {
             await repository.StoreHighScore(year, highScore, program, scope, segments);
-        }
     }
 
     public static List<HighScore> CalculateHighScores(this IEnumerable<HybridMatch> matches, int year,
@@ -59,11 +57,15 @@ public static class ScoreExtensions
             // FRC: score*Foul = points that alliance receives from opponent fouls → check winner's own foul score.
             // FTC: score*Foul = points that alliance gives to opponent → check opponent's foul score for "winner received none".
             var tbaPenaltyFreePlayoff = isFtc
-                ? ((scoreRedFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreBlueFoul == 0 && scoreBlueFinal <= scoreRedFinal))
-                : ((scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal));
+                ? (scoreRedFoul == 0 && scoreBlueFinal >= scoreRedFinal) ||
+                  (scoreBlueFoul == 0 && scoreBlueFinal <= scoreRedFinal)
+                : (scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) ||
+                  (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal);
             var tbaPenaltyFreeQual = isFtc
-                ? ((scoreRedFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreBlueFoul == 0 && scoreBlueFinal <= scoreRedFinal))
-                : ((scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) || (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal));
+                ? (scoreRedFoul == 0 && scoreBlueFinal >= scoreRedFinal) ||
+                  (scoreBlueFoul == 0 && scoreBlueFinal <= scoreRedFinal)
+                : (scoreBlueFoul == 0 && scoreBlueFinal >= scoreRedFinal) ||
+                  (scoreRedFoul == 0 && scoreBlueFinal <= scoreRedFinal);
 
             if (isPlayoff && tbaPenaltyFreePlayoff)
                 tbaPenaltyFreeHighScorePlayoff.Add(match);
@@ -188,11 +190,11 @@ public static class ScoreExtensions
                 var redFoul = m.ScoreRedFoul ?? 0;
 
                 var blueDeducted = isFtc
-                    ? Math.Max(0, blueFinal - redFoul)   // FTC: blue received red's committed fouls
+                    ? Math.Max(0, blueFinal - redFoul) // FTC: blue received red's committed fouls
                     : Math.Max(0, blueFinal - blueFoul); // FRC: blueFoul = points blue received
                 var redDeducted = isFtc
-                    ? Math.Max(0, redFinal - blueFoul)   // FTC: red received blue's committed fouls
-                    : Math.Max(0, redFinal - redFoul);   // FRC: redFoul = points red received
+                    ? Math.Max(0, redFinal - blueFoul) // FTC: red received blue's committed fouls
+                    : Math.Max(0, redFinal - redFoul); // FRC: redFoul = points red received
 
                 return new
                 {

@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using JetBrains.Annotations;
+
 // ReSharper disable InconsistentNaming
 
 namespace GAToolAPI.Models;

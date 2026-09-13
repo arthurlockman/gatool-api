@@ -11,7 +11,10 @@ namespace GAToolAPI.Controllers;
 
 [Route("v3/{year:int}/highscores")]
 [OpenApiTag("High Scores")]
-public class HighScoresController(FRCApiService frcApi, ScheduleService schedule, HighScoreRepository highScoreRepository)
+public class HighScoresController(
+    FRCApiService frcApi,
+    ScheduleService schedule,
+    HighScoreRepository highScoreRepository)
     : ControllerBase
 {
     /// <summary>
@@ -39,7 +42,8 @@ public class HighScoresController(FRCApiService frcApi, ScheduleService schedule
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForDistrict(int year, string districtCode)
     {
-        var districtScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FRC, ScoreScope.District, districtCode);
+        var districtScores =
+            await highScoreRepository.GetHighScores(year, ScoreProgram.FRC, ScoreScope.District, districtCode);
         return Ok(districtScores);
     }
 

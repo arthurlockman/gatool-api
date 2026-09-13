@@ -18,22 +18,17 @@ namespace GAToolAPI.Services.Auth;
 ///     and retries on the next interval — passkey registration still succeeds and
 ///     just falls back to "Passkey".
 /// </summary>
-public class CommunityAaguidService : BackgroundService
+public class CommunityAaguidService(
+    IHttpClientFactory httpClientFactory,
+    ILogger<CommunityAaguidService> logger)
+    : BackgroundService
 {
     private const string SourceUrl =
         "https://raw.githubusercontent.com/passkeydeveloper/passkey-authenticator-aaguids/main/aaguid.json";
+
     private static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(24);
 
-    private readonly IHttpClientFactory _httpClientFactory;
-    private readonly ILogger<CommunityAaguidService> _logger;
     private volatile IReadOnlyDictionary<Guid, string> _names = new Dictionary<Guid, string>();
-
-    public CommunityAaguidService(IHttpClientFactory httpClientFactory,
-        ILogger<CommunityAaguidService> logger)
-    {
-        _httpClientFactory = httpClientFactory;
-        _logger = logger;
-    }
 
     public string? Lookup(Guid aaguid)
     {
@@ -54,16 +49,23 @@ public class CommunityAaguidService : BackgroundService
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "Community AAGUID refresh failed; will retry in {Interval}", RefreshInterval);
+                logger.LogWarning(ex, "Community AAGUID refresh failed; will retry in {Interval}", RefreshInterval);
             }
-            try { await Task.Delay(RefreshInterval, stoppingToken); }
-            catch (OperationCanceledException) { break; }
+
+            try
+            {
+                await Task.Delay(RefreshInterval, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
     }
 
     private async Task RefreshAsync(CancellationToken ct)
     {
-        var http = _httpClientFactory.CreateClient(nameof(CommunityAaguidService));
+        var http = httpClientFactory.CreateClient(nameof(CommunityAaguidService));
         http.Timeout = TimeSpan.FromSeconds(15);
         using var resp = await http.GetAsync(SourceUrl, ct);
         resp.EnsureSuccessStatusCode();
@@ -72,23 +74,20 @@ public class CommunityAaguidService : BackgroundService
             cancellationToken: ct);
         if (raw == null)
         {
-            _logger.LogWarning("Community AAGUID feed returned null payload");
+            logger.LogWarning("Community AAGUID feed returned null payload");
             return;
         }
 
         var map = new Dictionary<Guid, string>(raw.Count);
         foreach (var (key, entry) in raw)
-        {
             if (Guid.TryParse(key, out var aaguid) && !string.IsNullOrWhiteSpace(entry.Name))
                 map[aaguid] = entry.Name;
-        }
         _names = map;
-        _logger.LogInformation("Loaded {Count} community AAGUID entries", map.Count);
+        logger.LogInformation("Loaded {Count} community AAGUID entries", map.Count);
     }
 
     private class Entry
     {
-        [JsonPropertyName("name")]
-        public string? Name { get; set; }
+        [JsonPropertyName("name")] public string? Name { get; set; }
     }
 }

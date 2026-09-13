@@ -44,21 +44,24 @@ public class ScheduleService(FRCApiService frcApiClient)
 
     private static List<HybridMatch> ConvertScheduleToHybrid(List<ScheduleMatch> scheduleMatches)
     {
-        return scheduleMatches.Select(s => new HybridMatch
-        {
-            Field = s.Field,
-            StartTime = s.StartTime,
-            MatchNumber = s.MatchNumber,
-            TournamentLevel = s.TournamentLevel,
-            Description = s.Description,
-            Teams = s.Teams?.Select(t => new HybridTeam
+        return
+        [
+            .. scheduleMatches.Select(s => new HybridMatch
             {
-                TeamNumber = t.TeamNumber ?? 0,
-                Station = t.Station ?? string.Empty,
-                Surrogate = t.Surrogate,
-                Dq = false // Default for schedule-only data
-            }).ToList() ?? []
-        }).ToList();
+                Field = s.Field,
+                StartTime = s.StartTime,
+                MatchNumber = s.MatchNumber,
+                TournamentLevel = s.TournamentLevel,
+                Description = s.Description,
+                Teams = s.Teams?.Select(t => new HybridTeam
+                {
+                    TeamNumber = t.TeamNumber ?? 0,
+                    Station = t.Station ?? string.Empty,
+                    Surrogate = t.Surrogate,
+                    Dq = false // Default for schedule-only data
+                }).ToList() ?? []
+            })
+        ];
     }
 
     private static List<HybridMatch> MergeScheduleAndMatchesTyped(List<ScheduleMatch> schedule, List<Match> matches)
@@ -66,47 +69,51 @@ public class ScheduleService(FRCApiService frcApiClient)
         // Create lookup dictionary for matches by match number
         var matchLookup = matches.ToDictionary(m => m.MatchNumber, m => m);
 
-        return schedule.Select(scheduleMatch =>
-        {
-            var hybridMatch = new HybridMatch
+        return
+        [
+            .. schedule.Select(scheduleMatch =>
             {
-                Field = scheduleMatch.Field,
-                StartTime = scheduleMatch.StartTime,
-                MatchNumber = scheduleMatch.MatchNumber,
-                TournamentLevel = scheduleMatch.TournamentLevel,
-                Description = scheduleMatch.Description,
-                Teams = scheduleMatch.Teams?.Select(t => new HybridTeam
+                var hybridMatch = new HybridMatch
                 {
-                    TeamNumber = t.TeamNumber ?? 0,
-                    Station = t.Station ?? string.Empty,
-                    Surrogate = t.Surrogate,
-                    Dq = false // Default, will be overwritten if match data exists
-                }).ToList() ?? []
-            };
+                    Field = scheduleMatch.Field,
+                    StartTime = scheduleMatch.StartTime,
+                    MatchNumber = scheduleMatch.MatchNumber,
+                    TournamentLevel = scheduleMatch.TournamentLevel,
+                    Description = scheduleMatch.Description,
+                    Teams = scheduleMatch.Teams?.Select(t => new HybridTeam
+                    {
+                        TeamNumber = t.TeamNumber ?? 0,
+                        Station = t.Station ?? string.Empty,
+                        Surrogate = t.Surrogate,
+                        Dq = false // Default, will be overwritten if match data exists
+                    }).ToList() ?? []
+                };
 
-            // Merge match data if it exists
-            if (matchLookup.TryGetValue(scheduleMatch.MatchNumber, out var matchData))
-            {
-                hybridMatch.ActualStartTime = matchData.ActualStartTime;
-                hybridMatch.PostResultTime = matchData.PostResultTime;
-                hybridMatch.ScoreRedFinal = matchData.ScoreRedFinal;
-                hybridMatch.ScoreRedFoul = matchData.ScoreRedFoul;
-                hybridMatch.ScoreRedAuto = matchData.ScoreRedAuto;
-                hybridMatch.ScoreBlueFinal = matchData.ScoreBlueFinal;
-                hybridMatch.ScoreBlueFoul = matchData.ScoreBlueFoul;
-                hybridMatch.ScoreBlueAuto = matchData.ScoreBlueAuto;
-                hybridMatch.AutoStartTime = matchData.AutoStartTime;
-                hybridMatch.MatchVideoLink = matchData.MatchVideoLink;
-                hybridMatch.IsReplay = matchData.IsReplay;
+                // Merge match data if it exists
+                if (matchLookup.TryGetValue(scheduleMatch.MatchNumber, out var matchData))
+                {
+                    hybridMatch.ActualStartTime = matchData.ActualStartTime;
+                    hybridMatch.PostResultTime = matchData.PostResultTime;
+                    hybridMatch.ScoreRedFinal = matchData.ScoreRedFinal;
+                    hybridMatch.ScoreRedFoul = matchData.ScoreRedFoul;
+                    hybridMatch.ScoreRedAuto = matchData.ScoreRedAuto;
+                    hybridMatch.ScoreBlueFinal = matchData.ScoreBlueFinal;
+                    hybridMatch.ScoreBlueFoul = matchData.ScoreBlueFoul;
+                    hybridMatch.ScoreBlueAuto = matchData.ScoreBlueAuto;
+                    hybridMatch.AutoStartTime = matchData.AutoStartTime;
+                    hybridMatch.MatchVideoLink = matchData.MatchVideoLink;
+                    hybridMatch.IsReplay = matchData.IsReplay;
 
-                // Merge team data (DQ status from match results)
-                var matchTeamLookup = matchData.Teams?.ToDictionary(t => t.Station, t => t);
-                foreach (var hybridTeam in hybridMatch.Teams)
-                    if (matchTeamLookup != null && matchTeamLookup.TryGetValue(hybridTeam.Station, out var matchTeam))
-                        hybridTeam.Dq = matchTeam.Dq;
-            }
+                    // Merge team data (DQ status from match results)
+                    var matchTeamLookup = matchData.Teams?.ToDictionary(t => t.Station, t => t);
+                    foreach (var hybridTeam in hybridMatch.Teams)
+                        if (matchTeamLookup != null &&
+                            matchTeamLookup.TryGetValue(hybridTeam.Station, out var matchTeam))
+                            hybridTeam.Dq = matchTeam.Dq;
+                }
 
-            return hybridMatch;
-        }).ToList();
+                return hybridMatch;
+            })
+        ];
     }
 }

@@ -52,15 +52,6 @@ public class UndefinedRouteParameterMiddleware(RequestDelegate next)
     private static bool HasInvalidSegment(string path)
     {
         // Check for empty segments (double slashes from empty string variables)
-        if (path.Contains("//"))
-            return true;
-
-        foreach (var segment in path.Split('/', StringSplitOptions.RemoveEmptyEntries))
-        {
-            if (InvalidSegments.Contains(segment))
-                return true;
-        }
-
-        return false;
+        return path.Contains("//") || path.Split('/', StringSplitOptions.RemoveEmptyEntries).Any(segment => InvalidSegments.Contains(segment));
     }
 }

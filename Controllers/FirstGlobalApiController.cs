@@ -30,29 +30,37 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     ///     Builds the year query param for the external API. Always sent as ?year=YYYY so the
     ///     remote API returns data for the requested season explicitly.
     /// </summary>
-    private static Dictionary<string, string?> YearQuery(string year) =>
-        new() { ["year"] = year };
+    private static Dictionary<string, string?> YearQuery(string year)
+    {
+        return new Dictionary<string, string?> { ["year"] = year };
+    }
 
     /// <summary>
     ///     Translates public-facing tournament level names to FIRST Global API keys.
     ///     Accepts either the raw key (t2/t3/t4) or the FRC-style aliases (qual/playoff/final).
     /// </summary>
-    private static string? NormalizeTournamentKey(string tournamentKey) => tournamentKey.ToLowerInvariant() switch
+    private static string? NormalizeTournamentKey(string tournamentKey)
     {
-        "qual" => "t2",
-        "playoff" or "playoffs" => "t3",
-        "final" or "finals" => "t4",
-        "t2" or "t3" or "t4" => tournamentKey.ToLowerInvariant(),
-        _ => null
-    };
+        return tournamentKey.ToLowerInvariant() switch
+        {
+            "qual" => "t2",
+            "playoff" or "playoffs" => "t3",
+            "final" or "finals" => "t4",
+            "t2" or "t3" or "t4" => tournamentKey.ToLowerInvariant(),
+            _ => null
+        };
+    }
 
-    private static string? NormalizeAllianceTournamentKey(string tournamentKey) => tournamentKey.ToLowerInvariant() switch
+    private static string? NormalizeAllianceTournamentKey(string tournamentKey)
     {
-        "playoff" or "playoffs" => "t3",
-        "final" or "finals" => "t4",
-        "t3" or "t4" => tournamentKey.ToLowerInvariant(),
-        _ => null
-    };
+        return tournamentKey.ToLowerInvariant() switch
+        {
+            "playoff" or "playoffs" => "t3",
+            "final" or "finals" => "t4",
+            "t3" or "t4" => tournamentKey.ToLowerInvariant(),
+            _ => null
+        };
+    }
 
     /// <summary>
     ///     Merges optional year query with additional query parameters (e.g. tournamentKey).
@@ -419,7 +427,8 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
         (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     public async Task<IActionResult> QueryAwards(int year,
-        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] FgAwardsQueryRequest? request)
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)]
+        FgAwardsQueryRequest? request)
     {
         var requestedCountryCodes = request?.Teams?
             .Where(code => !string.IsNullOrWhiteSpace(code))
@@ -445,11 +454,13 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
                 pair => pair.Value.Result ?? []);
             var countryCodes = requestedCountryCodes.Count > 0
                 ? requestedCountryCodes
-                : awardsByYear.Values
-                    .SelectMany(FirstGlobalConverter.AwardCountryCodes)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Order(StringComparer.Ordinal)
-                    .ToList();
+                :
+                [
+                    .. awardsByYear.Values
+                        .SelectMany(FirstGlobalConverter.AwardCountryCodes)
+                        .Distinct(StringComparer.OrdinalIgnoreCase)
+                        .Order(StringComparer.Ordinal)
+                ];
             var requestedYearTeams = requestedYearTeamsTask.Result ?? [];
             var groupedByYear = awardsByYear.ToDictionary(
                 pair => pair.Key,

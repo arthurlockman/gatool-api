@@ -9,17 +9,16 @@ namespace GAToolAPI.Services;
 /// Handles Mailchimp subscribe/unsubscribe/profile webhooks and mirrors the
 /// resulting role state into the gatool auth user store (DynamoDB).
 /// </summary>
-public class MailchimpWebhookService
+public class MailchimpWebhookService(
+    ILogger<MailchimpWebhookService> logger,
+    ISecretProvider secretProvider,
+    UserStorageService userStorageService,
+    AuthRepository authRepository)
 {
     private const string OptInText =
         "I want access to gatool and agree that I will not abuse this access to team data.";
 
     private const string WelcomeTag = "gatool-welcome";
-
-    private readonly ILogger<MailchimpWebhookService> _logger;
-    private readonly ISecretProvider _secretProvider;
-    private readonly UserStorageService _userStorageService;
-    private readonly AuthRepository _authRepository;
 
     private readonly SlidingWindowRateLimiter _mailchimpRateLimiter = new(new SlidingWindowRateLimiterOptions
     {
@@ -34,22 +33,10 @@ public class MailchimpWebhookService
     private MailChimpManager? _mailChimpClient;
     private string? _mailChimpListId;
 
-    public MailchimpWebhookService(
-        ILogger<MailchimpWebhookService> logger,
-        ISecretProvider secretProvider,
-        UserStorageService userStorageService,
-        AuthRepository authRepository)
-    {
-        _logger = logger;
-        _secretProvider = secretProvider;
-        _userStorageService = userStorageService;
-        _authRepository = authRepository;
-    }
-
     public async Task HandleEventAsync(string eventType, string email, string? gatoolMergeField,
         CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Processing Mailchimp webhook: type={EventType}, email={Email}", eventType, email);
+        logger.LogInformation("Processing Mailchimp webhook: type={EventType}, email={Email}", eventType, email);
 
         await EnsureClientsInitializedAsync(cancellationToken);
 
@@ -64,11 +51,11 @@ public class MailchimpWebhookService
                 await HandleUnsubscribeAsync(email, cancellationToken);
                 break;
             default:
-                _logger.LogWarning("Unhandled Mailchimp webhook event type: {EventType}", eventType);
+                logger.LogWarning("Unhandled Mailchimp webhook event type: {EventType}", eventType);
                 break;
         }
 
-        await _userStorageService.RecordWebhookEvent(eventType, email);
+        await userStorageService.RecordWebhookEvent(eventType, email);
     }
 
     private async Task HandleSubscribeOrProfileAsync(string email, string? gatoolMergeField,
@@ -78,28 +65,25 @@ public class MailchimpWebhookService
 
         // Mailchimp owns only the user role. Admin and manually assigned roles
         // are preserved when a subscriber's opt-in state changes.
-        var existing = await _authRepository.GetUserAsync(email, cancellationToken);
+        var existing = await authRepository.GetUserAsync(email, cancellationToken);
         var newAuthCreated = existing == null;
         var user = newAuthCreated
-            ? await _authRepository.UpsertUserAsync(
+            ? await authRepository.UpsertUserAsync(
                 email, isOptedIn ? [AuthRoles.User] : [], cancellationToken)
-            : await _authRepository.SetRolePresenceAsync(
+            : await authRepository.SetRolePresenceAsync(
                 email, AuthRoles.User, isOptedIn, cancellationToken);
-        _logger.LogInformation("Updated Mailchimp-managed user role for {Email}; roles=[{Roles}]",
+        logger.LogInformation("Updated Mailchimp-managed user role for {Email}; roles=[{Roles}]",
             email, string.Join(",", user?.Roles ?? []));
 
         // Tag for welcome only the first time we see this user, so resubscribers
         // don't get re-welcomed.
-        if (newAuthCreated)
-        {
-            await TagSubscriberForWelcomeAsync(email, cancellationToken);
-        }
+        if (newAuthCreated) await TagSubscriberForWelcomeAsync(email, cancellationToken);
     }
 
     private async Task HandleUnsubscribeAsync(string email, CancellationToken cancellationToken)
     {
-        await _authRepository.DeleteUserAsync(email, cancellationToken);
-        _logger.LogInformation("Deleted auth account for {Email}", email);
+        await authRepository.DeleteUserAsync(email, cancellationToken);
+        logger.LogInformation("Deleted auth account for {Email}", email);
     }
 
     private async Task TagSubscriberForWelcomeAsync(string email, CancellationToken cancellationToken)
@@ -118,7 +102,7 @@ public class MailchimpWebhookService
         catch (Exception ex)
         {
             // Non-critical — log but don't fail the webhook
-            _logger.LogWarning(ex, "Failed to add welcome tag for {Email}", email);
+            logger.LogWarning(ex, "Failed to add welcome tag for {Email}", email);
         }
     }
 
@@ -126,9 +110,9 @@ public class MailchimpWebhookService
     {
         if (_mailChimpClient != null) return;
 
-        var mailChimpApiKey = await _secretProvider.GetSecretAsync("MailChimpAPIKey", cancellationToken);
-        var mailChimpApiUrl = await _secretProvider.GetSecretAsync("MailchimpAPIURL", cancellationToken);
-        _mailChimpListId = await _secretProvider.GetSecretAsync("MailchimpListID", cancellationToken);
+        var mailChimpApiKey = await secretProvider.GetSecretAsync("MailChimpAPIKey", cancellationToken);
+        var mailChimpApiUrl = await secretProvider.GetSecretAsync("MailchimpAPIURL", cancellationToken);
+        _mailChimpListId = await secretProvider.GetSecretAsync("MailchimpListID", cancellationToken);
 
         _mailChimpClient = new MailChimpManager(new MailChimpOptions
         {

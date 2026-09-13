@@ -42,13 +42,9 @@ public class GatoolStack : Stack
         });
 
         // ── S3 Buckets (import existing) ────────────────────────────────
-        var bucketNames = new[] { "gatool-high-scores", "gatool-team-updates", "gatool-team-updates-history", "gatool-user-preferences" };
-        var buckets = new List<IBucket>();
-        foreach (var name in bucketNames)
-        {
-            var bucket = Bucket.FromBucketName(this, name, name);
-            buckets.Add(bucket);
-        }
+        var bucketNames = new[]
+            { "gatool-high-scores", "gatool-team-updates", "gatool-team-updates-history", "gatool-user-preferences" };
+        var buckets = bucketNames.Select(name => Bucket.FromBucketName(this, name, name)).ToList();
 
         // ── DynamoDB Tables ───────────────────────────────────────────────
         var highScoresTable = new Table(this, "HighScoresTable", new TableProps
@@ -142,7 +138,7 @@ public class GatoolStack : Stack
             SecurityGroupIds = [cacheSecurityGroup.SecurityGroupId],
             AutoMinorVersionUpgrade = true
         });
-        cacheCluster.AddDependency(cacheSubnetGroup);
+        cacheCluster.AddResourceDependency(cacheSubnetGroup);
 
         var cacheEndpoint = cacheCluster.AttrPrimaryEndPointAddress;
         var cachePort = cacheCluster.AttrPrimaryEndPointPort;
@@ -150,12 +146,12 @@ public class GatoolStack : Stack
         // Read the deployed image tag from SSM (written by CI/CD pipeline)
         var imageTag = StringParameter.ValueForStringParameter(this, "/gatool/image-tag");
         var appImage = ContainerImage.FromRegistry(
-            Fn.Join("", new[] { "ghcr.io/arthurlockman/gatool-api:", imageTag }));
+            Fn.Join("", ["ghcr.io/arthurlockman/gatool-api:", imageTag]));
 
         // ── Task Definition (API + Redis sidecar) ───────────────────────
         var taskDef = new FargateTaskDefinition(this, "GatoolApiTask", new FargateTaskDefinitionProps
         {
-            Cpu = 512,          // 0.5 vCPU
+            Cpu = 512, // 0.5 vCPU
             MemoryLimitMiB = 1024, // 1 GB
             RuntimePlatform = new RuntimePlatform
             {
@@ -207,8 +203,8 @@ public class GatoolStack : Stack
         {
             Image = ContainerImage.FromRegistry("newrelic/nri-ecs:1.11.7"),
             Essential = false,
-            Cpu = 128,                  // 0.125 vCPU — well below the 1 vCPU task budget
-            MemoryLimitMiB = 128,       // 128 MiB out of the 2 GiB task budget
+            Cpu = 128, // 0.125 vCPU — well below the 1 vCPU task budget
+            MemoryLimitMiB = 128, // 128 MiB out of the 2 GiB task budget
             Logging = LogDriver.AwsLogs(new AwsLogDriverProps
             {
                 StreamPrefix = "newrelic-infra",
@@ -314,8 +310,8 @@ public class GatoolStack : Stack
         // Shared task definition for jobs (smaller resources)
         var jobTaskDef = new FargateTaskDefinition(this, "GatoolJobTask", new FargateTaskDefinitionProps
         {
-            Cpu = 256,         // 0.25 vCPU
-            MemoryLimitMiB = 512,  // 0.5 GB
+            Cpu = 256, // 0.25 vCPU
+            MemoryLimitMiB = 512, // 0.5 GB
             RuntimePlatform = new RuntimePlatform
             {
                 CpuArchitecture = CpuArchitecture.ARM64,
@@ -343,7 +339,8 @@ public class GatoolStack : Stack
             Secrets = new Dictionary<string, Secret>
             {
                 ["NEW_RELIC_LICENSE_KEY"] = Secret.FromSecretsManager(
-                    Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "NewRelicSecretJob", "NewRelicLicenseKey"))
+                    Amazon.CDK.AWS.SecretsManager.Secret.FromSecretNameV2(this, "NewRelicSecretJob",
+                        "NewRelicLicenseKey"))
             }
         });
 

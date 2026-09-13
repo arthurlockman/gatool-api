@@ -19,7 +19,7 @@ public class HighScoreRepository(
     private readonly string _tableName =
         configuration["DynamoDB:HighScoresTable"] ?? "gatool-high-scores";
 
-    public static string BuildKeyPrefix(ScoreProgram program, ScoreScope scope, params string[] segments)
+    private static string BuildKeyPrefix(ScoreProgram program, ScoreScope scope, params string[] segments)
     {
         var parts = new List<string> { program.ToString(), scope.ToString().ToLowerInvariant() };
         parts.AddRange(segments);
@@ -62,7 +62,6 @@ public class HighScoreRepository(
             var response = await dynamoDbClient.QueryAsync(request);
 
             foreach (var item in response.Items)
-            {
                 try
                 {
                     if (item.TryGetValue("Data", out var dataAttr))
@@ -76,7 +75,6 @@ public class HighScoreRepository(
                 {
                     logger.LogError(ex, "Failed to deserialize high score item");
                 }
-            }
 
             exclusiveStartKey = response.LastEvaluatedKey;
         } while (exclusiveStartKey is { Count: > 0 });
@@ -105,7 +103,6 @@ public class HighScoreRepository(
         // Retry with exponential backoff for throttling during bulk writes
         const int maxRetries = 5;
         for (var attempt = 0; attempt <= maxRetries; attempt++)
-        {
             try
             {
                 await dynamoDbClient.PutItemAsync(request);
@@ -118,13 +115,12 @@ public class HighScoreRepository(
                     scoreKey, delay, attempt + 1, maxRetries);
                 await Task.Delay(delay);
             }
-            catch (Amazon.DynamoDBv2.Model.ThrottlingException) when (attempt < maxRetries)
+            catch (ThrottlingException) when (attempt < maxRetries)
             {
                 var delay = (int)Math.Pow(2, attempt) * 100;
                 logger.LogWarning("DynamoDB throttled on {ScoreKey}, retrying in {Delay}ms (attempt {Attempt}/{Max})",
                     scoreKey, delay, attempt + 1, maxRetries);
                 await Task.Delay(delay);
             }
-        }
     }
 }

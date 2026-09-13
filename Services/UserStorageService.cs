@@ -114,7 +114,7 @@ public class UserStorageService(
         });
 
         var results = await Task.WhenAll(tasks);
-        return results.OfType<JsonObject>().ToList();
+        return [.. results.OfType<JsonObject>()];
     }
 
     public async Task RecordWebhookEvent(string eventType, string email)

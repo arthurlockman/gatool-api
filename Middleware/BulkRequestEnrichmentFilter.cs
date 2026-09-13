@@ -26,12 +26,12 @@ public class BulkRequestEnrichmentFilter(IDiagnosticContext diagnosticContext) :
             // Cap the array we serialize to avoid blowing up log line size on
             // pathological inputs. The count is always recorded faithfully.
             var loggedTeams = teamCount > MaxLoggedTeams
-                ? teams.Take(MaxLoggedTeams).ToList()
+                ? [.. teams.Take(MaxLoggedTeams)]
                 : teams;
 
             // Surface in Serilog request log (-> New Relic Logs)
             diagnosticContext.Set("BulkTeamCount", teamCount);
-            diagnosticContext.Set("BulkTeams", loggedTeams, destructureObjects: true);
+            diagnosticContext.Set("BulkTeams", loggedTeams, true);
             if (teamCount > MaxLoggedTeams) diagnosticContext.Set("BulkTeamsTruncated", true);
 
             // Surface as custom attributes on the NR APM transaction so they're
@@ -51,5 +51,7 @@ public class BulkRequestEnrichmentFilter(IDiagnosticContext diagnosticContext) :
         }
     }
 
-    public void OnActionExecuted(ActionExecutedContext context) { }
+    public void OnActionExecuted(ActionExecutedContext context)
+    {
+    }
 }

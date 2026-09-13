@@ -22,8 +22,10 @@ public static class BatchExecutionExtensions
     /// <summary>
     ///     Reads <c>BatchQuery:MaxConcurrency</c> from configuration, defaulting to 25.
     /// </summary>
-    public static int BatchMaxConcurrency(this IConfiguration configuration) =>
-        configuration.GetValue("BatchQuery:MaxConcurrency", DefaultMaxConcurrency);
+    public static int BatchMaxConcurrency(this IConfiguration configuration)
+    {
+        return configuration.GetValue("BatchQuery:MaxConcurrency", DefaultMaxConcurrency);
+    }
 
     /// <summary>
     ///     Runs <paramref name="selector"/> against each key with at most
@@ -60,7 +62,7 @@ public static class BatchExecutionExtensions
         int maxConcurrency,
         CancellationToken cancellationToken = default)
     {
-        var inputs = items as IList<TItem> ?? items.ToList();
+        var inputs = items as IList<TItem> ?? [.. items];
         var results = new TResult[inputs.Count];
         await Parallel.ForEachAsync(
             Enumerable.Range(0, inputs.Count),

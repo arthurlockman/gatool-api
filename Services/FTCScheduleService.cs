@@ -22,30 +22,33 @@ public class FTCScheduleService(FTCApiService ftcApiClient)
 
     private static List<HybridMatch> ConvertToHybridMatches(List<FTCHybridMatch> ftcMatches)
     {
-        return ftcMatches.Select(m => new HybridMatch
-        {
-            Field = m.Field,
-            StartTime = m.StartTime,
-            ActualStartTime = m.ActualStartTime,
-            MatchVideoLink = m.MatchVideoLink,
-            MatchNumber = m.MatchNumber,
-            IsReplay = m.IsReplay,
-            TournamentLevel = m.TournamentLevel,
-            PostResultTime = m.PostResultTime,
-            Description = m.Description,
-            ScoreRedFinal = m.ScoreRedFinal,
-            ScoreRedFoul = m.ScoreRedFoul,
-            ScoreRedAuto = m.ScoreRedAuto,
-            ScoreBlueFinal = m.ScoreBlueFinal,
-            ScoreBlueFoul = m.ScoreBlueFoul,
-            ScoreBlueAuto = m.ScoreBlueAuto,
-            Teams = m.Teams?.Select(t => new HybridTeam
+        return
+        [
+            .. ftcMatches.Select(m => new HybridMatch
             {
-                TeamNumber = t.TeamNumber ?? 0,
-                Station = t.Station ?? string.Empty,
-                Surrogate = t.Surrogate,
-                Dq = t.Dq is true or "true"
-            }).ToList() ?? []
-        }).ToList();
+                Field = m.Field,
+                StartTime = m.StartTime,
+                ActualStartTime = m.ActualStartTime,
+                MatchVideoLink = m.MatchVideoLink,
+                MatchNumber = m.MatchNumber,
+                IsReplay = m.IsReplay,
+                TournamentLevel = m.TournamentLevel,
+                PostResultTime = m.PostResultTime,
+                Description = m.Description,
+                ScoreRedFinal = m.ScoreRedFinal,
+                ScoreRedFoul = m.ScoreRedFoul,
+                ScoreRedAuto = m.ScoreRedAuto,
+                ScoreBlueFinal = m.ScoreBlueFinal,
+                ScoreBlueFoul = m.ScoreBlueFoul,
+                ScoreBlueAuto = m.ScoreBlueAuto,
+                Teams = m.Teams?.Select(t => new HybridTeam
+                {
+                    TeamNumber = t.TeamNumber ?? 0,
+                    Station = t.Station ?? string.Empty,
+                    Surrogate = t.Surrogate,
+                    Dq = t.Dq is true or "true"
+                }).ToList() ?? []
+            })
+        ];
     }
 }

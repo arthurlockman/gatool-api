@@ -7,7 +7,12 @@ using ZiggyCreatures.Caching.Fusion;
 namespace GAToolAPI.Services;
 
 // ReSharper disable once InconsistentNaming
-public abstract class ApiService(HttpClient httpClient, IFusionCache cache, CacheTtlContext ttlContext, string serviceKey, JsonSerializerOptions jsonOptions) : IApiService
+public abstract class ApiService(
+    HttpClient httpClient,
+    IFusionCache cache,
+    CacheTtlContext ttlContext,
+    string serviceKey,
+    JsonSerializerOptions jsonOptions) : IApiService
 {
     protected readonly HttpClient _httpClient = httpClient;
 
@@ -21,11 +26,15 @@ public abstract class ApiService(HttpClient httpClient, IFusionCache cache, Cach
         // nothing to do here
     }
 
-    public Task<JsonObject?> GetGeneric(string path, IDictionary<string, string?>? query = null) =>
-        CachedHttpGet.GetGeneric(cache, ttlContext, serviceKey, path, query, FetchGeneric);
+    public Task<JsonObject?> GetGeneric(string path, IDictionary<string, string?>? query = null)
+    {
+        return CachedHttpGet.GetGeneric(cache, ttlContext, serviceKey, path, query, FetchGeneric);
+    }
 
-    public Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null) =>
-        CachedHttpGet.Get<T>(cache, ttlContext, serviceKey, path, query, FetchTyped<T>);
+    public Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null)
+    {
+        return CachedHttpGet.Get(cache, ttlContext, serviceKey, path, query, FetchTyped<T>);
+    }
 
     private async Task<JsonObject?> FetchGeneric(string path, IDictionary<string, string?>? query)
     {
@@ -35,8 +44,11 @@ public abstract class ApiService(HttpClient httpClient, IFusionCache cache, Cach
         if (response.IsSuccessStatusCode)
         {
             var jsonString = await response.Content.ReadAsStringAsync();
-            return string.IsNullOrWhiteSpace(jsonString) ? default : JsonSerializer.Deserialize<JsonObject>(jsonString, jsonOptions);
+            return string.IsNullOrWhiteSpace(jsonString)
+                ? default
+                : JsonSerializer.Deserialize<JsonObject>(jsonString, jsonOptions);
         }
+
         var errorContent = await response.Content.ReadAsStringAsync();
         throw new ExternalApiException(serviceKey, response.StatusCode, errorContent);
     }
@@ -49,8 +61,11 @@ public abstract class ApiService(HttpClient httpClient, IFusionCache cache, Cach
         if (response.IsSuccessStatusCode)
         {
             var jsonString = await response.Content.ReadAsStringAsync();
-            return string.IsNullOrWhiteSpace(jsonString) ? default : JsonSerializer.Deserialize<T>(jsonString, jsonOptions);
+            return string.IsNullOrWhiteSpace(jsonString)
+                ? default
+                : JsonSerializer.Deserialize<T>(jsonString, jsonOptions);
         }
+
         var errorContent = await response.Content.ReadAsStringAsync();
         throw new ExternalApiException(serviceKey, response.StatusCode, errorContent);
     }

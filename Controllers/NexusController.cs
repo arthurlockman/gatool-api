@@ -133,6 +133,8 @@ public class NexusController(
         return ("Unknown", 0);
     }
 
-    private static string? MillisToIso(long? millis) =>
-        millis.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(millis.Value).ToString("o") : null;
+    private static string? MillisToIso(long? millis)
+    {
+        return millis.HasValue ? DateTimeOffset.FromUnixTimeMilliseconds(millis.Value).ToString("o") : null;
+    }
 }

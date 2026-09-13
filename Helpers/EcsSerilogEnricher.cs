@@ -14,6 +14,7 @@ public class EcsSerilogEnricher(EcsTaskMetadata metadata) : ILogEventEnricher
         logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("ecs.cluster", metadata.ClusterName));
         logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("ecs.task.family", metadata.Family));
         logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("ecs.task.revision", metadata.Revision));
-        logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("ecs.availability_zone", metadata.AvailabilityZone));
+        logEvent.AddPropertyIfAbsent(propertyFactory.CreateProperty("ecs.availability_zone",
+            metadata.AvailabilityZone));
     }
 }

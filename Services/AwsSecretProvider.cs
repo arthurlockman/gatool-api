@@ -8,16 +8,10 @@ namespace GAToolAPI.Services;
 ///     Provides secrets from AWS Secrets Manager with startup preloading.
 ///     Secrets listed at startup are cached in memory for synchronous access.
 /// </summary>
-public class AwsSecretProvider : ISecretProvider
+public class AwsSecretProvider(IAmazonSecretsManager client, IDictionary<string, string> preloadedSecrets)
+    : ISecretProvider
 {
-    private readonly IAmazonSecretsManager _client;
-    private readonly ConcurrentDictionary<string, string> _cache;
-
-    public AwsSecretProvider(IAmazonSecretsManager client, IDictionary<string, string> preloadedSecrets)
-    {
-        _client = client;
-        _cache = new ConcurrentDictionary<string, string>(preloadedSecrets);
-    }
+    private readonly ConcurrentDictionary<string, string> _cache = new(preloadedSecrets);
 
     public string GetSecret(string name)
     {
@@ -33,7 +27,7 @@ public class AwsSecretProvider : ISecretProvider
         if (_cache.TryGetValue(name, out var cached))
             return cached;
 
-        var response = await _client.GetSecretValueAsync(
+        var response = await client.GetSecretValueAsync(
             new GetSecretValueRequest { SecretId = name }, cancellationToken);
         var value = response.SecretString;
         _cache[name] = value;

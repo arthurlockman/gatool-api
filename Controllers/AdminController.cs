@@ -25,7 +25,10 @@ public class AdminController(
     [HttpGet("roles")]
     [Authorize(AuthPolicies.Admin)]
     [ProducesResponseType(typeof(IReadOnlyList<AssignableRoleMetadata>), (int)HttpStatusCode.OK)]
-    public IActionResult GetAssignableRoles() => Ok(AuthRoleCatalog.ManuallyAssignable);
+    public IActionResult GetAssignableRoles()
+    {
+        return Ok(AuthRoleCatalog.ManuallyAssignable);
+    }
 
     [HttpGet("users")]
     [Authorize(AuthPolicies.Admin)]
@@ -46,16 +49,20 @@ public class AdminController(
     [ProducesResponseType(typeof(UserSummary), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
-    public Task<IActionResult> GrantRole(string email, string role, CancellationToken cancellationToken) =>
-        SetRolePresence(email, role, true, cancellationToken);
+    public Task<IActionResult> GrantRole(string email, string role, CancellationToken cancellationToken)
+    {
+        return SetRolePresence(email, role, true, cancellationToken);
+    }
 
     [HttpDelete("users/{email}/roles/{role}")]
     [Authorize(AuthPolicies.Admin)]
     [ProducesResponseType(typeof(UserSummary), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
-    public Task<IActionResult> RevokeRole(string email, string role, CancellationToken cancellationToken) =>
-        SetRolePresence(email, role, false, cancellationToken);
+    public Task<IActionResult> RevokeRole(string email, string role, CancellationToken cancellationToken)
+    {
+        return SetRolePresence(email, role, false, cancellationToken);
+    }
 
     /// <summary>
     ///     Stores or updates global system announcements. Requires admin authorization.
@@ -146,6 +153,8 @@ public class AdminController(
         return user == null ? NotFound() : Ok(ToSummary(user));
     }
 
-    private static UserSummary ToSummary(UserRecord user) =>
-        new(user.Email, user.Roles, user.CreatedAt, user.LastLoginAt);
+    private static UserSummary ToSummary(UserRecord user)
+    {
+        return new UserSummary(user.Email, user.Roles, user.CreatedAt, user.LastLoginAt);
+    }
 }

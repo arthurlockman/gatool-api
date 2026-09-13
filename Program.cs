@@ -90,7 +90,7 @@ try
                         var tokenSvc = ctx.HttpContext.RequestServices
                             .GetRequiredService<TokenService>();
                         var key = await tokenSvc.GetValidationKeyAsync(ctx.HttpContext.RequestAborted);
-                        ctx.Options.TokenValidationParameters = tokenSvc.BuildValidationParameters(key);
+                        ctx.Options.TokenValidationParameters = TokenService.BuildValidationParameters(key);
                     }
                 }
             };
@@ -114,7 +114,7 @@ try
             {
                 var roles = context.User.FindAll(AuthRoles.ClaimType).Select(claim => claim.Value).ToHashSet();
                 return roles.Contains(AuthRoles.Admin) ||
-                       roles.Contains(AuthRoles.User) && roles.Contains(AuthRoles.FirstGlobalWrite);
+                       (roles.Contains(AuthRoles.User) && roles.Contains(AuthRoles.FirstGlobalWrite));
             });
         });
     builder.Services.AddSingleton<IAuthorizationHandler, HasRoleHandler>();
@@ -152,9 +152,9 @@ try
             o.ServerDomain = builder.Configuration["WebAuthn:ServerDomain"] ?? "gatool.org";
             o.ServerName = "gatool";
             o.Origins = (builder.Configuration["WebAuthn:Origins"]
-                            ?? "https://gatool.org,https://beta.gatool.org,http://localhost:3000")
-                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                        .ToHashSet();
+                         ?? "https://gatool.org,https://beta.gatool.org,http://localhost:3000")
+                .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .ToHashSet();
             o.TimestampDriftTolerance = 300_000;
         })
         .AddCachedMetadataService(b => b.AddFidoMetadataRepository());
@@ -180,10 +180,7 @@ try
             .AllowCredentials());
     });
 
-    builder.Services.AddControllers(options =>
-    {
-        options.Filters.Add<BulkRequestEnrichmentFilter>();
-    });
+    builder.Services.AddControllers(options => { options.Filters.Add<BulkRequestEnrichmentFilter>(); });
 
     // Add HttpContextAccessor for RedisCache.IgnoreCurrentRequest() functionality
     builder.Services.AddHttpContextAccessor();
@@ -338,12 +335,10 @@ try
         // - OPTIONS preflight: every cross-origin request fires one
         options.GetLevel = (httpContext, _, ex) =>
         {
-            if (ex != null) return LogEventLevel.Error;
-            if (httpContext.Response.StatusCode >= 500) return LogEventLevel.Error;
+            if (ex != null || httpContext.Response.StatusCode >= 500) return LogEventLevel.Error;
             if (HttpMethods.IsOptions(httpContext.Request.Method)) return LogEventLevel.Verbose;
             var path = httpContext.Request.Path.Value;
-            if (path is "/livecheck" or "/version") return LogEventLevel.Verbose;
-            return LogEventLevel.Information;
+            return path is "/livecheck" or "/version" ? LogEventLevel.Verbose : LogEventLevel.Information;
         };
     });
     app.UseMiddleware<NewRelicRequestFilter>();

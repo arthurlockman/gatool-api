@@ -26,7 +26,8 @@ public class UpdateGlobalHighScoresJob(
         var skipHistorical = configuration.GetValue<bool>("SkipHistoricalScores");
         var logPrefix = isDryRun ? "[DRY RUN] " : "";
 
-        logger.LogInformation("{Prefix}Starting UpdateGlobalHighScores job (Time window: ±{Days} days, Skip historical: {Skip})...",
+        logger.LogInformation(
+            "{Prefix}Starting UpdateGlobalHighScores job (Time window: ±{Days} days, Skip historical: {Skip})...",
             logPrefix, lookbackDays, skipHistorical);
 
         var errors = new List<Exception>();
@@ -41,7 +42,10 @@ public class UpdateGlobalHighScoresJob(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error calculating FRC high scores");
-                lock (errors) errors.Add(ex);
+                lock (errors)
+                {
+                    errors.Add(ex);
+                }
             }
         }, cancellationToken);
 
@@ -54,7 +58,10 @@ public class UpdateGlobalHighScoresJob(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error calculating FTC high scores");
-                lock (errors) errors.Add(ex);
+                lock (errors)
+                {
+                    errors.Add(ex);
+                }
             }
         }, cancellationToken);
 
@@ -140,12 +147,15 @@ public class UpdateGlobalHighScoresJob(
         if (!skipHistorical)
         {
             var existingHighScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FRC, ScoreScope.Global);
-            historicalMatches = existingHighScores
-                .Select(hs => hs.MatchData.Match)
-                .ToList();
+            historicalMatches =
+            [
+                .. existingHighScores
+                    .Select(hs => hs.MatchData.Match)
+            ];
         }
 
-        logger.LogInformation("{Prefix}Retrieved {HistoricalCount} historical matches from existing high scores (skip={Skip}).",
+        logger.LogInformation(
+            "{Prefix}Retrieved {HistoricalCount} historical matches from existing high scores (skip={Skip}).",
             logPrefix, historicalMatches.Count, skipHistorical);
 
         // Early exit if no filtered events and no historical matches
@@ -201,7 +211,8 @@ public class UpdateGlobalHighScoresJob(
 
         // Calculate and store global high scores
         var globalHighScores = allMatches.CalculateHighScores(year);
-        if (!isDryRun) await globalHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FRC, ScoreScope.Global);
+        if (!isDryRun)
+            await globalHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FRC, ScoreScope.Global);
         logger.LogInformation("{Prefix}Calculated global high scores: {Count} categories.",
             logPrefix, globalHighScores.Count);
 
@@ -216,7 +227,8 @@ public class UpdateGlobalHighScoresJob(
                 logPrefix, district.Code, districtMatches.Count, districtHighScores.Count);
 
             if (!isDryRun)
-                await districtHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FRC, ScoreScope.District, district.Code!);
+                await districtHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FRC,
+                    ScoreScope.District, district.Code!);
         }) ?? []);
 
         logger.LogInformation("{Prefix}FRC UpdateGlobalHighScores completed successfully", logPrefix);
@@ -272,7 +284,6 @@ public class UpdateGlobalHighScoresJob(
                 "{Prefix}[FTC] Event {EventCode} has unparseable DateStart '{DateStart}'. Including event to be safe.",
                 logPrefix, e.Code, e.DateStart);
             return true;
-
         }).ToList() ?? [];
 
         logger.LogInformation("{Prefix}[FTC] Filtered to {FilteredCount} events within ±{Days} day window.",
@@ -289,12 +300,15 @@ public class UpdateGlobalHighScoresJob(
         if (!skipHistorical)
         {
             var existingHighScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FTC, ScoreScope.Global);
-            historicalMatches = existingHighScores
-                .Select(hs => hs.MatchData.Match)
-                .ToList();
+            historicalMatches =
+            [
+                .. existingHighScores
+                    .Select(hs => hs.MatchData.Match)
+            ];
         }
 
-        logger.LogInformation("{Prefix}[FTC] Retrieved {HistoricalCount} historical matches from existing high scores (skip={Skip}).",
+        logger.LogInformation(
+            "{Prefix}[FTC] Retrieved {HistoricalCount} historical matches from existing high scores (skip={Skip}).",
             logPrefix, historicalMatches.Count, skipHistorical);
 
         // Early exit if no filtered events and no historical matches
@@ -352,7 +366,8 @@ public class UpdateGlobalHighScoresJob(
 
         // Calculate and store global FTC high scores
         var globalHighScores = allMatches.CalculateHighScores(year, "FTC");
-        if (!isDryRun) await globalHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.Global);
+        if (!isDryRun)
+            await globalHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.Global);
         logger.LogInformation("{Prefix}[FTC] Calculated global high scores: {Count} categories.",
             logPrefix, globalHighScores.Count);
 
@@ -370,7 +385,9 @@ public class UpdateGlobalHighScoresJob(
                     "{Prefix}[FTC] League {LeagueKey}: {MatchCount} matches, {ScoreCount} high scores.",
                     logPrefix, leagueKey, leagueMatches.Count, leagueHighScores.Count);
 
-                if (!isDryRun) await leagueHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.League, league.Region!, league.Code!);
+                if (!isDryRun)
+                    await leagueHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC,
+                        ScoreScope.League, league.Region!, league.Code!);
             }));
 
         // Calculate high scores per region (aggregate all matches in a region)
@@ -391,7 +408,9 @@ public class UpdateGlobalHighScoresJob(
             logger.LogInformation("{Prefix}[FTC] Region {Region}: {MatchCount} matches, {ScoreCount} high scores.",
                 logPrefix, region, regionMatches.Count, regionHighScores.Count);
 
-            if (!isDryRun) await regionHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.Region, region);
+            if (!isDryRun)
+                await regionHighScores.StoreHighScores(highScoreRepository, year, ScoreProgram.FTC, ScoreScope.Region,
+                    region);
         }));
 
         logger.LogInformation("{Prefix}[FTC] UpdateGlobalHighScores completed successfully", logPrefix);

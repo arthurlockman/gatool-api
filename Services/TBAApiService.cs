@@ -5,14 +5,14 @@ using ZiggyCreatures.Caching.Fusion;
 namespace GAToolAPI.Services;
 
 // ReSharper disable once InconsistentNaming
-public class TBAApiService: ApiService
+public class TBAApiService : ApiService
 {
     public TBAApiService(HttpClient httpClient, ISecretProvider secretProvider, IFusionCache cache,
-        CacheTtlContext ttlContext): base(httpClient, cache, ttlContext, "tba", new JsonSerializerOptions
+        CacheTtlContext ttlContext) : base(httpClient, cache, ttlContext, "tba", new JsonSerializerOptions
     {
-            PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
-        })
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
+    })
     {
         _httpClient.BaseAddress = new Uri("https://www.thebluealliance.com/api/v3/");
         _httpClient.DefaultRequestHeaders.Add(

@@ -5,10 +5,10 @@ using ZiggyCreatures.Caching.Fusion;
 namespace GAToolAPI.Services;
 
 // ReSharper disable once InconsistentNaming
-public class TOAApiService: ApiService
+public class TOAApiService : ApiService
 {
     public TOAApiService(HttpClient httpClient, ISecretProvider secretProvider, IFusionCache cache,
-        CacheTtlContext ttlContext): base(httpClient, cache, ttlContext, "toa", new JsonSerializerOptions
+        CacheTtlContext ttlContext) : base(httpClient, cache, ttlContext, "toa", new JsonSerializerOptions
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower

@@ -92,9 +92,7 @@ public class RefreshTokenRecord
 // WebAuthn challenge state (cached briefly between options + complete calls)
 public class WebAuthnChallengeState
 {
-    [JsonPropertyName("optionsJson")]
-    public string OptionsJson { get; set; } = "";
+    [JsonPropertyName("optionsJson")] public string OptionsJson { get; set; } = "";
 
-    [JsonPropertyName("email")]
-    public string? Email { get; set; }
+    [JsonPropertyName("email")] public string? Email { get; set; }
 }

@@ -40,16 +40,18 @@ public class FirstGlobalApiService : IApiService
     /// </summary>
     public static string SeasonPath(string? year)
     {
-        if (string.IsNullOrEmpty(year))
-            return DateTime.Now.Year.ToString();
-        return year;
+        return string.IsNullOrEmpty(year) ? DateTime.Now.Year.ToString() : year;
     }
 
-    public Task<JsonObject?> GetGeneric(string path, IDictionary<string, string?>? query = null) =>
-        CachedHttpGet.GetGeneric(_cache, _ttlContext, ServiceKey, path, query, FetchGeneric);
+    public Task<JsonObject?> GetGeneric(string path, IDictionary<string, string?>? query = null)
+    {
+        return CachedHttpGet.GetGeneric(_cache, _ttlContext, ServiceKey, path, query, FetchGeneric);
+    }
 
-    public Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null) =>
-        CachedHttpGet.Get<T>(_cache, _ttlContext, ServiceKey, path, query, FetchTyped<T>);
+    public Task<T?> Get<T>(string path, IDictionary<string, string?>? query = null)
+    {
+        return CachedHttpGet.Get(_cache, _ttlContext, ServiceKey, path, query, FetchTyped<T>);
+    }
 
     private async Task<JsonObject?> FetchGeneric(string path, IDictionary<string, string?>? query)
     {

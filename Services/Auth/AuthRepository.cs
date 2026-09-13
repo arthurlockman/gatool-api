@@ -17,22 +17,16 @@ namespace GAToolAPI.Services.Auth;
 ///
 ///     TTL attribute name is "expiresAt" (epoch seconds).
 /// </summary>
-public class AuthRepository
+public class AuthRepository(IAmazonDynamoDB ddb, ILogger<AuthRepository> logger)
 {
     private const string TableName = "gatool-auth";
     private const string UserEmailIndexName = "UserEmailIndex";
     private const string TtlAttribute = "expiresAt";
 
-    private readonly IAmazonDynamoDB _ddb;
-    private readonly ILogger<AuthRepository> _logger;
-
-    public AuthRepository(IAmazonDynamoDB ddb, ILogger<AuthRepository> logger)
+    private static string NormalizeEmail(string email)
     {
-        _ddb = ddb;
-        _logger = logger;
+        return email.Trim().ToLowerInvariant();
     }
-
-    private static string NormalizeEmail(string email) => email.Trim().ToLowerInvariant();
 
     // ── Users ────────────────────────────────────────────────────────────────
 
@@ -45,7 +39,7 @@ public class AuthRepository
     public async Task<List<UserRecord>> SearchUsersAsync(string query, int limit, CancellationToken ct = default)
     {
         var normalizedQuery = query.Trim().ToLowerInvariant();
-        var response = await _ddb.QueryAsync(new QueryRequest
+        var response = await ddb.QueryAsync(new QueryRequest
         {
             TableName = TableName,
             IndexName = UserEmailIndexName,
@@ -66,7 +60,7 @@ public class AuthRepository
             ScanIndexForward = true
         }, ct);
 
-        return response.Items.Select(UserFromItem).ToList();
+        return [.. response.Items.Select(UserFromItem)];
     }
 
     public async Task<UserRecord> UpsertUserAsync(string email, string[]? rolesIfNew = null,
@@ -85,19 +79,20 @@ public class AuthRepository
 
         try
         {
-            await _ddb.PutItemAsync(new PutItemRequest
+            await ddb.PutItemAsync(new PutItemRequest
             {
                 TableName = TableName,
                 Item = UserToItem(record),
                 ConditionExpression = "attribute_not_exists(PK)"
             }, ct);
-            _logger.LogInformation("Created auth user record for {Email}", normalized);
+            logger.LogInformation("Created auth user record for {Email}", normalized);
         }
         catch (ConditionalCheckFailedException)
         {
             // Race: another caller created it concurrently. Re-read.
             return await GetUserAsync(normalized, ct) ?? record;
         }
+
         return record;
     }
 
@@ -132,7 +127,7 @@ public class AuthRepository
 
             try
             {
-                await _ddb.UpdateItemAsync(new UpdateItemRequest
+                await ddb.UpdateItemAsync(new UpdateItemRequest
                 {
                     TableName = TableName,
                     Key = Pk($"USER#{normalized}", "PROFILE"),
@@ -164,7 +159,7 @@ public class AuthRepository
     public async Task TouchLoginAsync(string email, CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
-        await _ddb.UpdateItemAsync(new UpdateItemRequest
+        await ddb.UpdateItemAsync(new UpdateItemRequest
         {
             TableName = TableName,
             Key = Pk($"USER#{normalized}", "PROFILE"),
@@ -201,14 +196,12 @@ public class AuthRepository
         }
 
         foreach (var chunk in deletes.Chunk(25))
-        {
-            await _ddb.BatchWriteItemAsync(new BatchWriteItemRequest
+            await ddb.BatchWriteItemAsync(new BatchWriteItemRequest
             {
-                RequestItems = new Dictionary<string, List<WriteRequest>> { [TableName] = chunk.ToList() }
+                RequestItems = new Dictionary<string, List<WriteRequest>> { [TableName] = [.. chunk] }
             }, ct);
-        }
 
-        _logger.LogInformation("Deleted auth user record (and {Count} passkeys) for {Email}",
+        logger.LogInformation("Deleted auth user record (and {Count} passkeys) for {Email}",
             passkeys.Count, normalized);
     }
 
@@ -217,7 +210,7 @@ public class AuthRepository
     public async Task<List<PasskeyRecord>> ListPasskeysAsync(string email, CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
-        var resp = await _ddb.QueryAsync(new QueryRequest
+        var resp = await ddb.QueryAsync(new QueryRequest
         {
             TableName = TableName,
             KeyConditionExpression = "PK = :pk AND begins_with(SK, :sk)",
@@ -228,7 +221,7 @@ public class AuthRepository
             }
         }, ct);
 
-        return resp.Items.Select(PasskeyFromItem).ToList();
+        return [.. resp.Items.Select(PasskeyFromItem)];
     }
 
     /// <summary>
@@ -239,7 +232,7 @@ public class AuthRepository
     public async Task<PasskeyRecord?> GetPasskeyByCredentialIdAsync(string credentialId,
         CancellationToken ct = default)
     {
-        var lookup = await _ddb.GetItemAsync(new GetItemRequest
+        var lookup = await ddb.GetItemAsync(new GetItemRequest
         {
             TableName = TableName,
             Key = Pk("PASSKEY-LOOKUP", credentialId),
@@ -248,7 +241,7 @@ public class AuthRepository
         if (lookup.Item is not { Count: > 0 } || !lookup.Item.TryGetValue("email", out var e))
             return null;
 
-        var passkey = await _ddb.GetItemAsync(new GetItemRequest
+        var passkey = await ddb.GetItemAsync(new GetItemRequest
         {
             TableName = TableName,
             Key = Pk($"USER#{e.S}", $"PASSKEY#{credentialId}"),
@@ -261,7 +254,7 @@ public class AuthRepository
     {
         passkey.Email = NormalizeEmail(passkey.Email);
 
-        await _ddb.TransactWriteItemsAsync(new TransactWriteItemsRequest
+        await ddb.TransactWriteItemsAsync(new TransactWriteItemsRequest
         {
             TransactItems =
             [
@@ -298,7 +291,7 @@ public class AuthRepository
         CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
-        await _ddb.UpdateItemAsync(new UpdateItemRequest
+        await ddb.UpdateItemAsync(new UpdateItemRequest
         {
             TableName = TableName,
             Key = Pk($"USER#{normalized}", $"PASSKEY#{credentialId}"),
@@ -314,7 +307,7 @@ public class AuthRepository
     public async Task DeletePasskeyAsync(string email, string credentialId, CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
-        await _ddb.TransactWriteItemsAsync(new TransactWriteItemsRequest
+        await ddb.TransactWriteItemsAsync(new TransactWriteItemsRequest
         {
             TransactItems =
             [
@@ -352,13 +345,13 @@ public class AuthRepository
             ["attemptsRemaining"] = new() { N = record.AttemptsRemaining.ToString() },
             [TtlAttribute] = new() { N = record.ExpiresAt.ToUnixTimeSeconds().ToString() }
         };
-        await _ddb.PutItemAsync(new PutItemRequest { TableName = TableName, Item = item }, ct);
+        await ddb.PutItemAsync(new PutItemRequest { TableName = TableName, Item = item }, ct);
     }
 
     public async Task<OtpRecord?> GetOtpAsync(string email, CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
-        var resp = await _ddb.GetItemAsync(new GetItemRequest
+        var resp = await ddb.GetItemAsync(new GetItemRequest
         {
             TableName = TableName,
             Key = Pk($"OTP#{normalized}", "CODE"),
@@ -376,8 +369,7 @@ public class AuthRepository
                 long.Parse(resp.Item.GetValueOrDefault(TtlAttribute)?.N ?? "0"))
         };
         // Defensive: TTL only deletes within ~48 hours, so we double-check expiry on read.
-        if (record.ExpiresAt < DateTimeOffset.UtcNow) return null;
-        return record;
+        return record.ExpiresAt < DateTimeOffset.UtcNow ? null : record;
     }
 
     public async Task DecrementOtpAttemptsAsync(string email, CancellationToken ct = default)
@@ -385,7 +377,7 @@ public class AuthRepository
         var normalized = NormalizeEmail(email);
         try
         {
-            await _ddb.UpdateItemAsync(new UpdateItemRequest
+            await ddb.UpdateItemAsync(new UpdateItemRequest
             {
                 TableName = TableName,
                 Key = Pk($"OTP#{normalized}", "CODE"),
@@ -408,7 +400,7 @@ public class AuthRepository
     public async Task DeleteOtpAsync(string email, CancellationToken ct = default)
     {
         var normalized = NormalizeEmail(email);
-        await _ddb.DeleteItemAsync(new DeleteItemRequest
+        await ddb.DeleteItemAsync(new DeleteItemRequest
         {
             TableName = TableName,
             Key = Pk($"OTP#{normalized}", "CODE")
@@ -431,12 +423,12 @@ public class AuthRepository
         if (!string.IsNullOrEmpty(token.UserAgent))
             item["userAgent"] = new AttributeValue { S = token.UserAgent };
 
-        await _ddb.PutItemAsync(new PutItemRequest { TableName = TableName, Item = item }, ct);
+        await ddb.PutItemAsync(new PutItemRequest { TableName = TableName, Item = item }, ct);
     }
 
     public async Task<RefreshTokenRecord?> GetRefreshTokenAsync(string tokenHash, CancellationToken ct = default)
     {
-        var resp = await _ddb.GetItemAsync(new GetItemRequest
+        var resp = await ddb.GetItemAsync(new GetItemRequest
         {
             TableName = TableName,
             Key = Pk($"REFRESH#{tokenHash}", "TOKEN"),
@@ -453,13 +445,12 @@ public class AuthRepository
             ExpiresAt = DateTimeOffset.FromUnixTimeSeconds(
                 long.Parse(resp.Item.GetValueOrDefault(TtlAttribute)?.N ?? "0"))
         };
-        if (record.ExpiresAt < DateTimeOffset.UtcNow) return null;
-        return record;
+        return record.ExpiresAt < DateTimeOffset.UtcNow ? null : record;
     }
 
     public async Task DeleteRefreshTokenAsync(string tokenHash, CancellationToken ct = default)
     {
-        await _ddb.DeleteItemAsync(new DeleteItemRequest
+        await ddb.DeleteItemAsync(new DeleteItemRequest
         {
             TableName = TableName,
             Key = Pk($"REFRESH#{tokenHash}", "TOKEN")
@@ -475,7 +466,7 @@ public class AuthRepository
     {
         try
         {
-            await _ddb.DeleteItemAsync(new DeleteItemRequest
+            await ddb.DeleteItemAsync(new DeleteItemRequest
             {
                 TableName = TableName,
                 Key = Pk($"REFRESH#{tokenHash}", "TOKEN"),
@@ -500,7 +491,7 @@ public class AuthRepository
         var normalized = NormalizeEmail(email);
         try
         {
-            await _ddb.DeleteItemAsync(new DeleteItemRequest
+            await ddb.DeleteItemAsync(new DeleteItemRequest
             {
                 TableName = TableName,
                 Key = Pk($"OTP#{normalized}", "CODE"),
@@ -523,7 +514,7 @@ public class AuthRepository
     private async Task<UserWithRoleVersion?> GetUserWithRoleVersionAsync(string email,
         CancellationToken ct)
     {
-        var response = await _ddb.GetItemAsync(new GetItemRequest
+        var response = await ddb.GetItemAsync(new GetItemRequest
         {
             TableName = TableName,
             Key = Pk($"USER#{NormalizeEmail(email)}", "PROFILE"),
@@ -537,28 +528,37 @@ public class AuthRepository
         return new UserWithRoleVersion(UserFromItem(response.Item), roleVersion);
     }
 
-    private static AttributeValue RolesAttribute(IEnumerable<string> roles) => new()
+    private static AttributeValue RolesAttribute(IEnumerable<string> roles)
     {
-        L = roles.Select(role => new AttributeValue { S = role }).ToList()
-    };
+        return new AttributeValue
+        {
+            L = [.. roles.Select(role => new AttributeValue { S = role })]
+        };
+    }
 
-    private static Dictionary<string, AttributeValue> UserToItem(UserRecord r) => new()
+    private static Dictionary<string, AttributeValue> UserToItem(UserRecord r)
     {
-        ["PK"] = new() { S = $"USER#{r.Email}" },
-        ["SK"] = new() { S = "PROFILE" },
-        ["email"] = new() { S = r.Email },
-        ["roles"] = RolesAttribute(AuthRoleCatalog.Canonicalize(r.Roles)),
-        ["createdAt"] = new() { S = r.CreatedAt.ToString("O") }
-    };
+        return new Dictionary<string, AttributeValue>
+        {
+            ["PK"] = new() { S = $"USER#{r.Email}" },
+            ["SK"] = new() { S = "PROFILE" },
+            ["email"] = new() { S = r.Email },
+            ["roles"] = RolesAttribute(AuthRoleCatalog.Canonicalize(r.Roles)),
+            ["createdAt"] = new() { S = r.CreatedAt.ToString("O") }
+        };
+    }
 
-    private static UserRecord UserFromItem(Dictionary<string, AttributeValue> item) => new()
+    private static UserRecord UserFromItem(Dictionary<string, AttributeValue> item)
     {
-        Email = item.GetValueOrDefault("email")?.S ?? "",
-        Roles = AuthRoleCatalog.Canonicalize(
-            item.GetValueOrDefault("roles")?.L?.Select(av => av.S) ?? [AuthRoles.User]),
-        CreatedAt = ParseDate(item.GetValueOrDefault("createdAt")?.S),
-        LastLoginAt = item.TryGetValue("lastLoginAt", out var ll) && ll.S != null ? ParseDate(ll.S) : null
-    };
+        return new UserRecord
+        {
+            Email = item.GetValueOrDefault("email")?.S ?? "",
+            Roles = AuthRoleCatalog.Canonicalize(
+                item.GetValueOrDefault("roles")?.L?.Select(av => av.S) ?? [AuthRoles.User]),
+            CreatedAt = ParseDate(item.GetValueOrDefault("createdAt")?.S),
+            LastLoginAt = item.TryGetValue("lastLoginAt", out var ll) && ll.S != null ? ParseDate(ll.S) : null
+        };
+    }
 
     private sealed record UserWithRoleVersion(UserRecord User, long? RoleVersion);
 
@@ -578,7 +578,7 @@ public class AuthRepository
         if (r.Transports.Length > 0)
             item["transports"] = new AttributeValue
             {
-                L = r.Transports.Select(t => new AttributeValue { S = t }).ToList()
+                L = [.. r.Transports.Select(t => new AttributeValue { S = t })]
             };
         if (!string.IsNullOrEmpty(r.Nickname))
             item["nickname"] = new AttributeValue { S = r.Nickname };
@@ -607,12 +607,17 @@ public class AuthRepository
         };
     }
 
-    private static Dictionary<string, AttributeValue> Pk(string pk, string sk) => new()
+    private static Dictionary<string, AttributeValue> Pk(string pk, string sk)
     {
-        ["PK"] = new() { S = pk },
-        ["SK"] = new() { S = sk }
-    };
+        return new Dictionary<string, AttributeValue>
+        {
+            ["PK"] = new() { S = pk },
+            ["SK"] = new() { S = sk }
+        };
+    }
 
-    private static DateTimeOffset ParseDate(string? s) =>
-        DateTimeOffset.TryParse(s, out var d) ? d : DateTimeOffset.MinValue;
+    private static DateTimeOffset ParseDate(string? s)
+    {
+        return DateTimeOffset.TryParse(s, out var d) ? d : DateTimeOffset.MinValue;
+    }
 }

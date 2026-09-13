@@ -72,8 +72,10 @@ internal static class CachedHttpGet
             BuildOptions(duration));
     }
 
-    private static FusionCacheEntryOptions BuildOptions(TimeSpan duration) =>
-        new() { Duration = duration };
+    private static FusionCacheEntryOptions BuildOptions(TimeSpan duration)
+    {
+        return new FusionCacheEntryOptions { Duration = duration };
+    }
 
     private static string BuildKey(string serviceKey, string path, IDictionary<string, string?>? query)
     {

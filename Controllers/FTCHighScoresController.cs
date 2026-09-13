@@ -43,7 +43,8 @@ public class FTCHighScoresController(
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScoresForLeague(int year, string regionCode, string leagueCode)
     {
-        var scores = await highScoreRepository.GetHighScores(year, ScoreProgram.FTC, ScoreScope.League, regionCode, leagueCode);
+        var scores =
+            await highScoreRepository.GetHighScores(year, ScoreProgram.FTC, ScoreScope.League, regionCode, leagueCode);
         return Ok(scores);
     }
 

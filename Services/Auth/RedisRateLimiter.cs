@@ -10,17 +10,8 @@ namespace GAToolAPI.Services.Auth;
 /// only increment. If Redis is unreachable we fail open and log a warning — the
 /// caller's flow (e.g. issuing an OTP) is more important than a perfect rate cap.
 /// </summary>
-public class RedisRateLimiter
+public class RedisRateLimiter(IConnectionMultiplexer redis, ILogger<RedisRateLimiter> logger)
 {
-    private readonly IConnectionMultiplexer _redis;
-    private readonly ILogger<RedisRateLimiter> _logger;
-
-    public RedisRateLimiter(IConnectionMultiplexer redis, ILogger<RedisRateLimiter> logger)
-    {
-        _redis = redis;
-        _logger = logger;
-    }
-
     /// <summary>
     /// Returns true if the call is permitted, false if the limit has been exceeded.
     /// </summary>
@@ -29,19 +20,17 @@ public class RedisRateLimiter
         var redisKey = $"ratelimit:{bucket}:{key}";
         try
         {
-            var db = _redis.GetDatabase();
+            var db = redis.GetDatabase();
             var count = await db.StringIncrementAsync(redisKey);
             if (count == 1)
-            {
                 // First hit in this window — set the TTL. Use KeyExpire so we don't
                 // race with a concurrent INCR resetting the value.
                 await db.KeyExpireAsync(redisKey, window, ExpireWhen.HasNoExpiry);
-            }
             return count <= limit;
         }
         catch (RedisException ex)
         {
-            _logger.LogWarning(ex, "Redis rate limiter unavailable for {Bucket}:{Key} — failing open", bucket, key);
+            logger.LogWarning(ex, "Redis rate limiter unavailable for {Bucket}:{Key} — failing open", bucket, key);
             return true;
         }
     }

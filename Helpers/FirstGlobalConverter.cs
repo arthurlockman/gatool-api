@@ -11,29 +11,35 @@ public static class FirstGlobalConverter
     ///     Maps a FIRST Global station number to an FRC-style station string.
     ///     Stations 11-14 → Red1-Red4; stations 21-24 → Blue1-Blue4.
     /// </summary>
-    private static string StationToFrcStation(int station) => station switch
+    private static string StationToFrcStation(int station)
     {
-        11 => "Red1",
-        12 => "Red2",
-        13 => "Red3",
-        14 => "Red4",
-        21 => "Blue1",
-        22 => "Blue2",
-        23 => "Blue3",
-        24 => "Blue4",
-        _ => station.ToString()
-    };
+        return station switch
+        {
+            11 => "Red1",
+            12 => "Red2",
+            13 => "Red3",
+            14 => "Red4",
+            21 => "Blue1",
+            22 => "Blue2",
+            23 => "Blue3",
+            24 => "Blue4",
+            _ => station.ToString()
+        };
+    }
 
     /// <summary>
     ///     Maps a FIRST Global tournamentKey to an FRC-style tournament level string.
     /// </summary>
-    private static string TournamentKeyToLevel(string tournamentKey) => tournamentKey switch
+    private static string TournamentKeyToLevel(string tournamentKey)
     {
-        "t2" => "Qualification",
-        "t3" => "Playoff",
-        "t4" => "Finals",
-        _ => tournamentKey
-    };
+        return tournamentKey switch
+        {
+            "t2" => "Qualification",
+            "t3" => "Playoff",
+            "t4" => "Finals",
+            _ => tournamentKey
+        };
+    }
 
     /// <summary>
     ///     Extracts the match number from the match name (e.g. "Ranking Match 15" → 15).
@@ -55,27 +61,27 @@ public static class FirstGlobalConverter
     public static FgTeamsResponse ToFrcTeams(List<FgTeam> teams)
     {
         var frcTeams = teams.Select(t => new FgFrcTeam(
-            TeamNumber: t.TeamKey,
-            NameFull: t.Name,
-            NameShort: string.IsNullOrEmpty(t.ShortName) ? null : t.ShortName,
-            City: null,
-            StateProv: null,
-            Country: t.Country,
-            CountryCode: t.CountryCode,
-            RookieYear: 0,
-            RobotName: null,
-            DistrictCode: null,
-            SchoolName: null,
-            Website: null,
-            HomeCMP: null
+            t.TeamKey,
+            t.Name,
+            string.IsNullOrEmpty(t.ShortName) ? null : t.ShortName,
+            null,
+            null,
+            t.Country,
+            t.CountryCode,
+            0,
+            null,
+            null,
+            null,
+            null,
+            null
         )).ToList();
 
         return new FgTeamsResponse(
-            TeamCountTotal: frcTeams.Count,
-            TeamCountPage: frcTeams.Count,
-            PageCurrent: 1,
-            PageTotal: 1,
-            Teams: frcTeams
+            frcTeams.Count,
+            frcTeams.Count,
+            1,
+            1,
+            frcTeams
         );
     }
 
@@ -94,28 +100,28 @@ public static class FirstGlobalConverter
             var tournamentLevel = TournamentKeyToLevel(m.TournamentKey);
 
             var teams = (m.Participants ?? []).Select(p => new MatchTeam(
-                TeamNumber: p.TeamKey,
-                Station: StationToFrcStation(p.Station),
-                Dq: p.Disqualified != 0
+                p.TeamKey,
+                StationToFrcStation(p.Station),
+                p.Disqualified != 0
             )).ToList();
 
             return new FgMatchResult(
-                IsReplay: false,
-                MatchVideoLink: null,
-                Description: $"{tournamentLevel} {matchNumber}",
-                MatchNumber: matchNumber,
-                ScoreRedFinal: m.RedScore,
-                ScoreRedFoul: m.BlueMinPen + m.BlueMajPen,
-                ScoreRedAuto: null,
-                ScoreBlueFinal: m.BlueScore,
-                ScoreBlueFoul: m.RedMinPen + m.RedMajPen,
-                ScoreBlueAuto: null,
-                AutoStartTime: m.ScheduledTime,
-                ActualStartTime: string.IsNullOrEmpty(m.StartTime) ? null : m.StartTime,
-                TournamentLevel: tournamentLevel,
-                PostResultTime: null,
-                FieldNumber: m.FieldNumber,
-                Teams: teams
+                false,
+                null,
+                $"{tournamentLevel} {matchNumber}",
+                matchNumber,
+                m.RedScore,
+                m.BlueMinPen + m.BlueMajPen,
+                null,
+                m.BlueScore,
+                m.RedMinPen + m.RedMajPen,
+                null,
+                m.ScheduledTime,
+                string.IsNullOrEmpty(m.StartTime) ? null : m.StartTime,
+                tournamentLevel,
+                null,
+                m.FieldNumber,
+                teams
             );
         }).ToList();
 
@@ -131,20 +137,20 @@ public static class FirstGlobalConverter
     public static object ToFrcRankings(List<FgRanking> rankings)
     {
         var frcRankings = rankings.Select(r => new TeamRanking(
-            Rank: r.Rank,
-            TeamNumber: r.TeamKey,
-            SortOrder1: r.RankingScore,
-            SortOrder2: r.HighestScore,
-            SortOrder3: r.ProtectionPoints,
-            SortOrder4: 0,
-            SortOrder5: 0,
-            SortOrder6: 0,
-            Wins: r.Wins,
-            Losses: r.Losses,
-            Ties: r.Ties,
-            QualAverage: r.RankingScore,
-            Dq: 0,
-            MatchesPlayed: r.Played
+            r.Rank,
+            r.TeamKey,
+            r.RankingScore,
+            r.HighestScore,
+            r.ProtectionPoints,
+            0,
+            0,
+            0,
+            r.Wins,
+            r.Losses,
+            r.Ties,
+            r.RankingScore,
+            0,
+            r.Played
         )).ToList();
 
         return new RankingsResponse(new RankingsData(frcRankings), null);
@@ -167,42 +173,42 @@ public static class FirstGlobalConverter
                 var d = m.Details!;
 
                 var red = new FgAllianceScore(
-                    Alliance: "Red",
-                    TotalPoints: m.RedScore,
-                    FoulPoints: m.BlueMinPen + m.BlueMajPen,
-                    BarriersInMitigator: d.BarriersInRedMitigator,
-                    RobotOneParking: d.RedRobotOneParking,
-                    RobotTwoParking: d.RedRobotTwoParking,
-                    RobotThreeParking: d.RedRobotThreeParking,
-                    ProtectionMultiplier: d.RedProtectionMultiplier,
-                    BiodiversityUnits: d.BiodiversityUnitsRedSideEcosystem,
-                    ApproximateBiodiversity: d.ApproximateBiodiversityRedSideEcosystem
+                    "Red",
+                    m.RedScore,
+                    m.BlueMinPen + m.BlueMajPen,
+                    d.BarriersInRedMitigator,
+                    d.RedRobotOneParking,
+                    d.RedRobotTwoParking,
+                    d.RedRobotThreeParking,
+                    d.RedProtectionMultiplier,
+                    d.BiodiversityUnitsRedSideEcosystem,
+                    d.ApproximateBiodiversityRedSideEcosystem
                 );
 
                 var blue = new FgAllianceScore(
-                    Alliance: "Blue",
-                    TotalPoints: m.BlueScore,
-                    FoulPoints: m.RedMinPen + m.RedMajPen,
-                    BarriersInMitigator: d.BarriersInBlueMitigator,
-                    RobotOneParking: d.BlueRobotOneParking,
-                    RobotTwoParking: d.BlueRobotTwoParking,
-                    RobotThreeParking: d.BlueRobotThreeParking,
-                    ProtectionMultiplier: d.BlueProtectionMultiplier,
-                    BiodiversityUnits: d.BiodiversityUnitsBlueSideEcosystem,
-                    ApproximateBiodiversity: d.ApproximateBiodiversityBlueSideEcosystem
+                    "Blue",
+                    m.BlueScore,
+                    m.RedMinPen + m.RedMajPen,
+                    d.BarriersInBlueMitigator,
+                    d.BlueRobotOneParking,
+                    d.BlueRobotTwoParking,
+                    d.BlueRobotThreeParking,
+                    d.BlueProtectionMultiplier,
+                    d.BiodiversityUnitsBlueSideEcosystem,
+                    d.ApproximateBiodiversityBlueSideEcosystem
                 );
 
                 return new FgMatchScore(
-                    MatchLevel: tournamentLevel,
-                    MatchNumber: matchNumber,
-                    WinningAlliance: m.Result,
-                    CoopertitionAchieved: d.Coopertition != 0,
-                    AllBarriersCleared: d.AllBarriersCleared != 0,
-                    BiodiversityDistributed: d.BiodiversityDistributed,
-                    BiodiversityDistributionFactor: d.BiodiversityDistributionFactor,
-                    BiodiversityUnitsCenterEcosystem: d.BiodiversityUnitsCenterEcosystem,
-                    ApproximateBiodiversityCenterEcosystem: d.ApproximateBiodiversityCenterEcosystem,
-                    Alliances: [red, blue]
+                    tournamentLevel,
+                    matchNumber,
+                    m.Result,
+                    d.Coopertition != 0,
+                    d.AllBarriersCleared != 0,
+                    d.BiodiversityDistributed,
+                    d.BiodiversityDistributionFactor,
+                    d.BiodiversityUnitsCenterEcosystem,
+                    d.ApproximateBiodiversityCenterEcosystem,
+                    [red, blue]
                 );
             }).ToList();
 
@@ -217,14 +223,14 @@ public static class FirstGlobalConverter
     public static AlliancesResponse ToFrcAlliances(List<FgAlliance> alliances)
     {
         var frcAlliances = alliances.Select(a => new Alliance(
-            Number: a.Rank,
-            Captain: a.Captain?.TeamKey ?? 0,
-            Round1: a.Pick1?.TeamKey ?? 0,
-            Round2: (object?)a.Pick2?.TeamKey,
-            Round3: (object?)a.Pick3?.TeamKey,
-            Backup: null,
-            BackupReplaced: null,
-            Name: a.Name
+            a.Rank,
+            a.Captain?.TeamKey ?? 0,
+            a.Pick1?.TeamKey ?? 0,
+            (object?)a.Pick2?.TeamKey,
+            (object?)a.Pick3?.TeamKey,
+            null,
+            null,
+            a.Name
         )).ToList();
 
         return new AlliancesResponse(frcAlliances, frcAlliances.Count);
@@ -234,13 +240,16 @@ public static class FirstGlobalConverter
     ///     Maps a gold/silver/bronze tier name to the FRC-style <c>Series</c> value (1/2/3).
     ///     Returns null for untiered recipients (e.g. Safety Award).
     /// </summary>
-    private static int? ClassToSeries(string? tierClass) => tierClass?.ToLowerInvariant() switch
+    private static int? ClassToSeries(string? tierClass)
     {
-        "gold" => 1,
-        "silver" => 2,
-        "bronze" => 3,
-        _ => null
-    };
+        return tierClass?.ToLowerInvariant() switch
+        {
+            "gold" => 1,
+            "silver" => 2,
+            "bronze" => 3,
+            _ => null
+        };
+    }
 
     private static IEnumerable<(FgAward Award, FgAwardRecipient Recipient, int? Series)> AwardRecipients(
         IEnumerable<FgAward> awards)
@@ -256,22 +265,24 @@ public static class FirstGlobalConverter
         }
     }
 
-    private static Award ToFrcAward(FgAward award, FgAwardRecipient recipient, int? series, int? teamNumber) =>
-        new(
-            AwardId: award.SortOrder,
-            TeamId: null,
-            EventId: null,
-            EventDivisionId: null,
-            EventCode: award.EventKey,
-            Name: award.Name,
-            Series: series,
-            TeamNumber: teamNumber,
-            SchoolName: null,
-            FullTeamName: recipient.Country,
-            Person: recipient.RecipientName,
-            CmpQualifying: null,
-            CmpQualifyingReason: null
+    private static Award ToFrcAward(FgAward award, FgAwardRecipient recipient, int? series, int? teamNumber)
+    {
+        return new Award(
+            award.SortOrder,
+            null,
+            null,
+            null,
+            award.EventKey,
+            award.Name,
+            series,
+            teamNumber,
+            null,
+            recipient.Country,
+            recipient.RecipientName,
+            null,
+            null
         );
+    }
 
     /// <summary>
     ///     Converts a list of FIRST Global awards to an FRC <see cref="EventAwardsResponse" />.
@@ -304,12 +315,14 @@ public static class FirstGlobalConverter
     /// <summary>
     ///     Returns the distinct country codes represented by country-based award recipients.
     /// </summary>
-    public static IEnumerable<string> AwardCountryCodes(IEnumerable<FgAward> awards) =>
-        AwardRecipients(awards)
+    public static IEnumerable<string> AwardCountryCodes(IEnumerable<FgAward> awards)
+    {
+        return AwardRecipients(awards)
             .Select(item => item.Recipient.CountryCode)
             .Where(code => !string.IsNullOrWhiteSpace(code))
             .Select(code => code!.Trim().ToUpperInvariant())
             .Distinct(StringComparer.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     ///     Groups one season's awards by <c>countryCode</c> while resolving every award row to the

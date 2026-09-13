@@ -22,8 +22,10 @@ public class AuthController(
 {
     private string? UserAgent => Request.Headers.UserAgent.ToString() is { Length: > 0 } ua ? ua : null;
 
-    private static bool LooksLikeEmail(string s) =>
-        !string.IsNullOrWhiteSpace(s) && s.Contains('@') && s.Length <= 254;
+    private static bool LooksLikeEmail(string s)
+    {
+        return !string.IsNullOrWhiteSpace(s) && s.Contains('@') && s.Length <= 254;
+    }
 
     // ── OTP login ────────────────────────────────────────────────────────────
 
@@ -59,7 +61,7 @@ public class AuthController(
         if (result != OtpService.VerifyResult.Ok)
             return Unauthorized(new { message = "Invalid or expired code", reason = result.ToString() });
 
-        var user = await repo.UpsertUserAsync(body.Email, rolesIfNew: [], ct: ct);
+        var user = await repo.UpsertUserAsync(body.Email, [], ct);
         await repo.TouchLoginAsync(user.Email, ct);
         var resp = await tokens.IssueTokensAsync(user, UserAgent, ct);
         return Ok(resp);
@@ -110,8 +112,7 @@ public class AuthController(
         return Ok(new MeResponse(
             user.Email,
             user.Roles,
-            pks.Select(p => new PasskeyInfo(p.CredentialId, p.Nickname, p.CreatedAt, p.LastUsedAt))
-                .ToArray()));
+            [.. pks.Select(p => new PasskeyInfo(p.CredentialId, p.Nickname, p.CreatedAt, p.LastUsedAt))]));
     }
 
     // ── Passkey registration ─────────────────────────────────────────────────

@@ -23,29 +23,20 @@ namespace GAToolAPI.Services.Auth;
 ///       - Stored in DynamoDB as SHA-256 hash (never plaintext)
 ///       - Lifetime: 30 days, sliding (renewed on each refresh)
 /// </summary>
-public class TokenService
+public class TokenService(AuthSigningKeyProvider keyProvider, AuthRepository repo)
 {
     public const string Issuer = "https://api.gatool.org/auth";
-    public const string Audience = "gatool";
-    public const string RolesClaim = AuthRoles.ClaimType;
-    public static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
-    public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
-
-    private readonly AuthSigningKeyProvider _keyProvider;
-    private readonly AuthRepository _repo;
-
-    public TokenService(AuthSigningKeyProvider keyProvider, AuthRepository repo)
-    {
-        _keyProvider = keyProvider;
-        _repo = repo;
-    }
+    private const string Audience = "gatool";
+    private const string RolesClaim = AuthRoles.ClaimType;
+    private static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(30);
 
     public async Task<TokenResponse> IssueTokensAsync(UserRecord user, string? userAgent = null,
         CancellationToken ct = default)
     {
         var accessToken = await CreateAccessTokenAsync(user, ct);
         var refresh = CreateRefreshToken();
-        await _repo.SaveRefreshTokenAsync(new RefreshTokenRecord
+        await repo.SaveRefreshTokenAsync(new RefreshTokenRecord
         {
             TokenHash = Sha256Hex(refresh),
             Email = user.Email,
@@ -71,16 +62,16 @@ public class TokenService
         CancellationToken ct = default)
     {
         var hash = Sha256Hex(refreshToken);
-        var record = await _repo.GetRefreshTokenAsync(hash, ct);
+        var record = await repo.GetRefreshTokenAsync(hash, ct);
         if (record == null) return null;
 
         // Atomically delete the old token. If two concurrent refreshes use the same token,
         // only the first wins; the second sees a ConditionalCheckFailed and returns null.
         // This is the core of refresh-token rotation as a replay-detection mechanism.
-        if (!await _repo.TryConsumeRefreshTokenAsync(hash, ct))
+        if (!await repo.TryConsumeRefreshTokenAsync(hash, ct))
             return null;
 
-        var user = await _repo.GetUserAsync(record.Email, ct);
+        var user = await repo.GetUserAsync(record.Email, ct);
         if (user == null) return null;
 
         return await IssueTokensAsync(user, userAgent, ct);
@@ -89,12 +80,12 @@ public class TokenService
     public async Task RevokeRefreshTokenAsync(string refreshToken, CancellationToken ct = default)
     {
         var hash = Sha256Hex(refreshToken);
-        await _repo.DeleteRefreshTokenAsync(hash, ct);
+        await repo.DeleteRefreshTokenAsync(hash, ct);
     }
 
     public async Task<SecurityKey> GetValidationKeyAsync(CancellationToken ct = default)
     {
-        var ec = await _keyProvider.GetKeyAsync(ct);
+        var ec = await keyProvider.GetKeyAsync(ct);
         return new ECDsaSecurityKey(ec) { KeyId = await GetKeyIdAsync(ct) };
     }
 
@@ -103,9 +94,9 @@ public class TokenService
     /// Survives restarts (deterministic from the key material) and changes if the
     /// signing key is ever rotated.
     /// </summary>
-    public async Task<string> GetKeyIdAsync(CancellationToken ct = default)
+    private async Task<string> GetKeyIdAsync(CancellationToken ct = default)
     {
-        var ec = await _keyProvider.GetKeyAsync(ct);
+        var ec = await keyProvider.GetKeyAsync(ct);
         var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(ec));
         return Base64UrlEncoder.Encode(jwk.ComputeJwkThumbprint());
     }
@@ -116,8 +107,8 @@ public class TokenService
     /// </summary>
     public async Task<JsonWebKey> GetPublicJwkAsync(CancellationToken ct = default)
     {
-        var ec = await _keyProvider.GetKeyAsync(ct);
-        var pubParams = ec.ExportParameters(includePrivateParameters: false);
+        var ec = await keyProvider.GetKeyAsync(ct);
+        var pubParams = ec.ExportParameters(false);
         using var pubOnly = ECDsa.Create(pubParams);
         var jwk = JsonWebKeyConverter.ConvertFromECDsaSecurityKey(new ECDsaSecurityKey(pubOnly));
         jwk.Use = "sig";
@@ -126,23 +117,26 @@ public class TokenService
         return jwk;
     }
 
-    public TokenValidationParameters BuildValidationParameters(SecurityKey key) => new()
+    public static TokenValidationParameters BuildValidationParameters(SecurityKey key)
     {
-        ValidateIssuer = true,
-        ValidIssuer = Issuer,
-        ValidateAudience = true,
-        ValidAudience = Audience,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        IssuerSigningKey = key,
-        ClockSkew = TimeSpan.FromMinutes(1),
-        NameClaimType = "name",
-        RoleClaimType = RolesClaim
-    };
+        return new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = Issuer,
+            ValidateAudience = true,
+            ValidAudience = Audience,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = key,
+            ClockSkew = TimeSpan.FromMinutes(1),
+            NameClaimType = "name",
+            RoleClaimType = RolesClaim
+        };
+    }
 
     private async Task<string> CreateAccessTokenAsync(UserRecord user, CancellationToken ct)
     {
-        var ec = await _keyProvider.GetKeyAsync(ct);
+        var ec = await keyProvider.GetKeyAsync(ct);
         var key = new ECDsaSecurityKey(ec) { KeyId = await GetKeyIdAsync(ct) };
         var creds = new SigningCredentials(key, SecurityAlgorithms.EcdsaSha256);
 
@@ -154,17 +148,16 @@ public class TokenService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
         };
         // One claim per role with the same type so existing HasRoleHandler keeps working
-        foreach (var role in user.Roles)
-            claims.Add(new Claim(RolesClaim, role));
+        claims.AddRange(user.Roles.Select(role => new Claim(RolesClaim, role)));
 
         var now = DateTime.UtcNow;
         var token = new JwtSecurityToken(
-            issuer: Issuer,
-            audience: Audience,
-            claims: claims,
-            notBefore: now,
-            expires: now.Add(AccessTokenLifetime),
-            signingCredentials: creds);
+            Issuer,
+            Audience,
+            claims,
+            now,
+            now.Add(AccessTokenLifetime),
+            creds);
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
 
@@ -172,10 +165,10 @@ public class TokenService
     {
         Span<byte> bytes = stackalloc byte[32];
         RandomNumberGenerator.Fill(bytes);
-        return Base64UrlEncoder.Encode(bytes.ToArray());
+        return Base64UrlEncoder.Encode([.. bytes]);
     }
 
-    public static string Sha256Hex(string input)
+    private static string Sha256Hex(string input)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(bytes).ToLowerInvariant();

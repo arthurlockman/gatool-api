@@ -1374,7 +1374,8 @@ public class FrcApiController(
         try
         {
             var query = new Dictionary<string, string?> { ["teamNumber"] = teamNumber.ToString() };
-            var result = await frcApiClient.Get<RegionalTeamDetailResponse>($"{year}/rankings/regional/teamdetail", query);
+            var result =
+                await frcApiClient.Get<RegionalTeamDetailResponse>($"{year}/rankings/regional/teamdetail", query);
 
             if (result != null)
                 await _redis.StringSetAsync(cacheKey, JsonSerializer.Serialize(result), TimeSpan.FromMinutes(5));

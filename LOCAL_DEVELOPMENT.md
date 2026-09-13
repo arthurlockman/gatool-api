@@ -38,7 +38,8 @@ docker start redis
 
 ### 2. AWS Authentication
 
-The API uses AWS Secrets Manager to retrieve secrets. You must have AWS credentials configured with access to the Secrets Manager secrets.
+The API uses AWS Secrets Manager to retrieve secrets. You must have AWS credentials configured with access to the
+Secrets Manager secrets.
 
 ```bash
 # Configure AWS CLI with your credentials
@@ -95,19 +96,19 @@ Used when `ASPNETCORE_ENVIRONMENT=Development`. This is automatically loaded and
 
 The application retrieves these secrets from AWS Secrets Manager (prefix: `gatool/`):
 
-| Secret Name                   | Description                 | Required For            |
-|-------------------------------|-----------------------------|-------------------------|
-| `gatool/FRCApiKey`            | FIRST API key               | FRC data endpoints      |
-| `gatool/TBAApiKey`            | The Blue Alliance API key   | TBA/offseason endpoints |
-| `gatool/FTCApiKey`            | FTC API key                 | FTC data endpoints      |
-| `gatool/TOAApiKey`            | The Orange Alliance API key | FTC data endpoints      |
-| `gatool/CasterstoolApiKey`    | Casterstool API key         | Matchup connections     |
-| `gatool/FRCCurrentSeason`     | Current FRC season year     | Season filtering        |
-| `gatool/FTCCurrentSeason`     | Current FTC season year     | Season filtering        |
-| `gatool/MailChimpAPIKey`      | MailChimp API key           | User sync               |
-| `gatool/MailchimpAPIURL`      | MailChimp API URL           | User sync               |
-| `gatool/MailchimpListID`      | MailChimp list ID           | User sync               |
-| `gatool/NewRelicLicenseKey`   | New Relic license key       | Monitoring              |
+| Secret Name                 | Description                 | Required For            |
+|-----------------------------|-----------------------------|-------------------------|
+| `gatool/FRCApiKey`          | FIRST API key               | FRC data endpoints      |
+| `gatool/TBAApiKey`          | The Blue Alliance API key   | TBA/offseason endpoints |
+| `gatool/FTCApiKey`          | FTC API key                 | FTC data endpoints      |
+| `gatool/TOAApiKey`          | The Orange Alliance API key | FTC data endpoints      |
+| `gatool/CasterstoolApiKey`  | Casterstool API key         | Matchup connections     |
+| `gatool/FRCCurrentSeason`   | Current FRC season year     | Season filtering        |
+| `gatool/FTCCurrentSeason`   | Current FTC season year     | Season filtering        |
+| `gatool/MailChimpAPIKey`    | MailChimp API key           | User sync               |
+| `gatool/MailchimpAPIURL`    | MailChimp API URL           | User sync               |
+| `gatool/MailchimpListID`    | MailChimp list ID           | User sync               |
+| `gatool/NewRelicLicenseKey` | New Relic license key       | Monitoring              |
 
 To create all secrets at once, use the provided script:
 

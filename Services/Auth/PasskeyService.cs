@@ -13,29 +13,16 @@ namespace GAToolAPI.Services.Auth;
 ///     Challenges are held briefly in FusionCache (Redis-backed) keyed by an opaque session
 ///     id returned to the client. The client echoes that id back when completing the ceremony.
 /// </summary>
-public class PasskeyService
+public class PasskeyService(
+    IFido2 fido2,
+    IMetadataService metadataService,
+    CommunityAaguidService communityAaguids,
+    AuthRepository repo,
+    IFusionCache cache,
+    ILogger<PasskeyService> logger)
 {
     private const string CachePrefix = "webauthn:challenge:";
     private static readonly TimeSpan ChallengeLifetime = TimeSpan.FromMinutes(5);
-
-    private readonly IFido2 _fido2;
-    private readonly IMetadataService _metadataService;
-    private readonly CommunityAaguidService _communityAaguids;
-    private readonly AuthRepository _repo;
-    private readonly IFusionCache _cache;
-    private readonly ILogger<PasskeyService> _logger;
-
-    public PasskeyService(IFido2 fido2, IMetadataService metadataService,
-        CommunityAaguidService communityAaguids, AuthRepository repo,
-        IFusionCache cache, ILogger<PasskeyService> logger)
-    {
-        _fido2 = fido2;
-        _metadataService = metadataService;
-        _communityAaguids = communityAaguids;
-        _repo = repo;
-        _cache = cache;
-        _logger = logger;
-    }
 
     // ── Registration ────────────────────────────────────────────────────────
 
@@ -44,8 +31,9 @@ public class PasskeyService
     public async Task<RegisterOptionsResult> BeginRegistrationAsync(string email, CancellationToken ct = default)
     {
         var normalized = email.Trim().ToLowerInvariant();
-        var existing = await _repo.ListPasskeysAsync(normalized, ct);
-        var exclude = existing.Select(p => new PublicKeyCredentialDescriptor(Base64UrlEncoder.DecodeBytes(p.CredentialId)))
+        var existing = await repo.ListPasskeysAsync(normalized, ct);
+        var exclude = existing
+            .Select(p => new PublicKeyCredentialDescriptor(Base64UrlEncoder.DecodeBytes(p.CredentialId)))
             .ToList();
 
         var user = new Fido2User
@@ -63,7 +51,7 @@ public class PasskeyService
             UserVerification = UserVerificationRequirement.Required
         };
 
-        var options = _fido2.RequestNewCredential(new RequestNewCredentialParams
+        var options = fido2.RequestNewCredential(new RequestNewCredentialParams
         {
             User = user,
             ExcludeCredentials = exclude,
@@ -73,9 +61,9 @@ public class PasskeyService
         });
 
         var sessionId = NewSessionId();
-        await _cache.SetAsync(CachePrefix + sessionId,
+        await cache.SetAsync(CachePrefix + sessionId,
             new ChallengeBlob { Email = normalized, OptionsJson = options.ToJson() },
-            ChallengeLifetime, token: ct);
+            ChallengeLifetime, ct);
 
         return new RegisterOptionsResult(sessionId, options);
     }
@@ -89,23 +77,24 @@ public class PasskeyService
     {
         var normalized = email.Trim().ToLowerInvariant();
 
-        var blob = await _cache.TryGetAsync<ChallengeBlob>(CachePrefix + sessionId, token: ct);
+        var blob = await cache.TryGetAsync<ChallengeBlob>(CachePrefix + sessionId, token: ct);
         if (!blob.HasValue || blob.Value.Email != normalized)
         {
-            _logger.LogWarning("Passkey registration session not found / mismatched email for {Email}", normalized);
+            logger.LogWarning("Passkey registration session not found / mismatched email for {Email}", normalized);
             return null;
         }
-        await _cache.RemoveAsync(CachePrefix + sessionId, token: ct);
+
+        await cache.RemoveAsync(CachePrefix + sessionId, token: ct);
 
         var origOptions = CredentialCreateOptions.FromJson(blob.Value.OptionsJson);
 
-        var result = await _fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
+        var result = await fido2.MakeNewCredentialAsync(new MakeNewCredentialParams
         {
             AttestationResponse = attestation,
             OriginalOptions = origOptions,
             IsCredentialIdUniqueToUserCallback = async (args, innerCt) =>
             {
-                var existing = await _repo.GetPasskeyByCredentialIdAsync(
+                var existing = await repo.GetPasskeyByCredentialIdAsync(
                     Base64UrlEncoder.Encode(args.CredentialId), innerCt);
                 return existing == null;
             }
@@ -114,7 +103,7 @@ public class PasskeyService
         var credentialIdB64 = Base64UrlEncoder.Encode(result.Id);
         var resolvedNickname = !string.IsNullOrWhiteSpace(nickname)
             ? nickname.Trim()
-            : (await ResolveAuthenticatorNameAsync(result.AaGuid, ct) ?? "Passkey");
+            : await ResolveAuthenticatorNameAsync(result.AaGuid, ct) ?? "Passkey";
         var record = new PasskeyRecord
         {
             Email = normalized,
@@ -129,8 +118,8 @@ public class PasskeyService
             // they'd primarily be used to populate allowCredentials during authentication.
             Transports = []
         };
-        await _repo.SavePasskeyAsync(record, ct);
-        _logger.LogInformation("Registered passkey {CredentialId} for {Email} ({Authenticator})",
+        await repo.SavePasskeyAsync(record, ct);
+        logger.LogInformation("Registered passkey {CredentialId} for {Email} ({Authenticator})",
             credentialIdB64, normalized, resolvedNickname);
         return record;
     }
@@ -147,15 +136,16 @@ public class PasskeyService
         if (aaguid == Guid.Empty) return null;
         try
         {
-            var entry = await _metadataService.GetEntryAsync(aaguid, ct);
+            var entry = await metadataService.GetEntryAsync(aaguid, ct);
             var description = entry?.MetadataStatement?.Description;
             if (!string.IsNullOrWhiteSpace(description)) return description;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "FIDO MDS lookup failed for AAGUID {Aaguid}", aaguid);
+            logger.LogWarning(ex, "FIDO MDS lookup failed for AAGUID {Aaguid}", aaguid);
         }
-        return _communityAaguids.Lookup(aaguid);
+
+        return communityAaguids.Lookup(aaguid);
     }
 
     // ── Authentication ─────────────────────────────────────────────────────
@@ -171,11 +161,12 @@ public class PasskeyService
         if (!string.IsNullOrWhiteSpace(email))
         {
             normalized = email.Trim().ToLowerInvariant();
-            var creds = await _repo.ListPasskeysAsync(normalized, ct);
-            allowed.AddRange(creds.Select(c => new PublicKeyCredentialDescriptor(Base64UrlEncoder.DecodeBytes(c.CredentialId))));
+            var creds = await repo.ListPasskeysAsync(normalized, ct);
+            allowed.AddRange(creds.Select(c =>
+                new PublicKeyCredentialDescriptor(Base64UrlEncoder.DecodeBytes(c.CredentialId))));
         }
 
-        var options = _fido2.GetAssertionOptions(new GetAssertionOptionsParams
+        var options = fido2.GetAssertionOptions(new GetAssertionOptionsParams
         {
             AllowedCredentials = allowed,
             UserVerification = UserVerificationRequirement.Required,
@@ -183,9 +174,9 @@ public class PasskeyService
         });
 
         var sessionId = NewSessionId();
-        await _cache.SetAsync(CachePrefix + sessionId,
+        await cache.SetAsync(CachePrefix + sessionId,
             new ChallengeBlob { Email = normalized, OptionsJson = options.ToJson() },
-            ChallengeLifetime, token: ct);
+            ChallengeLifetime, ct);
 
         return new AuthOptionsResult(sessionId, options);
     }
@@ -195,21 +186,22 @@ public class PasskeyService
         AuthenticatorAssertionRawResponse assertion,
         CancellationToken ct = default)
     {
-        var blob = await _cache.TryGetAsync<ChallengeBlob>(CachePrefix + sessionId, token: ct);
+        var blob = await cache.TryGetAsync<ChallengeBlob>(CachePrefix + sessionId, token: ct);
         if (!blob.HasValue)
         {
-            _logger.LogWarning("Passkey auth session not found");
+            logger.LogWarning("Passkey auth session not found");
             return null;
         }
-        await _cache.RemoveAsync(CachePrefix + sessionId, token: ct);
+
+        await cache.RemoveAsync(CachePrefix + sessionId, token: ct);
 
         var origOptions = AssertionOptions.FromJson(blob.Value.OptionsJson);
 
         var credentialIdB64 = Base64UrlEncoder.Encode(assertion.RawId);
-        var stored = await _repo.GetPasskeyByCredentialIdAsync(credentialIdB64, ct);
+        var stored = await repo.GetPasskeyByCredentialIdAsync(credentialIdB64, ct);
         if (stored == null)
         {
-            _logger.LogWarning("Passkey {CredentialId} not registered", credentialIdB64);
+            logger.LogWarning("Passkey {CredentialId} not registered", credentialIdB64);
             return null;
         }
 
@@ -220,12 +212,12 @@ public class PasskeyService
         if (!string.IsNullOrEmpty(blob.Value.Email) &&
             !string.Equals(blob.Value.Email, stored.Email, StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("Passkey owner {Owner} does not match requested email {Requested}",
+            logger.LogWarning("Passkey owner {Owner} does not match requested email {Requested}",
                 stored.Email, blob.Value.Email);
             return null;
         }
 
-        var verifyResult = await _fido2.MakeAssertionAsync(new MakeAssertionParams
+        var verifyResult = await fido2.MakeAssertionAsync(new MakeAssertionParams
         {
             AssertionResponse = assertion,
             OriginalOptions = origOptions,
@@ -240,15 +232,16 @@ public class PasskeyService
             }
         }, ct);
 
-        await _repo.UpdatePasskeyCounterAsync(stored.Email, credentialIdB64, verifyResult.SignCount, ct);
+        await repo.UpdatePasskeyCounterAsync(stored.Email, credentialIdB64, verifyResult.SignCount, ct);
 
-        var user = await _repo.GetUserAsync(stored.Email, ct);
+        var user = await repo.GetUserAsync(stored.Email, ct);
         if (user == null)
         {
-            _logger.LogWarning("Passkey {CredentialId} references missing user {Email}",
+            logger.LogWarning("Passkey {CredentialId} references missing user {Email}",
                 credentialIdB64, stored.Email);
             return null;
         }
+
         return user;
     }
 
@@ -256,7 +249,7 @@ public class PasskeyService
     {
         Span<byte> bytes = stackalloc byte[24];
         System.Security.Cryptography.RandomNumberGenerator.Fill(bytes);
-        return Base64UrlEncoder.Encode(bytes.ToArray());
+        return Base64UrlEncoder.Encode([.. bytes]);
     }
 
     private class ChallengeBlob
