@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using GAToolAPI.Helpers;
 using JetBrains.Annotations;
@@ -70,6 +71,7 @@ public record FgParticipant(
     int Surrogate,
     int NoShow);
 
+/// <summary>FIRST Global match details with season-specific fields retained during deserialization.</summary>
 [UsedImplicitly]
 public record FgMatchDetails(
     string? EventKey,
@@ -94,7 +96,10 @@ public record FgMatchDetails(
     double BiodiversityDistributed,
     double RedProtectionMultiplier,
     double BlueProtectionMultiplier,
-    int AllBarriersCleared);
+    int AllBarriersCleared)
+{
+    [JsonExtensionData] public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+}
 
 [UsedImplicitly]
 public record FgMatch(
@@ -196,7 +201,7 @@ public record FgAllianceScore(
     double BiodiversityUnits,
     double ApproximateBiodiversity);
 
-/// <summary>Full score breakdown for a single FIRST Global match.</summary>
+/// <summary>Full FIRST Global match score, including unmodeled season-specific detail fields.</summary>
 [UsedImplicitly]
 public record FgMatchScore(
     string MatchLevel,
@@ -208,7 +213,10 @@ public record FgMatchScore(
     double BiodiversityDistributionFactor,
     double BiodiversityUnitsCenterEcosystem,
     double ApproximateBiodiversityCenterEcosystem,
-    List<FgAllianceScore> Alliances);
+    List<FgAllianceScore> Alliances)
+{
+    [JsonExtensionData] public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+}
 
 /// <summary>FRC-compatible match result extended with FIRST Global field number.</summary>
 [UsedImplicitly]
