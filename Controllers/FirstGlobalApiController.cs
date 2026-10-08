@@ -192,7 +192,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
 
     /// <summary>
     ///     Score breakdowns for all matches across all tournament levels.
-    ///     Extracts game-specific details (biodiversity, barriers, parking, etc.) from each match.
+    ///     Extracts compatible score details and passes through season-specific fields from each match.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
     /// <returns>FRC-style MatchScores response with per-alliance game detail breakdowns.</returns>

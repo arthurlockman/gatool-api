@@ -209,7 +209,10 @@ public static class FirstGlobalConverter
                     d.BiodiversityUnitsCenterEcosystem,
                     d.ApproximateBiodiversityCenterEcosystem,
                     [red, blue]
-                );
+                )
+                {
+                    AdditionalProperties = d.AdditionalProperties
+                };
             }).ToList();
 
         return new FgMatchScoresResponse(scores);
