@@ -71,34 +71,11 @@ public record FgParticipant(
     int Surrogate,
     int NoShow);
 
-/// <summary>FIRST Global match details with season-specific fields retained during deserialization.</summary>
+/// <summary>Complete FIRST Global match details, preserved without season-specific assumptions.</summary>
 [UsedImplicitly]
-public record FgMatchDetails(
-    string? EventKey,
-    string? TournamentKey,
-    int Id,
-    int BarriersInRedMitigator,
-    int BarriersInBlueMitigator,
-    double BiodiversityUnitsRedSideEcosystem,
-    double BiodiversityUnitsCenterEcosystem,
-    double BiodiversityUnitsBlueSideEcosystem,
-    double BiodiversityDistributionFactor,
-    double ApproximateBiodiversityRedSideEcosystem,
-    double ApproximateBiodiversityCenterEcosystem,
-    double ApproximateBiodiversityBlueSideEcosystem,
-    double RedRobotOneParking,
-    double RedRobotTwoParking,
-    double RedRobotThreeParking,
-    double BlueRobotOneParking,
-    double BlueRobotTwoParking,
-    double BlueRobotThreeParking,
-    int Coopertition,
-    double BiodiversityDistributed,
-    double RedProtectionMultiplier,
-    double BlueProtectionMultiplier,
-    int AllBarriersCleared)
+public record FgMatchDetails
 {
-    [JsonExtensionData] public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
+    [JsonExtensionData] public Dictionary<string, JsonElement> Properties { get; init; } = [];
 }
 
 [UsedImplicitly]
@@ -215,6 +192,8 @@ public record FgMatchScore(
     double ApproximateBiodiversityCenterEcosystem,
     List<FgAllianceScore> Alliances)
 {
+    public Dictionary<string, JsonElement>? Details { get; init; }
+
     [JsonExtensionData] public Dictionary<string, JsonElement>? AdditionalProperties { get; init; }
 }
 

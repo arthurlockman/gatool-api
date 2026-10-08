@@ -192,10 +192,10 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
 
     /// <summary>
     ///     Score breakdowns for all matches across all tournament levels.
-    ///     Extracts compatible score details and passes through season-specific fields from each match.
+    ///     Returns the complete season-specific details object alongside the common score fields.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <returns>FRC-style MatchScores response with per-alliance game detail breakdowns.</returns>
+    /// <returns>MatchScores response with per-alliance fields and the complete upstream details object.</returns>
     /// <response code="200">Returns the match scores.</response>
     /// <response code="204">No scores found for the season.</response>
     [HttpGet("{year:int}/scores")]
@@ -224,7 +224,7 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
     /// <param name="tournamentKey">Tournament level: t2/qual, t3/playoff, or t4/final.</param>
-    /// <returns>FRC-style MatchScores response for the specified level.</returns>
+    /// <returns>MatchScores response with the complete upstream details object for the specified level.</returns>
     /// <response code="200">Returns the match scores for the tournament level.</response>
     /// <response code="204">No scores found.</response>
     [HttpGet("{year:int}/scores/{tournamentKey}")]
