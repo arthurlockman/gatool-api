@@ -1,3 +1,4 @@
+using System.Text.Json;
 using GAToolAPI.Models;
 
 namespace GAToolAPI.Helpers;
@@ -7,6 +8,58 @@ namespace GAToolAPI.Helpers;
 /// </summary>
 public static class FirstGlobalConverter
 {
+    private static readonly HashSet<string> LegacyDetailFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "eventKey",
+        "tournamentKey",
+        "id",
+        "barriersInRedMitigator",
+        "barriersInBlueMitigator",
+        "biodiversityUnitsRedSideEcosystem",
+        "biodiversityUnitsCenterEcosystem",
+        "biodiversityUnitsBlueSideEcosystem",
+        "biodiversityDistributionFactor",
+        "approximateBiodiversityRedSideEcosystem",
+        "approximateBiodiversityCenterEcosystem",
+        "approximateBiodiversityBlueSideEcosystem",
+        "redRobotOneParking",
+        "redRobotTwoParking",
+        "redRobotThreeParking",
+        "blueRobotOneParking",
+        "blueRobotTwoParking",
+        "blueRobotThreeParking",
+        "coopertition",
+        "biodiversityDistributed",
+        "redProtectionMultiplier",
+        "blueProtectionMultiplier",
+        "allBarriersCleared"
+    };
+
+    private static int DetailInt(FgMatchDetails details, string name)
+    {
+        if (!details.Properties.TryGetValue(name, out var value)) return 0;
+
+        if (value.ValueKind is JsonValueKind.True) return 1;
+        if (value.ValueKind is JsonValueKind.False) return 0;
+        if (value.ValueKind is JsonValueKind.Number && value.TryGetInt32(out var result)) return result;
+        throw new JsonException($"FIRST Global match detail '{name}' must be an integer or boolean.");
+    }
+
+    private static double DetailDouble(FgMatchDetails details, string name)
+    {
+        if (!details.Properties.TryGetValue(name, out var value)) return 0;
+        if (value.ValueKind is JsonValueKind.Number) return value.GetDouble();
+        throw new JsonException($"FIRST Global match detail '{name}' must be a number.");
+    }
+
+    private static Dictionary<string, JsonElement>? AdditionalDetails(FgMatchDetails details)
+    {
+        var additional = details.Properties
+            .Where(pair => !LegacyDetailFields.Contains(pair.Key))
+            .ToDictionary(pair => pair.Key, pair => pair.Value);
+        return additional.Count == 0 ? null : additional;
+    }
+
     /// <summary>
     ///     Maps a FIRST Global station number to an FRC-style station string.
     ///     Stations 11-14 → Red1-Red4; stations 21-24 → Blue1-Blue4.
@@ -176,42 +229,43 @@ public static class FirstGlobalConverter
                     "Red",
                     m.RedScore,
                     m.BlueMinPen + m.BlueMajPen,
-                    d.BarriersInRedMitigator,
-                    d.RedRobotOneParking,
-                    d.RedRobotTwoParking,
-                    d.RedRobotThreeParking,
-                    d.RedProtectionMultiplier,
-                    d.BiodiversityUnitsRedSideEcosystem,
-                    d.ApproximateBiodiversityRedSideEcosystem
+                    DetailInt(d, "barriersInRedMitigator"),
+                    DetailDouble(d, "redRobotOneParking"),
+                    DetailDouble(d, "redRobotTwoParking"),
+                    DetailDouble(d, "redRobotThreeParking"),
+                    DetailDouble(d, "redProtectionMultiplier"),
+                    DetailDouble(d, "biodiversityUnitsRedSideEcosystem"),
+                    DetailDouble(d, "approximateBiodiversityRedSideEcosystem")
                 );
 
                 var blue = new FgAllianceScore(
                     "Blue",
                     m.BlueScore,
                     m.RedMinPen + m.RedMajPen,
-                    d.BarriersInBlueMitigator,
-                    d.BlueRobotOneParking,
-                    d.BlueRobotTwoParking,
-                    d.BlueRobotThreeParking,
-                    d.BlueProtectionMultiplier,
-                    d.BiodiversityUnitsBlueSideEcosystem,
-                    d.ApproximateBiodiversityBlueSideEcosystem
+                    DetailInt(d, "barriersInBlueMitigator"),
+                    DetailDouble(d, "blueRobotOneParking"),
+                    DetailDouble(d, "blueRobotTwoParking"),
+                    DetailDouble(d, "blueRobotThreeParking"),
+                    DetailDouble(d, "blueProtectionMultiplier"),
+                    DetailDouble(d, "biodiversityUnitsBlueSideEcosystem"),
+                    DetailDouble(d, "approximateBiodiversityBlueSideEcosystem")
                 );
 
                 return new FgMatchScore(
                     tournamentLevel,
                     matchNumber,
                     m.Result,
-                    d.Coopertition != 0,
-                    d.AllBarriersCleared != 0,
-                    d.BiodiversityDistributed,
-                    d.BiodiversityDistributionFactor,
-                    d.BiodiversityUnitsCenterEcosystem,
-                    d.ApproximateBiodiversityCenterEcosystem,
+                    DetailInt(d, "coopertition") != 0,
+                    DetailInt(d, "allBarriersCleared") != 0,
+                    DetailDouble(d, "biodiversityDistributed"),
+                    DetailDouble(d, "biodiversityDistributionFactor"),
+                    DetailDouble(d, "biodiversityUnitsCenterEcosystem"),
+                    DetailDouble(d, "approximateBiodiversityCenterEcosystem"),
                     [red, blue]
                 )
                 {
-                    AdditionalProperties = d.AdditionalProperties
+                    Details = d.Properties,
+                    AdditionalProperties = AdditionalDetails(d)
                 };
             }).ToList();
 
