@@ -25,6 +25,11 @@ public class FtcApiController(
     /// <summary>
     ///     Gets FTC team list for a season, optionally filtered by event, state, or team number.
     /// </summary>
+    /// <remarks>
+    ///     To get all teams at a specific event, use GET /ftc/v2/2025/teams?eventCode=USMAWAL.
+    ///     The event code is a query parameter, not a path segment. The year is the season's starting year
+    ///     (for example, 2025 for the 2025-2026 season). All upstream pages are combined into one response.
+    /// </remarks>
     /// <param name="year">The competition year/season.</param>
     /// <param name="eventCode">Optional event code to filter teams.</param>
     /// <param name="state">Optional state/region to filter teams.</param>
@@ -321,7 +326,6 @@ public class FtcApiController(
     [HttpGet("team/{teamNumber:int}/awards")]
     [OpenApiTag("FTC Team Data")]
     [ProducesResponseType(typeof(Dictionary<string, TeamAwardsResponse?>), (int)HttpStatusCode.OK)]
-    [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeamAwardsData(int year, int teamNumber)
     {
         var result = await GetLast3YearAwards(year, teamNumber);
@@ -340,7 +344,7 @@ public class FtcApiController(
     [RedisCache("ftcapi:batch-team-awards", RedisCacheTime.FiveMinutes)]
     [OpenApiTag("FTC Team Data")]
     [ProducesResponseType(typeof(Dictionary<int, Dictionary<string, TeamAwardsResponse?>>), (int)HttpStatusCode.OK)]
-    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     public async Task<IActionResult> QueryAwards(int year, [FromBody] TeamQueryRequest request)
     {
         if (request.Teams.Count == 0) return BadRequest("Teams list is required");

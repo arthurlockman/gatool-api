@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Fido2NetLib;
 using GAToolAPI.AuthExtensions;
 using GAToolAPI.Models;
@@ -30,10 +31,14 @@ public class AuthController(
     // ── OTP login ────────────────────────────────────────────────────────────
 
     /// <summary>Request a one-time login code be emailed to the given address.</summary>
+    /// <param name="body">JSON object with the email address to receive a login code.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
     /// <response code="204">Code sent (or rate-limited; response is the same to avoid email enumeration).</response>
+    /// <response code="400">The email address or request body is invalid.</response>
     [HttpPost("otp/request")]
     [AllowAnonymous]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     public async Task<IActionResult> RequestOtp([FromBody] OtpRequestBody body, CancellationToken ct)
     {
         if (!LooksLikeEmail(body.Email))
@@ -48,9 +53,15 @@ public class AuthController(
     }
 
     /// <summary>Exchange an OTP code for an access token + refresh token.</summary>
+    /// <param name="body">JSON object containing email and the emailed code.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="200">Returns an access token, refresh token, and expiry information.</response>
+    /// <response code="400">Email, code, or request body is missing or invalid.</response>
+    /// <response code="401">The code is invalid, expired, or rejected.</response>
     [HttpPost("otp/verify")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(TokenResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
     public async Task<IActionResult> VerifyOtp([FromBody] OtpVerifyBody body, CancellationToken ct)
     {
@@ -70,9 +81,15 @@ public class AuthController(
     // ── Refresh / logout ─────────────────────────────────────────────────────
 
     /// <summary>Exchange a refresh token for a new access token + refresh token.</summary>
+    /// <param name="body">JSON object containing refreshToken. Successful refresh rotates the token.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="200">Returns a new access token and refresh token.</response>
+    /// <response code="400">The refresh token or request body is missing.</response>
+    /// <response code="401">The refresh token is invalid, expired, or revoked.</response>
     [HttpPost("refresh")]
     [AllowAnonymous]
     [ProducesResponseType(typeof(TokenResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
     public async Task<IActionResult> Refresh([FromBody] RefreshBody body, CancellationToken ct)
     {
@@ -84,9 +101,14 @@ public class AuthController(
     }
 
     /// <summary>Revoke the supplied refresh token.</summary>
+    /// <param name="body">JSON object containing refreshToken; a blank token is a no-op.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="204">Logout processed, including when no token was supplied.</response>
+    /// <response code="400">The JSON request body is missing or invalid.</response>
     [HttpPost("logout")]
     [AllowAnonymous]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     public async Task<IActionResult> Logout([FromBody] LogoutBody body, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(body.RefreshToken))
@@ -97,9 +119,15 @@ public class AuthController(
     // ── Current user info ────────────────────────────────────────────────────
 
     /// <summary>Get the currently-authenticated user's email, roles, and registered passkeys.</summary>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="200">Returns the current user's profile and passkeys.</response>
+    /// <response code="401">The access token is missing, invalid, or does not identify an existing user.</response>
+    /// <response code="403">The caller does not satisfy the user policy.</response>
     [HttpGet("me")]
     [Authorize(AuthPolicies.User)]
     [ProducesResponseType(typeof(MeResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     public async Task<IActionResult> Me(CancellationToken ct)
     {
         var email = User.FindFirst("name")?.Value;
@@ -118,8 +146,15 @@ public class AuthController(
     // ── Passkey registration ─────────────────────────────────────────────────
 
     /// <summary>Begin passkey registration. Returns WebAuthn creation options + a session id.</summary>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="200">Returns sessionId and options for navigator.credentials.create.</response>
+    /// <response code="401">An access token identifying the user is required.</response>
+    /// <response code="403">The caller does not satisfy the user policy.</response>
     [HttpPost("passkey/register-options")]
     [Authorize(AuthPolicies.User)]
+    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     public async Task<IActionResult> PasskeyRegisterOptions(CancellationToken ct)
     {
         var email = User.FindFirst("name")?.Value;
@@ -139,8 +174,18 @@ public class AuthController(
         AuthenticatorAttestationRawResponse Attestation);
 
     /// <summary>Complete passkey registration with the browser's attestation response.</summary>
+    /// <param name="body">JSON object containing sessionId, optional nickname, and the WebAuthn attestation.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="200">Returns the registered passkey's ID, nickname, and timestamps.</response>
+    /// <response code="400">The registration session expired or is invalid, or the request body is invalid.</response>
+    /// <response code="401">An access token identifying the user is required.</response>
+    /// <response code="403">The caller does not satisfy the user policy.</response>
     [HttpPost("passkey/register")]
     [Authorize(AuthPolicies.User)]
+    [ProducesResponseType(typeof(PasskeyInfo), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     public async Task<IActionResult> PasskeyRegister([FromBody] PasskeyRegisterCompleteRequest body,
         CancellationToken ct)
     {
@@ -155,8 +200,18 @@ public class AuthController(
     }
 
     /// <summary>Remove a registered passkey from the current user.</summary>
+    /// <param name="credentialId">Credential ID of a passkey belonging to the current user, URL-encoded when necessary.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="204">The passkey was removed.</response>
+    /// <response code="401">An access token identifying the user is required.</response>
+    /// <response code="403">The caller does not satisfy the user policy.</response>
+    /// <response code="404">The passkey does not exist or belongs to another user.</response>
     [HttpDelete("passkey/{credentialId}")]
     [Authorize(AuthPolicies.User)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     public async Task<IActionResult> PasskeyDelete(string credentialId, CancellationToken ct)
     {
         var email = User.FindFirst("name")?.Value;
@@ -174,8 +229,14 @@ public class AuthController(
     // ── Passkey authentication ───────────────────────────────────────────────
 
     /// <summary>Begin passkey authentication. Returns WebAuthn assertion options + a session id.</summary>
+    /// <param name="body">JSON object with an optional email to select credentials; omit email for discoverable passkeys.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="200">Returns sessionId and options for navigator.credentials.get.</response>
+    /// <response code="400">The JSON request body is missing or invalid.</response>
     [HttpPost("passkey/auth-options")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     public async Task<IActionResult> PasskeyAuthOptions([FromBody] PasskeyAuthOptionsBody body,
         CancellationToken ct)
     {
@@ -192,8 +253,16 @@ public class AuthController(
         AuthenticatorAssertionRawResponse Assertion);
 
     /// <summary>Complete passkey authentication and exchange for tokens.</summary>
+    /// <param name="body">JSON object containing sessionId and the browser's WebAuthn assertion.</param>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <response code="200">Returns an access token, refresh token, and expiry information.</response>
+    /// <response code="400">The JSON request body is missing or invalid.</response>
+    /// <response code="401">The passkey assertion or authentication session is invalid.</response>
     [HttpPost("passkey/authenticate")]
     [AllowAnonymous]
+    [ProducesResponseType(typeof(TokenResponse), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
     public async Task<IActionResult> PasskeyAuthenticate([FromBody] PasskeyAuthCompleteRequest body,
         CancellationToken ct)
     {

@@ -30,11 +30,16 @@ public class FrcApiController(
     /// <summary>
     ///     Gets FRC team list for a season, optionally filtered by event, district, or team number.
     /// </summary>
+    /// <remarks>
+    ///     To get all teams at a specific event, use GET /v3/2026/teams?eventCode=mawor1.
+    ///     The event code is a query parameter, not a path segment; do not include the year in the event code.
+    ///     All upstream pages are combined into one response; no page parameter is needed.
+    /// </remarks>
     /// <param name="year">The competition year/season (e.g. 2026).</param>
     /// <param name="eventCode">Optional event code to filter teams that attended.</param>
     /// <param name="districtCode">Optional district code to filter teams.</param>
     /// <param name="teamNumber">Optional team number to fetch a single team.</param>
-    /// <returns>Paginated list of teams.</returns>
+    /// <returns>Teams response containing the complete filtered team list and pagination counts.</returns>
     /// <response code="200">Returns the team list.</response>
     /// <response code="204">No teams found.</response>
     [HttpGet("teams")]
@@ -230,14 +235,19 @@ public class FrcApiController(
     /// <summary>
     ///     Gets all match score breakdowns for an FRC event and tournament level.
     /// </summary>
+    /// <remarks>
+    ///     Seasons through 2025 use MatchScoresResponse; 2026 and later use GenericMatchScoresResponse.
+    ///     The latter preserves season-specific score fields as additional properties.
+    /// </remarks>
     /// <param name="year">The competition year/season.</param>
     /// <param name="eventCode">The event code.</param>
-    /// <param name="tournamentLevel">Tournament level: qual or playoff.</param>
+    /// <param name="tournamentLevel">Tournament level: exactly qual or playoff (lowercase).</param>
     /// <returns>Match score details for the level; shape varies by season.</returns>
     /// <response code="200">Returns the match scores.</response>
     /// <response code="204">No scores found.</response>
     /// <response code="400">Invalid tournament level.</response>
     [HttpGet("scores/{eventCode}/{tournamentLevel}")]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [OpenApiTag("FRC Schedules and Results")]
     [ProducesResponseType(typeof(MatchScoresResponse), (int)HttpStatusCode.OK)] // 2025 and earlier
     [ProducesResponseType(typeof(GenericMatchScoresResponse), (int)HttpStatusCode.OK)] // 2026 and later
@@ -277,7 +287,6 @@ public class FrcApiController(
     [HttpGet("team/{teamNumber:int}/awards")]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(Dictionary<string, TeamAwardsResponse?>), (int)HttpStatusCode.OK)]
-    [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeamAwardsData(int year, int teamNumber)
     {
         var result = await GetLast3YearAwards(year, teamNumber);
@@ -382,7 +391,7 @@ public class FrcApiController(
     /// <summary>
     ///     Gets competition history for multiple FRC teams from The Blue Alliance.
     /// </summary>
-    /// <param name="year">The competition year/season.</param>
+    /// <param name="year">Competition year required by the route; history includes all seasons, not only this year.</param>
     /// <param name="request">Request body containing list of team numbers.</param>
     /// <returns>Dictionary of team number to team history.</returns>
     /// <response code="200">Returns history for each requested team.</response>
@@ -407,7 +416,7 @@ public class FrcApiController(
     /// <summary>
     ///     Gets competition history for an FRC team from The Blue Alliance.
     /// </summary>
-    /// <param name="year">The competition year/season.</param>
+    /// <param name="year">Competition year required by the route; history includes all seasons, not only this year.</param>
     /// <param name="teamNumber">The FRC team number.</param>
     /// <returns>Team history including events and performance.</returns>
     /// <response code="200">Returns the team history.</response>
@@ -1231,6 +1240,7 @@ public class FrcApiController(
     /// <summary>
     ///     Gets team connection history (partnerships and opponent matchups) from Casterstool for the given teams at an event.
     /// </summary>
+    /// <remarks>Deprecated: the Casters Tool integration is retained for compatibility with existing clients.</remarks>
     /// <param name="year">The competition year/season (e.g. 2025).</param>
     /// <param name="eventCode">The TBA event code (e.g. rikin, mabri).</param>
     /// <param name="teamNumbers">Comma-separated list of FRC team numbers (e.g. 1119,5962,8013).</param>
@@ -1242,10 +1252,15 @@ public class FrcApiController(
     /// <response code="500">Casterstool service error.</response>
     /// <response code="502">Upstream service (TBA, FRC Events) unavailable.</response>
     [HttpGet("matchups/{eventCode}/{teamNumbers}")]
+    [Obsolete("The Casters Tool integration is deprecated; this endpoint is retained for compatibility.")]
     [RedisCache("casterstool:connections", RedisCacheTime.OneDay)]
     [OpenApiTag("FRC Team Data")]
     [ProducesResponseType(typeof(List<TeamConnection>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    [ProducesResponseType((int)HttpStatusCode.TooManyRequests)]
+    [ProducesResponseType((int)HttpStatusCode.InternalServerError)]
+    [ProducesResponseType((int)HttpStatusCode.BadGateway)]
     public async Task<IActionResult> GetMatchupConnections(string year, string eventCode, string teamNumbers)
     {
         var result = await casterstoolApiClient.GetConnections(year, eventCode, teamNumbers);

@@ -163,11 +163,13 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     ///     All matches for a given tournament level, converted to FRC match format.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <param name="tournamentKey">Tournament level: t2 (Qualification), t3 (Playoff), or t4 (Finals).</param>
+    /// <param name="tournamentKey">Tournament level, case-insensitive: t2/qual, t3/playoff/playoffs, or t4/final/finals.</param>
     /// <returns>FRC-format matches response for the specified tournament level.</returns>
     /// <response code="200">Returns the match list for the tournament level.</response>
     /// <response code="204">No matches found.</response>
+    /// <response code="404">The tournament level is not recognized.</response>
     [HttpGet("{year:int}/matches/{tournamentKey}")]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [RedisCache("firstglobal:matches", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(FgMatchesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -223,11 +225,13 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     ///     Accepts t2/qual, t3/playoff, t4/final.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <param name="tournamentKey">Tournament level: t2/qual, t3/playoff, or t4/final.</param>
+    /// <param name="tournamentKey">Tournament level, case-insensitive: t2/qual, t3/playoff/playoffs, or t4/final/finals.</param>
     /// <returns>MatchScores response with the complete upstream details object for the specified level.</returns>
     /// <response code="200">Returns the match scores for the tournament level.</response>
     /// <response code="204">No scores found.</response>
+    /// <response code="404">The tournament level is not recognized.</response>
     [HttpGet("{year:int}/scores/{tournamentKey}")]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [ProducesResponseType(typeof(FgMatchScoresResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetScoresByTournament(string year, string tournamentKey)
@@ -282,11 +286,13 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     ///     Rankings for a given tournament level, converted to FRC rankings format.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <param name="tournamentKey">Tournament level: t2, t3, or t4.</param>
+    /// <param name="tournamentKey">Tournament level, case-insensitive: t2/qual, t3/playoff/playoffs, or t4/final/finals.</param>
     /// <returns>FRC-format rankings response for the specified tournament level.</returns>
     /// <response code="200">Returns the rankings for the tournament level.</response>
     /// <response code="204">No rankings found.</response>
+    /// <response code="404">The tournament level is not recognized.</response>
     [HttpGet("{year:int}/rankings/{tournamentKey}")]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [RedisCache("firstglobal:rankings", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(RankingsResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -315,11 +321,13 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     ///     Captain and picks map to FRC Captain/Round1/Round2/Round3 fields.
     /// </summary>
     /// <param name="year">Season year (e.g. 2025). Required.</param>
-    /// <param name="tournamentKey">Tournament level: t3 (Playoff) or t4 (Finals).</param>
+    /// <param name="tournamentKey">Tournament level, case-insensitive: t3/playoff/playoffs or t4/final/finals. Qualification is not supported.</param>
     /// <returns>FRC-format alliances response.</returns>
     /// <response code="200">Returns the alliance list for the tournament level.</response>
     /// <response code="204">No alliances found.</response>
+    /// <response code="404">The tournament level is not recognized or is a qualification level.</response>
     [HttpGet("{year:int}/alliances/{tournamentKey}")]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     [RedisCache("firstglobal:alliances", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(AlliancesResponse), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
@@ -421,11 +429,13 @@ public class FirstGlobalApiController(ILogger<FirstGlobalApiController> logger, 
     /// <returns>Dictionary of country code to dictionary of year to awards.</returns>
     /// <response code="200">Returns three seasons of awards grouped by country.</response>
     /// <response code="400">One or more country codes are not two alphanumeric characters.</response>
+    /// <response code="204">Upstream data could not be retrieved.</response>
     [HttpPost("{year:int}/queryAwards")]
     [RedisCache("firstglobal:batch-country-awards", RedisCacheTime.FiveMinutes)]
     [ProducesResponseType(typeof(Dictionary<string, Dictionary<string, TeamAwardsResponse>>),
         (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> QueryAwards(int year,
         [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)]
         FgAwardsQueryRequest? request)

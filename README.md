@@ -61,3 +61,28 @@ https://api.gatool.org/
 ```
 
 ### 🚀 NEW: All API documentation (including types!) is auto-generated and available at https://api.gatool.org/swagger/
+
+Event team lists use a query parameter on the season's team-list endpoint:
+
+```text
+GET /v3/2026/teams?eventCode=mawor1
+GET /ftc/v2/2025/teams?eventCode=USMAWAL
+```
+
+For FTC, the year is the season's starting year. Both endpoints combine all upstream pages.
+The Casters Tool matchup operation (`GET /v3/{year}/matchups/{eventCode}/{teamNumbers}`)
+is deprecated in OpenAPI but remains available for existing clients.
+
+Validate documentation locally with the .NET 10 SDK:
+
+```bash
+dotnet run --project scripts/swagger-coverage/SwaggerCoverage.csproj
+```
+
+This check maps the API assembly's actual controller endpoints, compares them with ApiExplorer and
+the generated OpenAPI document using the same Swagger configuration as the service, and verifies
+operation summaries, parameters, request bodies, response descriptions, and Casters Tool deprecation.
+It also checks the event-team query contract, raw JSON and seasonal score schemas, PNG media type,
+and Mailchimp webhook form metadata. No AWS credentials, Redis, or external API calls are needed:
+the API startup and endpoint handlers are not executed. To save the generated document, append
+`-- --output /absolute/path/swagger.json`.

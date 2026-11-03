@@ -1,6 +1,7 @@
 using GAToolAPI.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NSwag.Annotations;
 
 namespace GAToolAPI.Controllers;
 
@@ -16,8 +17,16 @@ namespace GAToolAPI.Controllers;
 [ApiController]
 [AllowAnonymous]
 [Route("auth/.well-known")]
+[OpenApiTag("Authentication")]
 public class AuthDiscoveryController(TokenService tokens) : ControllerBase
 {
+    /// <summary>Gets discovery metadata for the GATool access-token issuer. No authentication is required.</summary>
+    /// <remarks>
+    ///     Describes the issuer, JWKS URL, and supported signing algorithm. This is minimal discovery metadata,
+    ///     not a full OpenID Connect authorization server.
+    /// </remarks>
+    /// <returns>Issuer metadata including jwks_uri and the ES256 signing algorithm.</returns>
+    /// <response code="200">Returns the issuer discovery document.</response>
     [HttpGet("openid-configuration")]
     public object OpenIdConfiguration()
     {
@@ -32,6 +41,10 @@ public class AuthDiscoveryController(TokenService tokens) : ControllerBase
         };
     }
 
+    /// <summary>Gets the public JSON Web Key Set used to verify GATool access tokens. No authentication is required.</summary>
+    /// <param name="ct">Request cancellation token; not a client-supplied parameter.</param>
+    /// <returns>A keys array containing the public EC P-256 signing key; no private key material.</returns>
+    /// <response code="200">Returns the public signing key set.</response>
     [HttpGet("jwks.json")]
     public async Task<object> Jwks(CancellationToken ct)
     {

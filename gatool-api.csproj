@@ -10,7 +10,7 @@
         <Version>5.0.0</Version>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
         <NoWarn>$(NoWarn);1591</NoWarn>
-        <DefaultItemExcludes>$(DefaultItemExcludes);infra-cdk\**</DefaultItemExcludes>
+        <DefaultItemExcludes>$(DefaultItemExcludes);infra-cdk\**;scripts\swagger-coverage\**</DefaultItemExcludes>
     </PropertyGroup>
 
     <ItemGroup>

@@ -74,6 +74,7 @@ public class FTCHighScoresController(
     [HttpGet("{eventCode}")]
     [RedisCache("ftc:highscores", 5)]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     public async Task<IActionResult> GetHighScoresForEvent(int year, string eventCode)
     {
         if (eventCode.Equals("offline", StringComparison.CurrentCultureIgnoreCase)) return Ok(new List<HighScore>());

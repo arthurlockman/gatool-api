@@ -22,18 +22,36 @@ public class AdminController(
     AuthRepository authRepository,
     ILogger<AdminController> logger) : ControllerBase
 {
+    /// <summary>Lists roles that an administrator can manually grant or revoke. Requires admin authorization.</summary>
+    /// <returns>Assignable role names and display metadata.</returns>
+    /// <response code="200">Returns the assignable role catalog.</response>
+    /// <response code="401">An access token is required.</response>
+    /// <response code="403">The caller does not have the admin role.</response>
     [HttpGet("roles")]
     [Authorize(AuthPolicies.Admin)]
     [ProducesResponseType(typeof(IReadOnlyList<AssignableRoleMetadata>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     public IActionResult GetAssignableRoles()
     {
         return Ok(AuthRoleCatalog.ManuallyAssignable);
     }
 
+    /// <summary>Searches users by email prefix. Requires admin authorization.</summary>
+    /// <param name="query">Required, nonblank email prefix; trimmed and matched case-insensitively.</param>
+    /// <param name="limit">Maximum results to return, from 1 to 50; defaults to 20.</param>
+    /// <param name="cancellationToken">Request cancellation token; not a client-supplied parameter.</param>
+    /// <returns>User summaries with email, roles, creation time, and last login time.</returns>
+    /// <response code="200">Returns matching users, or an empty list when none match.</response>
+    /// <response code="400">The query is blank or the limit is outside 1 to 50.</response>
+    /// <response code="401">An access token is required.</response>
+    /// <response code="403">The caller does not have the admin role.</response>
     [HttpGet("users")]
     [Authorize(AuthPolicies.Admin)]
     [ProducesResponseType(typeof(IReadOnlyList<UserSummary>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     public async Task<IActionResult> SearchUsers([FromQuery] string? query, [FromQuery] int limit = 20,
         CancellationToken cancellationToken = default)
     {
@@ -44,21 +62,45 @@ public class AdminController(
         return Ok(users.Select(ToSummary));
     }
 
+    /// <summary>Grants a manually assignable role to an existing user. Requires admin authorization.</summary>
+    /// <param name="email">Email of the existing user, URL-encoded when necessary.</param>
+    /// <param name="role">Role name from GET /v3/system/roles.</param>
+    /// <param name="cancellationToken">Request cancellation token; not a client-supplied parameter.</param>
+    /// <returns>The updated user summary.</returns>
+    /// <response code="200">Returns the user with the role present.</response>
+    /// <response code="400">The role is not manually assignable.</response>
+    /// <response code="404">The user does not exist.</response>
+    /// <response code="401">An access token is required.</response>
+    /// <response code="403">The caller does not have the admin role.</response>
     [HttpPut("users/{email}/roles/{role}")]
     [Authorize(AuthPolicies.Admin)]
     [ProducesResponseType(typeof(UserSummary), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     public Task<IActionResult> GrantRole(string email, string role, CancellationToken cancellationToken)
     {
         return SetRolePresence(email, role, true, cancellationToken);
     }
 
+    /// <summary>Revokes a manually assignable role from an existing user. Requires admin authorization.</summary>
+    /// <param name="email">Email of the existing user, URL-encoded when necessary.</param>
+    /// <param name="role">Role name from GET /v3/system/roles.</param>
+    /// <param name="cancellationToken">Request cancellation token; not a client-supplied parameter.</param>
+    /// <returns>The updated user summary.</returns>
+    /// <response code="200">Returns the user with the role absent.</response>
+    /// <response code="400">The role is not manually assignable.</response>
+    /// <response code="404">The user does not exist.</response>
+    /// <response code="401">An access token is required.</response>
+    /// <response code="403">The caller does not have the admin role.</response>
     [HttpDelete("users/{email}/roles/{role}")]
     [Authorize(AuthPolicies.Admin)]
     [ProducesResponseType(typeof(UserSummary), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.BadRequest)]
     [ProducesResponseType((int)HttpStatusCode.NotFound)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     public Task<IActionResult> RevokeRole(string email, string role, CancellationToken cancellationToken)
     {
         return SetRolePresence(email, role, false, cancellationToken);
@@ -102,6 +144,8 @@ public class AdminController(
     /// <response code="204">No sync data found.</response>
     [HttpGet("syncusers")]
     [Authorize(AuthPolicies.Admin)]
+    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetUserSyncStatus()
     {
         var syncResults = await userStorage.GetUserSyncResults();
