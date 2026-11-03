@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text.Json.Nodes;
 using GAToolAPI.Attributes;
 using GAToolAPI.Extensions;
 using GAToolAPI.Models;
@@ -24,7 +23,7 @@ public class HighScoresController(
     /// <returns>List of high score entries (excludes FTC high scores).</returns>
     /// <response code="200">Returns the high scores list.</response>
     [HttpGet]
-    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetHighScores(int year)
     {
         var frcScores = await highScoreRepository.GetHighScores(year, ScoreProgram.FRC, ScoreScope.Global);
@@ -58,6 +57,7 @@ public class HighScoresController(
     [HttpGet("{eventCode}")]
     [RedisCache("frc:highscores", 5)]
     [ProducesResponseType(typeof(List<HighScore>), (int)HttpStatusCode.OK)]
+    [ProducesResponseType((int)HttpStatusCode.NotFound)]
     public async Task<IActionResult> GetHighScoresForEvent(int year, string eventCode)
     {
         if (eventCode.Equals("offline", StringComparison.CurrentCultureIgnoreCase))

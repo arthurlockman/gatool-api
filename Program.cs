@@ -14,8 +14,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using NewRelic.LogEnrichers.Serilog;
-using NSwag;
-using NSwag.Generation.Processors.Security;
 using Serilog;
 using Serilog.Events;
 using StackExchange.Redis;
@@ -185,21 +183,7 @@ try
     // Add HttpContextAccessor for RedisCache.IgnoreCurrentRequest() functionality
     builder.Services.AddHttpContextAccessor();
 
-    builder.Services.AddOpenApiDocument(config =>
-    {
-        config.Title = "GATool API";
-        config.Version = "v3";
-
-        config.AddSecurity("JWT", [], new OpenApiSecurityScheme
-        {
-            Type = OpenApiSecuritySchemeType.ApiKey,
-            Name = "Authorization",
-            In = OpenApiSecurityApiKeyLocation.Header,
-            Description = "Type into the textbox: Bearer {your JWT token}."
-        });
-
-        config.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
-    });
+    builder.Services.AddGatoolOpenApi();
 
     var redisConfig = new ConfigurationOptions
     {

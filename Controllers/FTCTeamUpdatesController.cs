@@ -26,7 +26,6 @@ public class FtcTeamUpdatesController(
     /// <response code="200">Returns the team updates or empty placeholder.</response>
     [HttpGet("team/{teamNumber}/updates")]
     [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
-    [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeamUpdatesForTeam(string teamNumber)
     {
         var teamUpdate = await userStorage.GetTeamUpdates(teamNumber, true);
@@ -50,8 +49,7 @@ public class FtcTeamUpdatesController(
     /// <returns>Update history entries.</returns>
     /// <response code="200">Returns the update history.</response>
     [HttpGet("team/{teamNumber}/updates/history")]
-    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
-    [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    [ProducesResponseType(typeof(IEnumerable<JsonObject>), (int)HttpStatusCode.OK)]
     public async Task<IActionResult> GetTeamUpdateHistory(string teamNumber)
     {
         var updateHistory = await userStorage.GetTeamUpdateHistory(teamNumber, true);
@@ -61,12 +59,21 @@ public class FtcTeamUpdatesController(
     /// <summary>
     ///     Stores or updates community updates (pit display data) for an FTC team. Requires user authorization.
     /// </summary>
+    /// <remarks>
+    ///     Team identifiers beginning with FG require the FIRST Global write policy:
+    ///     an admin role, or both user and FIRST Global write roles.
+    /// </remarks>
     /// <param name="updates">JSON object containing the updates to store.</param>
     /// <param name="teamNumber">The FTC team number.</param>
     /// <response code="204">Updates stored successfully.</response>
     /// <response code="400">Missing user email in token.</response>
+    /// <response code="401">An access token is required.</response>
+    /// <response code="403">The caller does not satisfy the team's write policy.</response>
     [HttpPut("team/{teamNumber}/updates")]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
+    [ProducesResponseType((int)HttpStatusCode.BadRequest)]
+    [ProducesResponseType((int)HttpStatusCode.Unauthorized)]
+    [ProducesResponseType((int)HttpStatusCode.Forbidden)]
     [Authorize]
     public async Task<IActionResult> StoreTeamUpdatesForTeam([FromBody] JsonObject updates, string teamNumber)
     {
@@ -90,9 +97,9 @@ public class FtcTeamUpdatesController(
     /// <param name="eventCode">The event code.</param>
     /// <returns>Array of objects with teamNumber and updates for each team that has updates.</returns>
     /// <response code="200">Returns updates for teams at the event.</response>
-    /// <response code="204">No team list or updates found.</response>
+    /// <response code="204">No team list found; a team list without updates returns an empty array with HTTP 200.</response>
     [HttpGet("{year}/communityUpdates/{eventCode}")]
-    [ProducesResponseType(typeof(JsonObject), (int)HttpStatusCode.OK)]
+    [ProducesResponseType(typeof(IEnumerable<JsonObject>), (int)HttpStatusCode.OK)]
     [ProducesResponseType((int)HttpStatusCode.NoContent)]
     public async Task<IActionResult> GetTeamUpdatesForEvent(string year, string eventCode)
     {
